@@ -12,6 +12,7 @@ void Search_Bin(int *arr,int n,int e){
         }
         else if(arr[m] > e) h = m - 1;
         else l = m + 1;
+        printf("test\n");
     }
     printf("The element is not exist.");
 }
