@@ -1,178 +1,80 @@
-#include"string.h"
-#include <queue>
+#include<malloc.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include <iostream>
 using namespace std;
-#include"malloc.h" /* malloc()等 */
-#include"stdio.h" /* EOF(=^Z或F6),NULL */
-#include"stdlib.h" /* exit() */
-typedef int InfoType; /* 顶点权值类型 */
-#define MAX_NAME 3 /* 顶点字符串的最大长度+1 */
-typedef char VertexType[MAX_NAME]; /* 字符串类型 */
-/*图的邻接表存储表示 */
-#define MAX_VERTEX_NUM 20
-typedef enum{DG,DN,AG,AN}GraphKind; /* {有向图,有向网,无向图,无向网} */
-typedef struct ArcNode
-{
-	int adjvex; /* 该弧所指向的顶点的位置 */
-	struct ArcNode *nextarc; /* 指向下一条弧的指针 */
-	InfoType *info; /* 网的权值指针） */
-}ArcNode; /* 表结点 */
+#define OK 1
+#define ERROR 0
+typedef int Status; // Status是函数的类型,其值是函数结果状态代码，如OK等
+typedef int QElemType;
+#define MAXQSIZE 100 // 最大队列长度(对于循环队列，最大队列长度要减1)
 
-typedef struct
-{
-	VertexType data; /* 顶点信息 */
-	ArcNode *firstarc; /* 第一个表结点的地址,指向第一条依附该顶点的弧的指针 */
-}VNode,AdjList[MAX_VERTEX_NUM]; /* 头结点 */
+typedef struct {
+    QElemType *base; // 初始化的动态分配存储空间
+    int front; // 头指针,若队列不空,指向队列头元素
+    int rear; // 尾指针,若队列不空,指向队列尾元素的下一个位置
+} SqQueue;
 
-typedef struct
-{
-	AdjList vertices;
-	int vexnum,arcnum; /* 图的当前顶点数和弧数 */
-	int kind; /* 图的种类标志 */
-}ALGraph;
-
-int LocateVex(ALGraph G,VertexType u)
-{ /* 初始条件: 图G存在,u和G中顶点有相同特征 */
-/* 操作结果: 若G中存在顶点u,则返回该顶点在图中位置;否则返回-1 */
-	int i;
-	for(i=0;i<G.vexnum;++i)
-		if(strcmp(u,G.vertices[i].data)==0)
-			return i;
-	return -1;
+Status InitQueue(SqQueue &Q) {
+// 构造一个空队列Q，该队列预定义大小为MAXQSIZE
+    Q.base=(QElemType*)malloc(MAXQSIZE*sizeof(QElemType));
+    if(!Q.base) exit(1);
+    Q.rear=Q.front=0;
+    return OK;
 }
 
-void CreateGraph(ALGraph *G)
-{ /* 采用邻接表存储结构,构造没有相关信息的图G(用一个函数构造4种图) */
-	int i,j,k;
-	int w; /* 权值 */
-	VertexType va,vb;
-	ArcNode *p;
-	//printf("Enter the type of map:(0~3): ");
-	scanf("%d",&(*G).kind);
-	//printf("Enter Vertex number,Arc number: ");
-	scanf("%d%d",&(*G).vexnum,&(*G).arcnum);
-	//printf("Enter %d Vertex :\n",(*G).vexnum);
-	for(i=0;i<(*G).vexnum;++i) /* 构造顶点向量 */
-	{
-		scanf("%s",(*G).vertices[i].data);
-		(*G).vertices[i].firstarc=NULL;
-	}
-	//if((*G).kind==1||(*G).kind==3) /* 网 */
-	//	printf("Enter order every arc weight,head and tail (Takes the gap by the blank space ):\n");
-	//else /* 图 */
-	//	printf("Enter order every arc head and tail (Takes the gap by the blank space ):\n");
-	for(k=0;k<(*G).arcnum;++k) /* 构造表结点链表 */
-	{
-		if((*G).kind==1||(*G).kind==3) /* 网 */
-		scanf("%d%s%s",&w,va,vb);
-		else /* 图 */
-		scanf("%s%s",va,vb);
-		i=LocateVex(*G,va); /* 弧尾 */
-		j=LocateVex(*G,vb); /* 弧头 */
-		p=(ArcNode*)malloc(sizeof(ArcNode));
-		p->adjvex=j;
-		if((*G).kind==1||(*G).kind==3) /* 网 */
-		{
-			p->info=(int *)malloc(sizeof(int));
-			*(p->info)=w;
-		}
-		else
-		p->info=NULL; /* 图 */
-		p->nextarc=(*G).vertices[i].firstarc; /* 插在表头 */
-		(*G).vertices[i].firstarc=p;
-		if((*G).kind>=2) /* 无向图或网,产生第二个表结点 */
-		{
-			p=(ArcNode*)malloc(sizeof(ArcNode));
-			p->adjvex=i;
-			if((*G).kind==3) /* 无向网 */
-			{
-				p->info=(int*)malloc(sizeof(int));
-				*(p->info)=w;
-			}
-			else
-			p->info=NULL; /* 无向图 */
-			p->nextarc=(*G).vertices[j].firstarc; /* 插在表头 */
-			(*G).vertices[j].firstarc=p;
-		}
-	}
+Status EnQueue(SqQueue &Q,QElemType e) {
+// 插入元素e为Q的新的队尾元素
+    if((Q.rear+1)%MAXQSIZE==Q.front) return ERROR;
+    Q.base[Q.rear]=e;
+    Q.rear=(Q.rear+1)%MAXQSIZE;
+    return OK;
 }
 
-VertexType* GetVex(ALGraph G,int v)
-{ /* 初始条件: 图G存在,v是G中某个顶点的序号。操作结果: 返回v的值 */
-	if(v>=G.vexnum||v<0)
-		exit(0);
-	return &G.vertices[v].data;
+Status DeQueue(SqQueue &Q, QElemType &e) {
+// 若队列不空, 则删除Q的队头元素, 用e返回其值, 并返回OK; 否则返回ERROR
+    if(Q.front==Q.rear) return ERROR;
+    e=Q.base[Q.front];
+    Q.front=(Q.front+1)%MAXQSIZE;
+    return OK;
 }
 
-int FirstAdjVex(ALGraph G,VertexType v)
-{ /* 初始条件: 图G存在,v是G中某个顶点 */
-/* 操作结果: 返回v的第一个邻接顶点的序号。若顶点在G中没有邻接顶点,则返回-1 */
-	ArcNode *p;
-	int v1;
-	v1=LocateVex(G,v); /* v1为顶点v在图G中的序号 */
-	p=G.vertices[v1].firstarc;
-	if(p)
-		return p->adjvex;
-	else
-		return -1;
+Status GetHead(SqQueue Q, QElemType &e) {
+// 若队列不空，则用e返回队头元素，并返回OK，否则返回ERROR
+    if(Q.front==Q.rear) return ERROR;
+    e=Q.base[Q.front];
+    return OK;
 }
 
-int NextAdjVex(ALGraph G,VertexType v,VertexType w)
-{ /* 初始条件: 图G存在,v是G中某个顶点,w是v的邻接顶点 */
-/* 操作结果: 返回v的(相对于w的)下一个邻接顶点的序号。 */
-/* 若w是v的最后一个邻接点,则返回-1 */
-	ArcNode *p;
-	int v1,w1;
-	v1=LocateVex(G,v); /* v1为顶点v在图G中的序号 */
-	w1=LocateVex(G,w); /* w1为顶点w在图G中的序号 */
-	p=G.vertices[v1].firstarc;
-	while(p&&p->adjvex!=w1) /* 指针p不空且所指表结点不是w */
-		p=p->nextarc;
-	if(!p||!p->nextarc) /* 没找到w或w是最后一个邻接点 */
-		return -1;
-	else /* p->adjvex==w */
-		return p->nextarc->adjvex; /* 返回v的(相对于w的)下一个邻接顶点的序号 */
+int QueueLength(SqQueue Q) {
+// 返回Q的元素个数
+    return Q.rear%MAXQSIZE-Q.front%MAXQSIZE;
 }
 
-/*深度遍历*/
-int visited[MAX_VERTEX_NUM]; /* 访问标志数组(全局量),未访问标记0，访问标记1 */
-void(*VisitFunc)(char* v); /* 函数变量(全局量) */
-
-void DFSTraverse(ALGraph G,void(*Visit)(char*))
-{ /* 对图G作深度优先遍历。算法7.4 */
-/* 使用全局变量VisitFunc,使DFS不必设函数指针参数 */
-/* 访问标志数组初始化 */
-/* 对尚未访问的顶点调用DFS */
-    queue<int> q;
-    for(int i = 0; i < G.vexnum; i++ ) visited[i] = 0;
-    for(int i = 0; i < G.vexnum; i++ ){
-        if(visited[i] == 0){
-            visited[i] = 1;
-            q.push(i);
-        }
-        while(!q.empty()){
-            int p = q.front();
-            q.pop();
-            Visit(G.vertices[p].data);
-            for(int w = FirstAdjVex(G,G.vertices[p].data);w >= 0;w = NextAdjVex(G,G.vertices[p].data,G.vertices[w].data)){
-                if(visited[w] == 0){
-                    visited[w] = 1;
-                    q.push(w);
-                }
-            }
+int main(){
+    SqQueue Q1,Q2;
+    InitQueue(Q1);
+    InitQueue(Q2);
+    int n,e;
+    cin >> n;
+    for(int i = 0;i < n;i++){
+        cin >> e;
+        EnQueue(Q1,e);
+        cin >> e;
+        EnQueue(Q2,e);
+    }
+    float sum = 0,wait = 0;
+    int a,b;
+    for(int i = 0; i < n; i++) {
+        DeQueue(Q1,a);
+        DeQueue(Q2,b);
+        if(sum <= a){
+            sum = a;
+            sum += b;
+        } else {
+            wait += (sum - a);
+            sum += b;
         }
     }
-	printf("\n");
-}
-
-void print(char *i)
-{
-	printf("%s ",i);
-}
-
-int main()
-{
-	ALGraph g;
-	CreateGraph(&g);
-	DFSTraverse(g,print);
-	return 1;
+    printf("%.2f",wait / n);
 }
