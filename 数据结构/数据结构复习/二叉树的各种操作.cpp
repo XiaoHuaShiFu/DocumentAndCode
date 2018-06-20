@@ -1,5 +1,6 @@
-#include <stdio.h>
 #include <malloc.h>
+#include <iostream>
+using namespace std;
 #define TRUE 1
 #define FALSE 0
 #define OK  1
@@ -12,6 +13,7 @@ typedef int  ElemType;
 
 typedef struct BiTNode {
     ElemType data;
+    int bf;
     struct BiTNode *lchild,*rchild;//左右孩子指针
 } BiTNode,*BiTree;
 
@@ -32,7 +34,7 @@ typedef struct {
 
 //初始化队列，成功返回1，失败返回0
 Status InitQueue( LinkQueue &Q ) {
-    Q.front = Q.rear = (QueuePtr)malloc(sizeof(QNode));
+    Q.front = Q.rear = new QNode;
     if(!Q.front) return 0;
     Q.front->next = NULL;
     return 1;
@@ -41,7 +43,7 @@ Status InitQueue( LinkQueue &Q ) {
 //入队，成功返回1，失败返回0
 Status EnQueue( LinkQueue &Q , BiTree e ) {
     QueuePtr P;
-    P = (QueuePtr)malloc(sizeof(QNode));
+    P = new QNode;
     if(!P) return 0;
     P->data = e;
     P->next = NULL;
@@ -64,7 +66,7 @@ Status DeQueue( LinkQueue &Q , BiTree &e ) {
 
 //初始化栈，成功返回1，失败返回0
 Status InitStack( Stack &S ) {
-    S.base = (BiTree *)malloc(100 * sizeof(BiTree));
+    S.base = new BiTree[100];
     if(!S.base) return 0;
     S.top = S.base;
     S.stacksize = 100;
@@ -105,28 +107,9 @@ Status SearchBST( BiTree T , int key , BiTree f , BiTree &p ) {
     }
 }
 
-//插入结点，成功返回1，失败返回0
-Status InserBST( BiTree &T , ElemType e ) {
-    BiTree p;
-    BiTree s;
-    if(!SearchBST(T,e,NULL,p)) {
-        s = (BiTree)malloc(sizeof(BiTNode));
-        s -> data = e;
-        s -> lchild = NULL;
-        s -> rchild = NULL;
-        if(!p)T = s;//第一个节点
-        else if(e < (p -> data)) {
-            p -> lchild = s;
-        } else {
-            p -> rchild = s;
-        }
-        return TRUE;
-    } else return FALSE;
-}
-
 //初始化二叉树，成功返回1，失败返回0
 Status InitBST( BiTree &T , int e ) {
-    T = (BiTree)malloc(sizeof(BiTNode));
+    T = new BiTNode;
     T->data = e;
     T->lchild=T->rchild=NULL;
     return TRUE;
@@ -134,9 +117,9 @@ Status InitBST( BiTree &T , int e ) {
 
 //输出元素e的值
 Status PrintElement( ElemType e ) {
-    printf("%d ", e );
+    cout << e << " ";
     return OK;
-}// PrintElement
+}
 
 //非递归前序
 void PreOrder( BiTree T , Status(*Visit)(ElemType) ) {
@@ -160,7 +143,7 @@ void PreOrderTraverse( BiTree T, Status(*Visit)(ElemType) ) {
         PreOrderTraverse(T -> lchild,Visit);
         PreOrderTraverse(T -> rchild,Visit);
     }
-} // PreOrderTrav
+}
 
 //非递归后序
 void PostOrder( BiTree T, Status(*Visit)(ElemType) ) {
@@ -223,20 +206,20 @@ void ccTraverse( BiTree T , Status (*Visit)(int e) ) {
     LinkQueue Q;
     InitQueue(Q);
     BiTree P = T;
-    Visit(P->data);
-    if(P->lchild) {
-        EnQueue(Q,P->lchild);
+    Visit(P -> data);
+    if(P -> lchild) {
+        EnQueue(Q,P -> lchild);
     }
-    if(P->rchild) {
-        EnQueue(Q,P->rchild);
+    if(P -> rchild) {
+        EnQueue(Q,P -> rchild);
     }
-    while(DeQueue(Q,P)!=0) {
-        Visit(P->data);
-        if(P->lchild) {
-            EnQueue(Q,P->lchild);
+    while(DeQueue(Q,P) != 0) {
+        Visit(P -> data);
+        if(P -> lchild) {
+            EnQueue(Q,P -> lchild);
         }
-        if(P->rchild) {
-            EnQueue(Q,P->rchild);
+        if(P -> rchild) {
+            EnQueue(Q,P -> rchild);
         }
     }
 }
@@ -244,175 +227,352 @@ void ccTraverse( BiTree T , Status (*Visit)(int e) ) {
 //交换左右结点
 void ExchangeBiTNode( BiTree &T ) {
     BiTree P;
-    P = T->lchild;
-    T->lchild = T->rchild;
-    T->rchild = P;
-    if(T->lchild) {
-        ExchangeBiTNode(T->lchild);
+    P = T -> lchild;
+    T -> lchild = T -> rchild;
+    T -> rchild = P;
+    if(T -> lchild) {
+        ExchangeBiTNode(T -> lchild);
     }
-    if(T->rchild) {
-        ExchangeBiTNode(T->rchild);
+    if(T -> rchild) {
+        ExchangeBiTNode(T -> rchild);
     }
 }
 
 //树深，返回树深
 Status BiTreeHigh( BiTree T ) {
     int High = 0;
-    if(T!=NULL) {
-        int LH = BiTreeHigh(T->lchild);
-        int RH = BiTreeHigh(T->rchild);
-        High = LH >= RH ? LH+1 : RH+1;
+    if(T != NULL) {
+        int LH = BiTreeHigh(T -> lchild);
+        int RH = BiTreeHigh(T -> rchild);
+        High = LH >= RH ? LH + 1 : RH + 1;
     }
     return High;
 }
 
 //叶子节点数，返回叶子结点树
 Status BiTNodeNumber( BiTree T , int &Node ) {
-    if(T!=NULL) {
-        if(!(T->lchild || T->rchild)) {
+    if(T != NULL) {
+        if(!(T -> lchild || T -> rchild)) {
             Node++;
         }
-        BiTNodeNumber(T->lchild,Node);
-        BiTNodeNumber(T->rchild,Node);
+        BiTNodeNumber(T -> lchild,Node);
+        BiTNodeNumber(T -> rchild,Node);
     }
     return Node;
 }
 
-//删除结点
-void DeleteNode( BiTree &T ) {
-    BiTree q, s;
-    if( !T -> lchild && !T -> rchild ) T = NULL;
-    else if( !T -> lchild ) {
-        q = T;
-        T = T->rchild;
-    } else if( !T -> rchild ) {
-        q = T;
-        T = T -> lchild;
+//右旋
+void RR(BiTree &T) {
+    BiTree T1;
+    T1 = T -> lchild;
+    T -> lchild = T1 -> rchild;
+    T1 -> rchild = T;
+    T = T1;
+}
+
+//左旋
+void LR(BiTree &T) {
+    BiTree T1;
+    T1 = T -> rchild;
+    T -> rchild = T1 -> lchild;
+    T1 -> lchild = T;
+    T = T1;
+}
+
+//右平衡
+void RightBalance(BiTree &T) {
+    BiTree R,rl;
+    R = T -> rchild;
+    switch (R -> bf) {
+        case -1:
+            T -> bf = R -> bf = 0;
+            LR(T);
+            break;
+        case 0:
+            T -> bf = -1;
+            R -> bf = 1;
+            LR(T);
+            break;
+        case 1:
+            rl = R -> lchild;
+            switch (rl -> bf) {
+                case 0:
+                    T -> bf = R -> bf = 0;
+                    break;
+                case -1:
+                    R -> bf = 0;
+                    T -> bf = 1;
+                    break;
+                case 1:
+                    R -> bf = -1;
+                    T -> bf = 0;
+                    break;
+                default:
+                    break;
+            }
+            rl -> bf = 0;
+            RR(T -> rchild);
+            LR(T);
+            break;
+    }
+}
+
+//左平衡
+void LeftBalance(BiTree &T) {
+    BiTree L,lr;
+    L = T -> lchild;
+    switch (L -> bf) {
+        case 0:
+            L -> bf = -1;
+            T -> bf = 1;
+            RR(T);
+            break;
+        case 1:
+            L -> bf = T -> bf = 0;
+            RR(T);
+            break;
+        case -1:
+            lr = L -> rchild;
+            switch (lr -> bf) {
+                case 0:
+                    L -> bf = L -> bf = 0;
+                case -1:
+                    T -> bf = 0;
+                    L -> bf = 1;
+                    break;
+                case 1:
+                    L -> bf = 0;
+                    T -> bf = -1;
+                    break;
+                default:
+                    break;
+            }
+            lr -> bf = 0;
+            LR(T -> lchild);
+            RR(T);
+            break;
+        default:
+            break;
+    }
+}
+
+//插入结点
+bool InsertNode(BiTree &T,int key,bool &taller) {
+    if(!T) {
+        T = new BiTNode;
+        T -> bf = 0;
+        T -> lchild = T -> rchild = NULL;
+        T -> data = key;
+        taller = true;
+        return true;
     } else {
-        q = T;
-        s = T -> lchild;
-        while(s -> rchild) {
-            q = s;
-            s = s -> rchild;
+        if(key == T -> data) {
+            taller = false;
+            return false;
         }
-        T -> data = s -> data;
-        if( q != T ) q -> rchild = s -> lchild;
-        else q -> lchild = s -> lchild;
+        if(key < T -> data) {
+            if(!InsertNode(T -> lchild,key,taller))
+                return false;
+            if(taller) {
+                switch (T -> bf) {
+                    case 0:
+                        T -> bf = 1;
+                        taller = true;
+                        break;
+                    case 1:
+                        LeftBalance(T);
+                        taller = false;
+                        break;
+                    case -1:
+                        T -> bf = 0;
+                        taller = false;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        } else {
+            if(!InsertNode(T -> rchild,key,taller))
+                return false;
+            if(taller) {
+                switch (T -> bf) {
+                    case 0:
+                        T -> bf = -1;
+                        taller = true;
+                        break;
+                    case 1:
+                        T -> bf = 0;
+                        taller = false;
+                        break;
+                    case -1:
+                        RightBalance(T);
+                        taller = false;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+
     }
 }
 
 //删除结点
-void DeleteBST( BiTree &T , int key ) {
-    if( !T ) return ;
-    else {
-        if( key == T -> data ) DeleteNode(T);
-        else if( key < T -> data) return DeleteBST(T -> lchild, key);
-        else return DeleteBST(T -> rchild, key);
+bool DeleteNode(BiTree &T,int key,bool &lower) {
+    bool L,R;
+    L = R = false;
+    if(T == NULL)
+        return false;
+    if(key == T -> data) {
+        BiTNode* p,*s;
+        p = T -> rchild;
+        s = p;
+        lower = true;
+        if(T -> rchild == NULL) {
+            p = T;
+            T = T -> lchild;
+            free(p);
+            lower = true;
+            return true;
+        } else {
+            while (s) {
+                p = s;
+                s = s -> lchild;
+            }
+            T -> data = p -> data;
+            DeleteNode(T -> rchild,p -> data,lower);
+            R = true;
+        }
+    } else if(key < T -> data) {
+        DeleteNode(T -> lchild,key,lower);
+        L = true;
+    } else {
+        DeleteNode(T -> rchild,key,lower);
+        R = true;
+    }
+    if(lower) {
+        if(L) {
+            switch (T -> bf) {
+                case 1:
+                    T -> bf = 0;
+                    lower = true;
+                    break;
+                case -1:
+                    RightBalance(T);
+                    lower = false;
+                    break;
+                case 0:
+                    T -> bf = -1;
+                    lower = false;
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            switch (T -> bf) {
+                case 0:
+                    T -> bf = 1;
+                    lower = false;
+                    break;
+                case -1:
+                    T -> bf = 0;
+                    lower = true;
+                    break;
+                case 1:
+                    LeftBalance(T);
+                    lower = false;
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 }
 
 int main() {
-    int n,i,e,Node = 0;
+    int n,e,Node = 0;
+    bool taller;
     BiTree T;
     BiTree P;
-    scanf("%d",&n);
-    scanf("%d",&e);
+    cin >> n;
+    cin >> e;
     InitBST(T,e);
-    for(i = 1; i < n; i++) {
-        scanf("%d",&e);
-        InserBST(T,e);
+
+
+    for(int i = 1; i < n; i++) {
+        cin >> e;
+        InsertNode(T,e,taller);
     }
 
 
-    printf("先序遍历\n");
+    cout << "先序遍历" << endl;
     PreOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("中序遍历\n");
+    cout << endl << "中序遍历" << endl;
     InOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("后序遍历\n");
+    cout << endl << "后序遍历" << endl;
     PostOrderTraverse(T,PrintElement);
-    printf("\n");
+    cout << endl;
+
+    cout << "搜索结点" << endl;
+    cin >> e;
+    cout << SearchBST(T,e,NULL,P) << endl;
 
 
-    printf("搜索结点\n");
-    scanf("%d",&e);
-    printf("%d\n",SearchBST(T,e,NULL,P));
-
-
-    printf("插入结点后前中后序遍历\n");
-    scanf("%d",&e);
-    InserBST(T,e);
-    printf("先序遍历\n");
+    cout << "插入结点后前中后序遍历" << endl;
+    cin >> e;
+    InsertNode(T,e,taller);
+    cout << "先序遍历" << endl;
     PreOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("先序遍历非递归\n");
+    cout << endl << "先序遍历非递归" << endl;
     PreOrder(T,PrintElement);
-    printf("\n");
-    printf("中序遍历\n");
+    cout << endl << "中序遍历" << endl;
     InOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("中序遍历非递归\n");
+    cout << endl << "中序遍历非递归" << endl;
     InOrder(T,PrintElement);
-    printf("\n");
-    printf("后序遍历\n");
+    cout << endl << "后序遍历" << endl;
     PostOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("后序遍历非递归\n");
+    cout << endl << "后序遍历非递归" << endl;
     PostOrder(T,PrintElement);
-    printf("\n");
 
 
-    printf("删除结点后前中后序遍历\n");
-    scanf("%d",&e);
-    DeleteBST(T,e);
-    printf("先序遍历\n");
+    cout << endl << "删除结点后前中后序遍历" << endl;
+    cin >> e;
+    DeleteNode(T,e,taller);
+    cout << "先序遍历" << endl;
     PreOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("中序遍历\n");
+    cout << endl << "中序遍历" << endl;
     InOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("后序遍历\n");
+    cout << endl << "后序遍历" << endl;
     PostOrderTraverse(T,PrintElement);
-    printf("\n");
 
 
-    printf("层次遍历\n");
+    cout << endl << "层次遍历" << endl;
     ccTraverse(T,PrintElement);
-    printf("\n");
 
 
-    printf("交换左右结点后前中后先遍历\n");
+    cout << endl << "交换左右结点后前中后先遍历" << endl;
     ExchangeBiTNode(T);
-    printf("先序遍历\n");
+    cout << "先序遍历" << endl;
     PreOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("中序遍历\n");
+    cout << endl << "中序遍历" << endl;
     InOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("后序遍历\n");
+    cout << endl << "后序遍历" << endl;
     PostOrderTraverse(T,PrintElement);
-    printf("\n");
 
 
-    printf("再次交换左右结点后前中后先遍历\n");
+    cout << endl << "再次交换左右结点后前中后先遍历" << endl;
     ExchangeBiTNode(T);
-    printf("先序遍历\n");
+    cout << "先序遍历" << endl;
     PreOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("中序遍历\n");
+    cout << endl << "中序遍历" << endl;
     InOrderTraverse(T,PrintElement);
-    printf("\n");
-    printf("后序遍历\n");
+    cout << endl << "后序遍历" << endl;
     PostOrderTraverse(T,PrintElement);
-    printf("\n");
+    cout << endl;
 
 
-    printf("树高\n");
-    printf("%d",BiTreeHigh(T));
-    printf("\n");
-    printf("叶子结点树\n");
-    printf("%d",BiTNodeNumber(T,Node));
-    printf("\n");
+    cout << "树高" << endl << BiTreeHigh(T) << endl;
+    cout << "叶子结点数" << endl << BiTNodeNumber(T,Node) << endl;
 
 }
