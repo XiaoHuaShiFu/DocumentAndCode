@@ -1,4 +1,4 @@
-package JavaLearning;
+package human;
 import java.time.*;
 import java.util.*;
 
@@ -7,7 +7,7 @@ import java.util.*;
  * Employee对象
  */
 
-public class Employee extends Person{
+public class Employee extends Person implements Comparable<Employee>,Cloneable{
 	 
 	 //实例域
 	 //有final的实例除了构造时其余时候不可再被改变
@@ -54,22 +54,60 @@ public class Employee extends Person{
 //	 public Employee() {
 //	 }
 	 
+	 /**
+	  * return -1是小于，0是等于，1是大于
+	  * 实现Comparable接口
+	  */
+	 final public int compareTo(Employee other) {
+		 if (this.getRank() != other.getRank()) {
+			 return Integer.compare(this.getRank(), other.getRank());
+		 } else {
+			 return -Double.compare(this.getSalary(), other.getSalary());
+		 }
+	 }
+	 
 	 
 	 /**
-	  * 
-	  * @return Employee's name
+	  * 浅拷贝
+	  * 实现Cloneable()接口
+	  * 并把Object.clone()本来是protected类型的
+	  * 改变为public类型的从而实现可以访问
 	  */
-//	 public String getName() {
-//		 return this.name;
-//	 }
-	 
-	 public double getSalary() {
-		 return this.salary;
+	 public Employee clone() throws CloneNotSupportedException{
+		 return (Employee) super.clone();
 	 }
 	 
-	 public LocalDate getHireDay() {
-		 return this.hireDay;
-	 }
+	 /**
+	  * 浅拷贝
+	  * 实现Cloneable()接口
+	  * 并把Object.clone()本来是protected类型的
+	  * 改变为public类型的从而实现可以访问
+	  * 用捕获异常的方式
+	  */
+	 /*public Employee clone() {
+		 try {
+			 return (Employee) super.clone();
+		 } catch (CloneNotSupportedException e) {
+			 return null;
+		 }
+	 }*/
+	 
+	 /**
+	  * 深拷贝
+	  * 实现Cloneable()接口
+	  * 并把Object.clone()本来是protected类型的
+	  * 改变为public类型的从而实现可以访问
+	  * 并升级为深拷贝
+	  */
+	 /*Date HireDay = new Date();
+	 public Employee clone() throws CloneNotSupportedException{
+		 Employee cloned = (Employee) super.clone();
+		 //因为Date类型是可改变的，所以需要深拷贝
+		 cloned.HireDay = (Date) HireDay.clone();
+		 return cloned;
+	 }*/
+	 
+	 
 	 
 	 /**
 	  * 
@@ -135,15 +173,13 @@ public class Employee extends Person{
 		 
 	 } 
 	 
+	 public double getSalary() {
+		 return this.salary;
+	 }
 	 
-/*	 private void setId() {
-		 this.id = nextId;
-		 nextId++;
-	 }*/
-	 
-/*	 private static int assignId(){
-		 return nextId++;
-	 }*/
+	 public LocalDate getHireDay() {
+		 return this.hireDay;
+	 }
 	 
 	 public int getId() {
 		 return this.id;
@@ -162,6 +198,14 @@ public class Employee extends Person{
 			return "a employee id is " + this.id;
 	 }
 	 
+	 /**
+	  * 等级 越大等级越高
+	  * @return 1
+	  */
+	 public int getRank() {
+		 return 1;
+	 }
+	 
 	 public int hashCode() {
 		/* return 7 * Objects.hashCode(this.getName())
 			+ 11 * Double.hashCode(this.salary)
@@ -176,5 +220,5 @@ public class Employee extends Person{
 		 	+ ",hireDay=" + this.hireDay
 		 	+ "]";
 	 }
-	 
+	  
 }

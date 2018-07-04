@@ -1,4 +1,4 @@
-package JavaLearning;
+package human;
 
 /**
  * 
@@ -14,6 +14,7 @@ public class Manager extends Employee{
 		//super指调用父类拥有name, salary, year, month, day参数的构造器
 		super(name, salary, year, month, day);
 		this.bonus = 0;
+		
 	}
 	
 	public void setBonus(double bonus) {
@@ -46,5 +47,15 @@ public class Manager extends Employee{
 			+ "[bouns=" + this.bonus
 			+ "]";
 	}
+	
+	
+	/**
+	  * 等级 越大等级越高
+	  * @return 2
+	  */
+	public int getRank() {
+		 return 2;
+	 }
+	
 	
 }

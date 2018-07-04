@@ -1,80 +1,79 @@
-#include<malloc.h>
-#include<stdio.h>
-#include<stdlib.h>
+#include "stdio.h"
+#include "stdlib.h"
 #include <iostream>
 using namespace std;
-#define OK 1
-#define ERROR 0
-typedef int Status; // Status是函数的类型,其值是函数结果状态代码，如OK等
-typedef int QElemType;
-#define MAXQSIZE 100 // 最大队列长度(对于循环队列，最大队列长度要减1)
+#define TRUE  1
+#define FALSE  0
+#define OK  1
+#define ERROR  0
+#define INFEASLBLE  -1
+#define OVERFLOW  -2
+#define MAXSTRLEN  255 	//用户可在255以内定义最大串长
+typedef unsigned char SString[MAXSTRLEN+1];	//0号单元存放串的长度
 
-typedef struct {
-    QElemType *base; // 初始化的动态分配存储空间
-    int front; // 头指针,若队列不空,指向队列头元素
-    int rear; // 尾指针,若队列不空,指向队列尾元素的下一个位置
-} SqQueue;
-
-Status InitQueue(SqQueue &Q) {
-// 构造一个空队列Q，该队列预定义大小为MAXQSIZE
-    Q.base=(QElemType*)malloc(MAXQSIZE*sizeof(QElemType));
-    if(!Q.base) exit(1);
-    Q.rear=Q.front=0;
-    return OK;
-}
-
-Status EnQueue(SqQueue &Q,QElemType e) {
-// 插入元素e为Q的新的队尾元素
-    if((Q.rear+1)%MAXQSIZE==Q.front) return ERROR;
-    Q.base[Q.rear]=e;
-    Q.rear=(Q.rear+1)%MAXQSIZE;
-    return OK;
-}
-
-Status DeQueue(SqQueue &Q, QElemType &e) {
-// 若队列不空, 则删除Q的队头元素, 用e返回其值, 并返回OK; 否则返回ERROR
-    if(Q.front==Q.rear) return ERROR;
-    e=Q.base[Q.front];
-    Q.front=(Q.front+1)%MAXQSIZE;
-    return OK;
-}
-
-Status GetHead(SqQueue Q, QElemType &e) {
-// 若队列不空，则用e返回队头元素，并返回OK，否则返回ERROR
-    if(Q.front==Q.rear) return ERROR;
-    e=Q.base[Q.front];
-    return OK;
-}
-
-int QueueLength(SqQueue Q) {
-// 返回Q的元素个数
-    return Q.rear%MAXQSIZE-Q.front%MAXQSIZE;
-}
-
-int main(){
-    SqQueue Q1,Q2;
-    InitQueue(Q1);
-    InitQueue(Q2);
-    int n,e;
-    cin >> n;
-    for(int i = 0;i < n;i++){
-        cin >> e;
-        EnQueue(Q1,e);
-        cin >> e;
-        EnQueue(Q2,e);
-    }
-    float sum = 0,wait = 0;
-    int a,b;
-    for(int i = 0; i < n; i++) {
-        DeQueue(Q1,a);
-        DeQueue(Q2,b);
-        if(sum <= a){
-            sum = a;
-            sum += b;
+void get_next(SString T,int next[]) {
+// 算法4.7
+// 求模式串T的next函数值并存入数组next
+    // 请补全代码
+    int i = 1;
+    int j = 0;
+    next[1] = 0;
+    while(i < T[0]){
+        if(j == 0 || T[i] == T[j]){
+            i++;
+            j++;
+            next[i] = j;
         } else {
-            wait += (sum - a);
-            sum += b;
+            j = next[j];
         }
     }
-    printf("%.2f",wait / n);
+
+
+
+}
+
+int Index_KMP(SString S,SString T,int pos) {
+// 算法4.6
+// 利用模式串T的next函数求T在主串S中第pos个字符之后的位置
+// KMP算法。请补全代码
+    int i = pos;
+    int j = 1;
+    int *next = new int[S[0]];
+
+    while(i <= S[0] && j <= T[0]){
+        if(j == 0 || S[i] == T[j]){
+            i++;
+            j++;
+        } else {
+            j = next[j];
+        }
+    }
+    if(j > T[0]) return i - T[0];
+    else return 0;
+
+
+}
+int main() {
+    SString T,S;
+    int i,j,n;
+    char ch;
+    int pos;
+    scanf("%d",&n);    // 指定n对需进行模式匹配的字符串
+    ch=getchar();
+    for(j=1; j<=n; j++) {
+        ch=getchar();
+        for( i=1; i<=MAXSTRLEN&&(ch!='\n'); i++) { // 录入主串
+            S[i]=ch;
+            ch=getchar();
+        }
+        S[0]=i-1;    // S[0]用于存储主串中字符个数
+        ch=getchar();
+        for( i=1; i<=MAXSTRLEN&&(ch!='\n'); i++) { // 录入模式串
+            T[i]=ch;
+            ch=getchar();
+        }
+        T[0]=i-1;    // T[0]用于存储模式串中字符个数
+        pos=Index_KMP(S,T,0);    // 请填空
+        printf("%d\n",pos);
+    }
 }
