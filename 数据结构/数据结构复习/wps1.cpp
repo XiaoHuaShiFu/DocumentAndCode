@@ -1,79 +1,43 @@
-#include "stdio.h"
-#include "stdlib.h"
 #include <iostream>
 using namespace std;
-#define TRUE  1
-#define FALSE  0
-#define OK  1
-#define ERROR  0
-#define INFEASLBLE  -1
-#define OVERFLOW  -2
-#define MAXSTRLEN  255 	//用户可在255以内定义最大串长
-typedef unsigned char SString[MAXSTRLEN+1];	//0号单元存放串的长度
 
-void get_next(SString T,int next[]) {
-// 算法4.7
-// 求模式串T的next函数值并存入数组next
-    // 请补全代码
-    int i = 1;
-    int j = 0;
-    next[1] = 0;
-    while(i < T[0]){
-        if(j == 0 || T[i] == T[j]){
-            i++;
-            j++;
-            next[i] = j;
-        } else {
-            j = next[j];
+void adjust(int *arr,int l,int h) {
+    int j = l * 2 + 1;
+    while(j <= h) {
+        if(arr[j] < arr[j + 1] && j + 1 <= h) j++;
+        if(arr[j] > arr[l]) {
+            int temp = arr[j];
+            arr[j] = arr[l];
+            arr[l] = temp;
+
         }
+        l = j;
+        j = l * 2 + 1;
     }
-
-
-
 }
 
-int Index_KMP(SString S,SString T,int pos) {
-// 算法4.6
-// 利用模式串T的next函数求T在主串S中第pos个字符之后的位置
-// KMP算法。请补全代码
-    int i = pos;
-    int j = 1;
-    int *next = new int[S[0]];
-
-    while(i <= S[0] && j <= T[0]){
-        if(j == 0 || S[i] == T[j]){
-            i++;
-            j++;
-        } else {
-            j = next[j];
-        }
-    }
-    if(j > T[0]) return i - T[0];
-    else return 0;
-
-
-}
 int main() {
-    SString T,S;
-    int i,j,n;
-    char ch;
-    int pos;
-    scanf("%d",&n);    // 指定n对需进行模式匹配的字符串
-    ch=getchar();
-    for(j=1; j<=n; j++) {
-        ch=getchar();
-        for( i=1; i<=MAXSTRLEN&&(ch!='\n'); i++) { // 录入主串
-            S[i]=ch;
-            ch=getchar();
+    int n;
+    cin >> n;
+    int *arr = new int[n];
+    for(int i = 0; i < n; i++) {
+        cin >> arr[i];
+    }
+    for(int i = n / 2; i >= 0; i--) {
+        adjust(arr,i,n - 1);
+    }
+    for(int i = 0; i < n; i++) {
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+    for(int i = 1; i < n; i++) {
+        int temp = arr[0];
+        arr[0] = arr[n - i];
+        arr[n - i] = temp;
+        adjust(arr,0,n - i - 1);
+        for(int j = 0; j < n; j++) {
+            cout << arr[j] << " ";
         }
-        S[0]=i-1;    // S[0]用于存储主串中字符个数
-        ch=getchar();
-        for( i=1; i<=MAXSTRLEN&&(ch!='\n'); i++) { // 录入模式串
-            T[i]=ch;
-            ch=getchar();
-        }
-        T[0]=i-1;    // T[0]用于存储模式串中字符个数
-        pos=Index_KMP(S,T,0);    // 请填空
-        printf("%d\n",pos);
+        cout << endl;
     }
 }

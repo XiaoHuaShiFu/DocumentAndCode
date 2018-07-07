@@ -206,6 +206,9 @@ public class Employee extends Person implements Comparable<Employee>,Cloneable{
 		 return 1;
 	 }
 	 
+	 /**
+	  * 生成hash码
+	  */
 	 public int hashCode() {
 		/* return 7 * Objects.hashCode(this.getName())
 			+ 11 * Double.hashCode(this.salary)

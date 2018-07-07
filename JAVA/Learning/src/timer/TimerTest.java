@@ -1,13 +1,18 @@
 package timer;
 
 import java.awt.Toolkit;
+import java.awt.event.ActionListener;
 import java.util.Date;
 
 import javax.swing.JOptionPane;
 import javax.swing.Timer;
 
-public class TimerTest {
 
+
+public class TimerTest {
+	
+	
+	
 	public static void main(String[] args) {
 		
 //		构造一个ActionListener对象
@@ -32,7 +37,6 @@ public class TimerTest {
 		JOptionPane.showConfirmDialog(null, "Quit program?");
 		System.exit(0);
 		
-
 	}
-
+	
 }
