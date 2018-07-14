@@ -1,8 +1,12 @@
 package human;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Comparator.*;
+
+import generic.Pair;
 
 public class EmployeeTest {
 	
@@ -112,6 +116,25 @@ public class EmployeeTest {
 		
 //-----------------------------------------------------------------------------------------------------//
 		
+		Manager[] manager = new Manager[3];
+		manager[0] = new Manager("wjx11",50000,1997,5,9);
+		manager[1] = new Manager("wjs",50000,1997,5,9);
+		
+		manager[2] = new Manager("wjt222",50000,1996,4,8);
+		Pair<Manager> result1 = new Pair<>();
+		Manager.maxminBonus(manager, result1);
+		
+//-----------------------------------------------------------------------------------------------------//
+		Collection<Employee> staff1 = new ArrayList<Employee>();
+		Manager boss1 = new Manager("wjx11",50000,1997,5,9);
+		boss.setBonus(50000);
+		staff1.add(boss1);
+		staff1.add(new Employee("wjs",50000,1997,5,9));
+		staff1.add(new Employee("wjt222",50000,1996,4,8));
+		/**
+		 * 看集合是否包含元素obj
+		 */
+		System.out.println(staff1.contains(boss1));
 		
 	}
 	

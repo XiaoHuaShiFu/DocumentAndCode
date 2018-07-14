@@ -2,6 +2,8 @@ package human;
 import java.time.*;
 import java.util.*;
 
+import generic.Pair;
+
 /**
  * {@code}
  * Employee对象
@@ -205,6 +207,31 @@ public class Employee extends Person implements Comparable<Employee>,Cloneable{
 	 public int getRank() {
 		 return 1;
 	 }
+	 
+	 /**
+	  * 打印雇员对的名字
+	  * @param p
+	  */
+	 public static void printBuddies(Pair<? extends Employee> p) {
+		 Employee first = p.getFirst();
+		 Employee second = p.getSecond();
+		 System.out.println(first.getName() + " and " + second.getName() + " are buddies.");
+	 }
+	 
+	 /**
+	  * 检测集合是否包含某个元素，库函数已经实现
+	  * @param c
+	  * @param obj
+	  * @return
+	  *//*
+	 public static <E> boolean contains(Collection<E> c, Object obj) {
+		 for (E element : c) {
+			 if(element.equals(obj)) {
+				 return true;
+			 }
+		 }
+		 return false;
+	 }*/
 	 
 	 /**
 	  * 生成hash码

@@ -1,5 +1,6 @@
 package xhsfutil;
 
+
 /**
  * 可返回一个带有min和max的对象
  * 可调用getFirst和getSecond获取min和max的指
@@ -41,5 +42,5 @@ public class ArrayAlg {
 		}
 		return new Pair(min,max);
 	}
-	
+
 }
