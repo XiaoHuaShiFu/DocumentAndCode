@@ -1,15 +1,7 @@
 package xhsfutil;
 
 import java.util.*;
-/*import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;*/
+
 
 import human.Employee;
 import human.Person;
@@ -85,53 +77,8 @@ public class Test {
 		
 		///////////////////////////////////////////////////////////
 		
-		/**
-		 * 创建一个集合
-		 */
-		Collection<String> c = new ArrayList<String>();
-		c.add("wjx");
-		c.add("wjs");
-		c.add("wjt");
-		/**
-		 * 请求迭代器
-		 */
-		Iterator<String> iter = c.iterator();
-		/**
-		 * 用remove删除一个元素
-		 */
-		iter.next();
-		iter.remove();
-		/**
-		 * 使用forEachRemaining方法实现遍历
-		 */
-		iter.forEachRemaining(element -> {
-			System.out.println(element + "3");
-		});
-		/**
-		 * 使用next实现遍历
-		 */
-		while (iter.hasNext()) {
-			String element = iter.next();
-			System.out.println(element + "1");
-		}
-		/**
-		 * 使用for each实现遍历
-		 */
-		for (String element : c) {
-			System.out.println(element + "2");
-		}
-		
-		List<String> list1 = new LinkedList<String>();
-		list1.add("wjx");
-		list1.add("wjs");
-		list1.set(0, "wjc");
-		list1.forEach(element -> {
-			System.out.println(element);
-		});
-
 		
 	}
-	
 	
 }
 	
