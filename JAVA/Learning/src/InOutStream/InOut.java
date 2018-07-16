@@ -29,9 +29,9 @@ public class InOut {
 		//////////////////////////////////////////////////////////////////////////////
 		
 		//输出流
-//		FileOutputStream out = new FileOutputStream(file);
+		FileOutputStream out = new FileOutputStream(file);
 		//在末尾追加的形式
-		FileOutputStream out = new FileOutputStream(file,true);
+//		FileOutputStream out = new FileOutputStream(file,true);
 		//写出一个byte
 		out.write(50);
 		//写出一个byte数组
