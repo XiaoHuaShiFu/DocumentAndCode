@@ -88,6 +88,9 @@ public class Test {
 				+ "DocumentAndCode\\JAVA");
 		FileUtils.allListDirectory(file3);
 		
+		////////////////////////////////////////////////////////////////////////////////////////
+		
+		
 	}
 
 }

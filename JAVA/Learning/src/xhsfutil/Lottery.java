@@ -2,7 +2,7 @@
  * 这是一个抽奖小程序
  * 可以从n个数字中抽出m个随机的数字
  */
-package com.xiaohua.mode;
+package xhsfutil;
 import java.util.Arrays;
 
 public class Lottery {

@@ -2,7 +2,7 @@
  * 打印当前月份的日历
  */
 
-package com.xiaohua.mode;
+package timer;
 import java.time.*;
 
 public class GetCalendar {
