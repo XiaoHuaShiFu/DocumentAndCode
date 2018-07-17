@@ -5,6 +5,11 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
 
+/**
+ * 随机流
+ * RandomAccessFile支持随机读写操作
+ */
+
 public class Raf {
 
 	public static void main(String[] args) throws IOException {
@@ -20,6 +25,7 @@ public class Raf {
 		}
 		
 		/**
+		 * 随机流
 		 * RandomAccessFile支持随机读写操作
 		 */
 		RandomAccessFile raf = new RandomAccessFile(cfile,"rw");

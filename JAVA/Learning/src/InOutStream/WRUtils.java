@@ -1,7 +1,13 @@
 package InOutStream;
 
 import java.io.*;
-
+/**
+ * 字符流
+ * InputStreamReader类
+ * OutputStreamWriter类
+ * @author lenovo
+ *
+ */
 public class WRUtils {
 	
 	/**

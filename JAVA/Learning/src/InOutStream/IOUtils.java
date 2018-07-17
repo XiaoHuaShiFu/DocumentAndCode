@@ -1,7 +1,13 @@
 package InOutStream;
 
 import java.io.*;
-
+/**
+ * 字节流
+ * FileInputStream类
+ * FileOutputStream类
+ * @author lenovo
+ *
+ */
 public class IOUtils {
 
 	/**
