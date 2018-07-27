@@ -1,7 +1,10 @@
 package human;
+
+import java.io.*;
 import java.time.*;
 import java.util.*;
 
+import InOutStream.RafUtils;
 import generic.Pair;
 
 /**
@@ -11,7 +14,11 @@ import generic.Pair;
 
 public class Employee extends Person implements Comparable<Employee>,Cloneable{
 	 
-	 //实例域
+	 /**
+	 * 序列化id
+	 */
+	private static final long serialVersionUID = 497426508918154121L;
+	//实例域
 	 //有final的实例除了构造时其余时候不可再被改变
 	 private double salary;
 	 private LocalDate hireDay;
@@ -22,7 +29,7 @@ public class Employee extends Person implements Comparable<Employee>,Cloneable{
 	  * nextId 是这个类的公有变量
 	  */
 	 private static int nextId;
-	 
+	 public static int NAME_SIZE = 20;
 	 
 	 //初始化块
 	 //id的起始值赋予一个随机数
@@ -53,8 +60,8 @@ public class Employee extends Person implements Comparable<Employee>,Cloneable{
 	 }
 	 
 	 //无参构造器（全为默认值）
-//	 public Employee() {
-//	 }
+	 public Employee() {
+	 }
 	 
 	 /**
 	  * return -1是小于，0是等于，1是大于
@@ -217,6 +224,113 @@ public class Employee extends Person implements Comparable<Employee>,Cloneable{
 		 Employee second = p.getSecond();
 		 System.out.println(first.getName() + " and " + second.getName() + " are buddies.");
 	 }
+	 
+	 /**
+	  * 写入信息
+	  * @param employees
+	  * @param pw
+	  * @throws IOException
+	  */
+	 public static void writeDatas(Employee[] employees, PrintWriter pw) throws IOException{
+		 pw.write(employees.length);
+		 for (Employee e : employees) {
+			 writeEmployee(pw, e);
+		 }
+	 }
+	 
+	 /**
+	  * 用RandomAccessFile类固定尺寸写入文件
+	  * @param out
+	  * @param e
+	  * @throws IOException
+	  */
+	 public static void writeData(DataOutput out, Employee e) throws IOException{
+		 RafUtils.writeFixedString(e.getName(), Employee.NAME_SIZE, out);
+		 out.writeDouble(e.getSalary());
+		 
+		 LocalDate hireDay = e.getHireDay();
+		 out.writeInt(hireDay.getYear());
+		 out.writeInt(hireDay.getMonthValue());
+		 out.writeInt(hireDay.getDayOfMonth());
+	 }
+	 
+	 /**
+	  * 写入雇员信息
+	  * @param pw
+	  * @param e
+	  */
+     public static void writeEmployee(PrintWriter pw, Employee e) {
+		 pw.println(e.getName() + "|" + e.getSalary() + "|" + e.getHireDay());
+	 }
+	 
+	 /**
+	  * 读取雇员信息
+	  * @param in
+	  * @return
+	  */
+	 public static Employee readEmployee(Scanner in) {
+		 String line = in.nextLine();
+		 String[] tokens = line.split("\\|");
+		 String name = tokens[0];
+		 double salary = Double.parseDouble(tokens[1]);
+		 LocalDate hireDate = LocalDate.parse(tokens[2]);
+		 int year = hireDate.getYear();
+		 int month = hireDate.getMonthValue();
+		 int day = hireDate.getDayOfMonth();
+		 return new Employee(name, salary, year, month, day);
+	 }
+	 
+	 /**
+	  * 用RandomAccessFile类固定尺寸读取文件信息
+	  * @param in
+	  * @return
+	  * @throws IOException
+	  */
+	 public static Employee readData(DataInput in) throws IOException{
+		 String name = RafUtils.readFixedString(Employee.NAME_SIZE, in);
+		 double salary = in.readDouble();
+		 int year = in.readInt();
+		 int month = in.readInt();
+		 int day = in.readInt();
+		 return new Employee(name, salary, year, month, day);
+	 }
+	 
+	 /**
+	  * 读取信息
+	  * @param in
+	  * @return
+	  */
+     public static Employee[] readData(Scanner in) {
+		 int n = in.nextInt();
+		 //consume newLine
+		 in.nextLine();
+		 
+		 Employee[] employees = new Employee[n];
+		 for (int i = 0; i < n; i++) {
+			 employees[i] = readEmployee(in);
+		 }
+		 return employees;
+	 }
+     
+     /**
+      * 接口Externalizable与接口Serializable不兼容
+      * 对象反序列化接口Externalizable需要实现的方法
+      */
+     public void readExternal(ObjectInput s) throws IOException{
+    	 this.setName(s.readUTF());
+    	 this.salary = s.readDouble();
+    	 this.hireDay = LocalDate.ofEpochDay(s.readLong());
+     }
+     
+     /**
+      * 对象序列化接口Externalizable需要实现的方法
+      */
+     public void writeExternal(ObjectOutput s) throws IOException{
+    	 s.writeUTF(this.getName());
+    	 s.writeDouble(this.salary);
+    	 s.writeLong(hireDay.toEpochDay());
+     }
+     
 	 
 	 /**
 	  * 检测集合是否包含某个元素，库函数已经实现

@@ -68,6 +68,18 @@ public class Raf {
 		//关闭文件
 		raf.close();
 		
+		/**
+		 * 以固定尺寸读写文件
+		 */
+		RandomAccessFile raf1 = new RandomAccessFile(cfile,"rw");
+		RandomAccessFile raf2 = new RandomAccessFile(cfile,"r");
+		RafUtils.writeFixedString("wjx123.wjswjt", 13, raf1);
+		String str2 = RafUtils.readFixedString(13, raf2);
+		System.out.println(str2);
+		raf1.close();
+		raf2.close();
+		
+		
 	}
 	
 }

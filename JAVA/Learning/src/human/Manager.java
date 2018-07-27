@@ -11,7 +11,12 @@ import generic.PairAlg;
 
 public class Manager extends Employee{
 	
+	/**
+	 * 序列化id
+	 */
+	private static final long serialVersionUID = -4400282544385571100L;
 	private double bonus;
+	private Employee secretary;
 	
 	public Manager(String name, double salary, int year, int month, int day) {
 		//super指调用父类拥有name, salary, year, month, day参数的构造器
@@ -24,6 +29,10 @@ public class Manager extends Employee{
 		this.bonus = bonus;
 	}
 	
+	public void setSecretary(Employee secretary) {
+		this.secretary = secretary;
+	}
+	
 	public double getBonus() {
 		return this.bonus;
 	}
@@ -32,6 +41,10 @@ public class Manager extends Employee{
 		//super告诉编译调用父类的方法
 		double baseSalary = super.getSalary();
 		return baseSalary + this.bonus;
+	}
+	
+	public Employee getSecretary() {
+		return this.secretary;
 	}
 	
 	/**
@@ -78,6 +91,7 @@ public class Manager extends Employee{
 	public String toString() {
 		return super.toString()
 			+ "[bouns=" + this.bonus
+			+ ",secretary=" + this.secretary
 			+ "]";
 	}
 	

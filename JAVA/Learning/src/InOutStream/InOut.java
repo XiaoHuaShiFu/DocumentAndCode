@@ -11,6 +11,10 @@ public class InOut {
 		//输入流
 		File file = new File("file\\raf.dat");
 		FileInputStream in = new FileInputStream(file);
+		/**
+		 * 检测可以读入的字节数量
+		 */
+		System.out.println(in.available());
 		
 		//读取一个byte
 		int b = in.read();
