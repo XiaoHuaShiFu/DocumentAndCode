@@ -364,5 +364,31 @@ public class Employee extends Person implements Comparable<Employee>,Cloneable{
 		 	+ ",hireDay=" + this.hireDay
 		 	+ "]";
 	 }
+
+	public static int getNAME_SIZE() {
+		return NAME_SIZE;
+	}
+
+	public static void setNAME_SIZE(int nAME_SIZE) {
+		NAME_SIZE = nAME_SIZE;
+	}
+
+	public static long getSerialversionuid() {
+		return serialVersionUID;
+	}
+
+	public void setSalary(double salary) {
+		this.salary = salary;
+	}
+
+	public void setHireDay(LocalDate hireDay) {
+		this.hireDay = hireDay;
+	}
+
+	public static void setNextId(int nextId) {
+		Employee.nextId = nextId;
+	}
 	  
+	 
+	 
 }

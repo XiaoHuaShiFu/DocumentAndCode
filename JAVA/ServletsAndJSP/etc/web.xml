@@ -1,16 +1,15 @@
-<?xml version="1.0" encpding="ISO-8851-1" ?>
-<web-app xmlns="http://java.sun.com/xml/ns/j2ee" 
-	xmlns:xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-	xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee 
-	http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd" 
-	version="2.4">
-	<servlet>
-		<servlet-name>Chapter1 Servlet</servlet-name>
-		<servlet-class>Ch1Servlet</servlet-class>
-	</servlet>
-	
-	<servlet-mapping>
-		<servlet-name>Chapter1 Servlet</servlet-name>
-		<url-pattern>/Serv1</url-pattern>
-	</servlet-mapping>
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="WebApp_ID" version="2.5">
+  <display-name>MyFirstServletDemo</display-name>
+  
+  <servlet>
+  	<servlet-name>HelloServlet</servlet-name>
+  	<servlet-class>servlet.Ch1Servlet</servlet-class>
+  </servlet>
+  
+  <servlet-mapping>
+  	<servlet-name>HelloServlet</servlet-name>
+  	<url-pattern>/servlet/Ch1Servlet</url-pattern>
+  </servlet-mapping>
+  
 </web-app>
