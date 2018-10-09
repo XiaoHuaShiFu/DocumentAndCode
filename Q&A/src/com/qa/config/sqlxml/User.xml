@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="User">
+
+	<!-- 用户对象 -->
+	<resultMap type="com.qa.bean.User" id="UserResult">
+		<!-- 主键用id -->
+		<!-- id和result的typeHandler=""属性，强制转换数据库中的类型和java类型 -->
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="username" jdbcType="VARCHAR" property="username" />
+		<result column="password" jdbcType="VARCHAR" property="password" />
+		<result column="phone" jdbcType="VARCHAR" property="phone" />
+		<result column="email" jdbcType="VARCHAR" property="email" />
+		<result column="sex" jdbcType="VARCHAR" property="sex" />
+		<result column="introduction" jdbcType="VARCHAR" property="introduction" />
+	</resultMap>
+	
+	<!-- 通过phone或email查询单个用户
+		param:com.qa.bean.User
+		return:UserResult
+	 -->
+	<select id="queryUser" parameterType="com.qa.bean.User" resultMap="UserResult">
+		SELECT id, username, password, phone, email, sex, introduction 
+		FROM user WHERE phone = #{phone} OR email = #{email} OR id = #{id}
+	</select>
+	
+	<!-- 通过username模糊搜索用户列表,并通过from和to指定搜索范围
+		param:com.qa.bean.UserKeyword
+		return:List<UserResult>
+	 -->
+	<select id="queryUserList" parameterType="com.qa.bean.UserKeyword" resultMap="UserResult">
+		SELECT id, username, password, phone, email, sex, introduction 
+		FROM user WHERE username LIKE '%' #{username} '%' 
+		LIMIT #{from},#{to}
+	</select>
+	
+	<!-- 插入一个用户,并设置这个对象的id
+		param:com.qa.bean.User
+	-->
+	<insert id="insertUser" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.User">
+		INSERT INTO user(username, password, phone, email) VALUES(#{username}, #{password}, #{phone}, #{email});
+	</insert>
+	
+	<!-- 通过id删除一个用户
+		param:int
+	 -->
+	<delete id="deleteUser" parameterType="int">
+		DELETE FROM user WHERE id = #{_parameter}
+	</delete>
+	
+	<!-- 更新一个用户的信息
+		param:com.qa.bean.User
+	 -->
+	<update id ="updateUser" parameterType="com.qa.bean.User">
+		UPDATE user
+		<set>
+			<if test="username != null and !&quot;&quot;.equals(username.trim())">
+				username = #{username},
+			</if>
+			<if test="password != null and !&quot;&quot;.equals(password.trim())">
+				password = #{password},
+			</if>
+			<if test="phone != null and !&quot;&quot;.equals(phone.trim())">
+				phone = #{phone},
+			</if>
+			<if test="email != null and !&quot;&quot;.equals(email.trim())">
+				email = #{email},
+			</if>
+			<if test="sex != null and !&quot;&quot;.equals(sex.trim())">
+				sex = #{sex},
+			</if>
+			<if test="introduction != null and !&quot;&quot;.equals(introduction.trim())">
+				introduction = #{introduction},
+			</if>
+		</set>
+		WHERE id = #{id}
+	</update>
+	
+</mapper>

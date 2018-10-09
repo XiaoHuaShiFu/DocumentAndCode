@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="QuestionComment">
+	
+	<!-- 问题评论对象 -->
+	<resultMap type="com.qa.bean.QuestionComment" id="QuestionCommentResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="question_id" jdbcType="INTEGER" property="questionId" />
+		<result column="respondent_id" jdbcType="INTEGER" property="respondentId" />
+		<result column="content" jdbcType="VARCHAR" property="content" />
+		<result column="date" jdbcType="TIMESTAMP" property="date"/>
+		<result column="likes" jdbcType="INTEGER" property="like"/>
+	</resultMap>
+	
+	<!-- 通过question_id查询问题评论列表 
+		param:com.qa.bean.QuestionCommentKeyword
+		return:List<QuestionCommentResult>
+	-->
+	<select id="queryList" parameterType="com.qa.bean.QuestionCommentKeyword" resultMap="QuestionCommentResult">
+		SELECT id, question_id, respondent_id, content, date, likes 
+		FROM question_comment WHERE question_id = #{questionId} 
+		LIMIT #{from}, #{to}
+	</select> 
+	
+	<!-- 写入一条评论，第一次写入的时候使用
+		param:com.qa.bean.QuestionComment
+	 -->
+	<insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.QuestionComment">
+		INSERT INTO question_comment(question_id, respondent_id, content, date, likes) 
+		VALUES(#{questionId}, #{respondentId}, #{content}, now(), 0)
+	</insert>
+	
+	<!-- 通过id删除一条问题评论
+		param:int
+	 -->
+	<delete id="delete" parameterType="int">
+		DELETE FROM question_comment WHERE id = #{_parameter}
+	</delete>
+	
+	<!-- 更新一条评论
+		param:com.qa.bean.QuestionComment
+	 -->
+	<update id="update" parameterType="com.qa.bean.QuestionComment">
+		UPDATE question_comment
+		<!-- 设置set属性 自动添加删除前后缀 -->
+		<set>
+			<if test="content != null">
+				content = #{content},
+			</if>
+			<if test="like != 0">
+				likes = #{like},
+			</if>
+		</set>
+		WHERE id = #{id}
+	</update>
+	
+</mapper>

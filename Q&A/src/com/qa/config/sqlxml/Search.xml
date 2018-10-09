@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Search">
+	
+	<resultMap type="com.qa.bean.Search" id="SearchResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="key_word" jdbcType="VARCHAR" property="keyword" />
+		<result column="number_search" jdbcType="INTEGER" property="numberSearch" />
+	</resultMap>
+	
+	<!-- 查询搜索榜的排名前10 -->
+	<select id="querySearchList" resultMap="SearchResult" parameterType="com.qa.bean.FromTo">
+		SELECT id, key_word, number_search
+		FROM search ORDER BY number_search DESC LIMIT #{from},#{to}
+	</select>
+	
+	<!-- 写入一个search，第一次写入的时候使用 -->
+	<insert id="insertSearch" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.Search">
+		INSERT INTO search(key_word, number_search) 
+		VALUES(#{keyword}, 1)
+	</insert>
+	
+	<!-- 通过id或keyWord删除一条search -->
+	<delete id="deleteSearch" parameterType="com.qa.bean.Search">
+		DELETE FROM search WHERE id = #{id} OR key_word = #{keyword}
+	</delete>
+	
+	<!-- 使搜索数+1 -->
+	<update id="updateSearch" parameterType="com.qa.bean.Search">
+		UPDATE search
+		<!-- 设置set属性 自动添加删除前后缀 -->
+		<set>
+			number_search = number_search + 1,
+		</set>
+		WHERE key_word = #{keyword} OR id = #{id}
+	</update>
+	
+</mapper>

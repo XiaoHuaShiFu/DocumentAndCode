@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="QuestionFollow">
+	
+	<resultMap type="com.qa.bean.QuestionFollow" id="QuestionFollowResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="follower_id" jdbcType="INTEGER" property="followerId" />
+		<result column="question_id" jdbcType="INTEGER" property="questionId" />
+	</resultMap>
+	
+	<resultMap type="com.qa.bean.Question" id="QuestionResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="author_id" jdbcType="INTEGER" property="authorId" />
+		<result column="follow" jdbcType="INTEGER" property="follow" />
+		<result column="click" jdbcType="INTEGER" property="click" />
+		<result column="title" jdbcType="VARCHAR" property="title" />
+		<result column="content" jdbcType="VARCHAR" property="content" />
+		<result column="date" jdbcType="TIMESTAMP" property="date"/>
+	</resultMap>
+	
+	<resultMap type="com.qa.bean.User" id="UserResult">
+		<!-- 主键用id -->
+		<!-- id和result的typeHandler=""属性，强制转换数据库中的类型和java类型 -->
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="username" jdbcType="VARCHAR" property="username" />
+		<result column="password" jdbcType="VARCHAR" property="password" />
+		<result column="phone" jdbcType="VARCHAR" property="phone" />
+		<result column="email" jdbcType="VARCHAR" property="email" />
+		<result column="sex" jdbcType="VARCHAR" property="sex" />
+		<result column="introduction" jdbcType="VARCHAR" property="introduction" />
+	</resultMap>
+	
+	<!-- 通过question_id查询关注这个问题的人的User对象列表 -->
+	<select id="queryFollowerList" parameterType="int" resultMap="UserResult">
+		SELECT id, username, password, phone, email, sex, introduction 
+		FROM user 
+		WHERE id IN ( 
+			SELECT follower_id
+			FROM question_follow 
+			WHERE question_id = #{_parameter} 
+		)
+	</select>
+	
+	<!-- 通过user_id查询关注这个人关注的问题的Question对象列表 -->
+	<select id="queryQuestionList" parameterType="int" resultMap="QuestionResult">
+		SELECT id, author_id, follow, click, title, content, date 
+		FROM question 
+		WHERE id IN ( 
+			SELECT question_id
+			FROM question_follow 
+			WHERE follower_id = #{_parameter} 
+		)
+	</select>
+	
+	<!-- 通过关注者id和被关注问题id插入一条关注信息 -->
+	<insert id="insertQuestionFollow" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.QuestionFollow">
+		INSERT INTO question_follow(follower_id, question_id) 
+		VALUES(#{followerId}, #{questionId})
+	</insert>
+	
+	<!-- 通过关注者id和被关注问题id删除一条关注信息 -->
+	<delete id="deleteQuestionFollow" parameterType="com.qa.bean.QuestionFollow">
+		DELETE FROM question_follow 
+		WHERE follower_id = #{followerId} AND question_id = #{questionId}
+	</delete>
+	
+</mapper>

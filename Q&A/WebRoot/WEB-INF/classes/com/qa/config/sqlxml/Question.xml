@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="Question">
+	
+	<!-- 问题对象 -->
+	<resultMap type="com.qa.bean.Question" id="QuestionResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="author_id" jdbcType="INTEGER" property="authorId" />
+		<result column="follow" jdbcType="INTEGER" property="follow" />
+		<result column="click" jdbcType="INTEGER" property="click" />
+		<result column="title" jdbcType="VARCHAR" property="title" />
+		<result column="content" jdbcType="VARCHAR" property="content" />
+		<result column="date" jdbcType="TIMESTAMP" property="date"/>
+		<result column="comment" jdbcType="INTEGER" property="comment"/>
+	</resultMap>
+	
+	<!-- 通过id查询question
+		param:int
+		return:QuestionResult
+	 -->
+	<select id="query" parameterType="com.qa.bean.Question" resultMap="QuestionResult">
+		SELECT id, author_id, follow, click, title, content, date, comment
+		FROM question WHERE id = #{id} OR title = #{title} OR author_id = #{authorId}
+	</select>
+	
+	<!-- 通过title查询questionList
+		param:com.qa.bean.QuestionKeyword
+		return:List<QuestionResult>
+	 -->
+	<select id="queryList" parameterType="com.qa.bean.QuestionKeyword" resultMap="QuestionResult">
+		SELECT id, author_id, follow, click, title, content, date, comment
+		FROM question WHERE title LIKE '%' #{title} '%' OR #{ramdom} = TRUE 
+		LIMIT #{from},#{to}
+	</select>
+	
+	<!-- 通过id查询question
+		param:int 
+		return:QuestionResult
+	 -->
+	<select id="queryOne" parameterType="int" resultMap="QuestionResult">
+		SELECT id, author_id, follow, click, title, content, date, comment
+		FROM question WHERE id = #{_parameter}
+	</select>
+	
+	<!-- 写入一个question,并设置该对象的id,第一次写入的时候使用
+		param:com.qa.bean.Question
+	 -->
+	<insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.Question">
+		INSERT INTO question(author_id, follow, click, title, content, date, comment) 
+		VALUES(#{authorId}, 0, 0, #{title}, #{content}, now(), 0)
+	</insert>
+	
+	<!-- 通过id删除一个问题
+		param:int
+	 -->
+	<delete id="delete" parameterType="int">
+		DELETE FROM question WHERE id = #{_parameter}
+	</delete>
+	
+	<!-- 更新问题
+		param:com.qa.bean.Question
+	 -->
+	<update id="update" parameterType="com.qa.bean.Question">
+		UPDATE question
+		<!-- 设置set属性 自动添加删除前后缀 -->
+		<set>
+			<if test="follow != null">
+				follow = #{follow},
+			</if>
+			<if test="click != null">
+				click = #{click},
+			</if>
+			<if test="title != null and !&quot;&quot;.equals(title.trim())">
+				title = #{title},
+			</if>
+			<if test="content != null and !&quot;&quot;.equals(content.trim())">
+				content = #{content},
+			</if>
+			<if test="comment != 0">
+				comment = #{comment},
+			</if>
+		</set>
+		WHERE id = #{id}
+	</update>
+	
+</mapper>

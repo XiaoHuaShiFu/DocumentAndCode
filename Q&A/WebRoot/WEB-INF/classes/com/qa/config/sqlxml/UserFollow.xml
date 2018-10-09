@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="UserFollow">
+	
+	<resultMap type="com.qa.bean.UserFollow" id="UserFollowResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="follower_id" jdbcType="INTEGER" property="followerId" />
+		<result column="user_id" jdbcType="INTEGER" property="userId" />
+	</resultMap>
+	
+	<resultMap type="java.lang.Integer" id="UserIdResult">
+		<result column="user_id" jdbcType="INTEGER" property="userId" />
+	</resultMap>
+	
+	<resultMap type="com.qa.bean.User" id="UserResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="username" jdbcType="VARCHAR" property="username" />
+		<result column="password" jdbcType="VARCHAR" property="password" />
+		<result column="phone" jdbcType="VARCHAR" property="phone" />
+		<result column="email" jdbcType="VARCHAR" property="email" />
+		<result column="sex" jdbcType="VARCHAR" property="sex" />
+		<result column="introduction" jdbcType="VARCHAR" property="introduction" />
+	</resultMap>
+	
+	<!-- 通过follower_id查询关注的人的Id的列表 -->
+	<select id="queryUserIdList" parameterType="int" resultMap="UserIdResult">
+		SELECT user_id
+		FROM user_follow WHERE follower_id = #{_parameter}
+	</select>
+	
+	<!-- 通过follower_id查询他关注的人的User对象列表 -->
+	<select id="queryUserList" parameterType="int" resultMap="UserResult">
+		SELECT id, username, password, phone, email, sex, introduction 
+		FROM user 
+		WHERE id IN ( 
+			SELECT user_id
+			FROM user_follow 
+			WHERE follower_id = #{_parameter} 
+		)
+	</select>
+	
+	<!-- 通过user_id查询关注他的人的User对象列表 -->
+	<select id="queryFollowerList" parameterType="int" resultMap="UserResult">
+		SELECT id, username, password, phone, email, sex, introduction 
+		FROM user 
+		WHERE id IN ( 
+			SELECT follower_id
+			FROM user_follow 
+			WHERE user_id = #{_parameter} 
+		)
+	</select>
+	
+	
+	<!-- 通过关注者id和被关注者id插入一条关注信息 -->
+	<insert id="insertUserFollow" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.UserFollow">
+		INSERT INTO user_follow(follower_id, user_id) 
+		VALUES(#{followerId}, #{userId})
+	</insert>
+	
+	<!-- 通过关注者id和被关注者id删除一条关注信 -->
+	<delete id="deleteUserFollow" parameterType="com.qa.bean.UserFollow">
+		DELETE FROM user_follow 
+		WHERE follower_id = #{followerId} AND user_id = #{userId}
+	</delete>
+	
+</mapper>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ArticleCollect">
+	
+	<resultMap type="com.qa.bean.ArticleCollect" id="ArticleCollectResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="collector_id" jdbcType="INTEGER" property="collectorId" />
+		<result column="article_id" jdbcType="INTEGER" property="articleId" />
+	</resultMap>
+	
+	<resultMap type="com.qa.bean.Article" id="ArticleResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="author_id" jdbcType="INTEGER" property="authorId" />
+		<result column="collection" jdbcType="INTEGER" property="collection" />
+		<result column="click" jdbcType="INTEGER" property="click" />
+		<result column="title" jdbcType="VARCHAR" property="title" />
+		<result column="content" jdbcType="VARCHAR" property="content" />
+		<result column="date" jdbcType="TIMESTAMP" property="date"/>
+	</resultMap>
+	
+	<!-- 通过user_id查询关注这个人关注的文章的Article对象列表 -->
+	<select id="queryArticleList" parameterType="int" resultMap="ArticleResult">
+		SELECT id, author_id, collection, click, title, content, date
+		FROM article 
+		WHERE id IN ( 
+			SELECT article_id
+			FROM article_collect 
+			WHERE collector_id = #{_parameter} 
+		)
+	</select>
+	
+	<!-- 通过收藏者id和被收藏文章id插入一条收藏信息 -->
+	<insert id="insertArticleCollect" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.ArticleCollect">
+		INSERT INTO article_collect(collector_id, article_id) 
+		VALUES(#{collectorId}, #{articleId})
+	</insert>
+	
+	<!-- 通过收藏者id和被收藏文章id删除一条收藏信息 -->
+	<delete id="deleteArticleCollect" parameterType="com.qa.bean.ArticleCollect">
+		DELETE FROM article_collect
+		WHERE collector_id = #{collectorId} AND article_id = #{articleId}
+	</delete>
+	
+</mapper>

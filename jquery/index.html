@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>312312</title>
+    <script type="text/javascript" src="jquery-3.3.1.min.js"></script>
+    <script type="text/javascript" src="js.js"></script>
+</head>
+    <style>
+        .details{
+            background-color: red;
+        }
+        .clicktohide{
+            background-color: yellow;
+        }
+    </style>
+    <script>
+        function onChange() {
+            $("p").css("background-color","yellow").show("fast");
+        }
+        function onCc() {
+            var bd = $("script",document.body);
+            console.log(bd.context);
+        }
+        function Bb() {
+            $("div").each(function(idx){ //each()循环遍历整个数组，并对每个元素调用回调函数，第一参数为idx
+                $(this).prepend(idx + ":");//prepend()为该对象插入文本
+                if (this.id === "#last") { //this.id为该对象的id属性
+                    return false;
+                }
+            })
+        }
+        function Aa() {
+            var arr = $("div").map(function (value) { //map()循环遍历整个数组，并对每个元素调用回调函数，第一参数为dix，并把回调函数的返回值扁平化为一个一维数组
+                return this.id + value;
+            });
+            console.log(arr);
+        }
+        function Dd() {
+            var arr = ["wjx","wjs","wjt"];
+            var idx = $("div").each(function (value) {
+                if ($(this).is(".details")){
+                    console.log(1);
+                }
+                else {
+                    arr.push("test");
+                }
+            });
+            console.log(idx);
+        }
+        function getAction(){
+            var action = $("form").attr("action");
+            console.log(action);
+            var icon = $("#icon").attr({"src":"test.jpg",
+                                        width:720,height:64});
+        }
+        function getTestValue() {
+            var value = $("#test").val();
+            var value2 = $("input:radio[name=ship]:checked").val();
+            console.log(value);
+            console.log(value2);
+            $("#email").val("zkl@qq.com");
+            $("input:checkbox").val(["opt1","opt2"]);
+            var title = $("head title").text(); //获取文档内容
+            console.log(title);
+            var headline = $("div").html();
+            console.log(headline);
+            $("div").html(function (idx, current) {
+                return  (idx + 1) + ":" + current;
+            });
+        }
+        function getData(){
+            $("div").data("x",[312,"321",33312]);
+            $("div.details").removeData("x");
+            var x = $(".details").data("x");
+            var sb = $("#sb").val();
+            console.log("sb" + sb);
+            console.log(x);
+        }
+        function onTestClick() {
+            $("p").click(function () {
+                $(this).css("background-color","gray");
+            })
+        }
+        function onTestEnter() {
+            // $("p").mouseenter(function(e){
+            //     $(this).css("background-color","yellow");
+            //     console.log(e.pageX)
+            // });
+            // $(document).mousemove(function(e){
+            //     console.log(e.pageX)
+            //     console.log(e.pageY)
+            // });
+        }
+        var x = 3;
+        $(window).resize(function() {
+            $('span').text(x+=1);
+        });
+        function bindTest() {
+            $('span').bind('click mouseenter', function () {
+                $(this).css("background-color","red");
+            })
+        }
+        if (new RegExp(".*?script[^>]*?.*?(<\/.*?script.*?>)*", "ig").test("><script><script><")) {
+            console.log("test")
+        }
+        function sb() {
+            var sb = $("#sb").value();
+            console.log(sb);
+        }
+    </script>
+<body>
+    <form action="https://www.baidu.com/" method="get">
+
+        <img src="js.js" id="icon" >
+        <div class="details">ldasldasldsa</div>
+        <div class="details">dsadqw</div>
+        <div class="details" id="#last">#last</div>
+        <div class="clicktohide">312123</div>
+        <p onclick="bindTest()" onmouseenter="onTestEnter()">testClick()</p>
+        <span onclick="bindTest()">3</span>
+        <input type="text" id="test">
+        <input type="radio" name="ship">
+        <input type="text" id="email">
+        <input type="checkbox" value="opt1">
+        <input type="checkbox" value="opt2">
+        <input type="text" id="sb">
+        <input type="button" value="btn" onclick="getData()">
+    </form>
+</body>
+</html>

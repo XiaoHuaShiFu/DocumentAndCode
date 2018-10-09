@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://java.sun.com/xml/ns/javaee"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+	id="WebApp_ID" version="2.5">
+	<display-name>Q&amp;A</display-name>
+	<welcome-file-list>
+		<welcome-file>index.jsp</welcome-file>
+	</welcome-file-list>
+
+	<servlet>
+		<servlet-name>SignInServlet</servlet-name>
+		<servlet-class>com.qa.servlet.SignInServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>SignInServlet</servlet-name>
+		<url-pattern>/SignIn</url-pattern>
+	</servlet-mapping>
+
+	<servlet>
+		<servlet-name>SignUpServlet</servlet-name>
+		<servlet-class>com.qa.servlet.SignUpServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>SignUpServlet</servlet-name>
+		<url-pattern>/SignUp</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>ToSignUpServlet</servlet-name>
+		<servlet-class>com.qa.servlet.ToSignUpServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>ToSignUpServlet</servlet-name>
+		<url-pattern>/ToSignUp</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>GetQuestionServlet</servlet-name>
+		<servlet-class>com.qa.servlet.GetQuestionServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>GetQuestionServlet</servlet-name>
+		<url-pattern>/GetQuestion</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>GetArticleServlet</servlet-name>
+		<servlet-class>com.qa.servlet.GetArticleServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>GetArticleServlet</servlet-name>
+		<url-pattern>/GetArticle</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>GetUserServlet</servlet-name>
+		<servlet-class>com.qa.servlet.GetUserServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>GetUserServlet</servlet-name>
+		<url-pattern>/GetUser</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>MyServlet</servlet-name>
+		<servlet-class>com.qa.servlet.MyServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>MyServlet</servlet-name>
+		<url-pattern>/My</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>ArticleDetailServlet</servlet-name>
+		<servlet-class>com.qa.servlet.ArticleDetailServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>ArticleDetailServlet</servlet-name>
+		<url-pattern>/ArticleDetail</url-pattern>
+	</servlet-mapping>
+	
+	
+</web-app>

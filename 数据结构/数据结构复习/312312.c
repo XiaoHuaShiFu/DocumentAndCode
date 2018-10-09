@@ -1,7 +1,17 @@
 #include<stdio.h>
 
-int main(){
-    int i = 5;
-    int p = (++i) + (++i) + (++i);
-    printf("%d",p);
+void printSmile(){
+    printf("Smile!");
 }
+
+int main(){
+    printSmile();
+    printSmile();
+    printSmile();
+    printf("\n");
+    printSmile();
+    printSmile();
+    printf("\n");
+    printSmile();
+}
+

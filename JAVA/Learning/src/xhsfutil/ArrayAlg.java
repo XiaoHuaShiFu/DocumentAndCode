@@ -18,9 +18,9 @@ public class ArrayAlg {
 		private double second;
 		
 		//静态内部类可实现构造器
-		public Pair(double first, double second) {
-			this.first = first;
-			this.second = second;
+		public Pair(T t, T t2) {
+			this.first = t;
+			this.second = t2;
 		}
 		
 		public double getFirst() {

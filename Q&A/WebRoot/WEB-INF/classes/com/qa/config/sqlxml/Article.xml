@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Article">
+	
+	<!-- 文章对象 -->
+	<resultMap type="com.qa.bean.Article" id="ArticleResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="author_id" jdbcType="INTEGER" property="authorId" />
+		<result column="collection" jdbcType="INTEGER" property="collection" />
+		<result column="click" jdbcType="INTEGER" property="click" />
+		<result column="title" jdbcType="VARCHAR" property="title" />
+		<result column="content" jdbcType="VARCHAR" property="content" />
+		<result column="date" jdbcType="TIMESTAMP" property="date"/>
+		<result column="likes" jdbcType="INTEGER" property="like"/>
+		<result column="comment" jdbcType="INTEGER" property="comment"/>
+	</resultMap>
+	
+	<!-- 通过title模糊查询文章列表 
+		param:com.qa.bean.ArticleKeyword
+		return:List<ArticleResult>
+	-->
+	<select id="queryArticleList" parameterType="com.qa.bean.ArticleKeyword" resultMap="ArticleResult">
+		SELECT id, author_id, collection, click, title, content, date, likes, comment  
+		FROM article WHERE title LIKE '%' #{title} '%' OR #{ramdom} = TRUE 
+		LIMIT #{from}, #{to}
+	</select> 
+	
+	<!-- 通过id查询文章
+		param:com.qa.bean.Article
+		return:ArticleResult
+	 -->
+	<select id="queryArticle" parameterType="com.qa.bean.Article" resultMap="ArticleResult">
+		SELECT id, author_id, collection, click, title, content, date, likes, comment 
+		FROM article WHERE id = #{id}
+	</select>
+	
+	<!-- 写入一篇文章，第一次写入的时候使用
+		param:com.qa.bean.Article
+	 -->
+	<insert id="insertArticle" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.Article">
+		INSERT INTO article(author_id, collection, click, title, content, date, likes, comment) 
+		VALUES(#{authorId}, 0, 0, #{title}, #{content}, now(), 0)
+	</insert>
+	
+	<!-- 通过id删除一篇文章
+		param:int
+	 -->
+	<delete id="deleteArticle" parameterType="int">
+		DELETE FROM article WHERE id = #{_parameter}
+	</delete>
+	
+	<!-- 更新一篇文章
+		param:com.qa.bean.Article
+	 -->
+	<update id="updateArticle" parameterType="com.qa.bean.Article">
+		UPDATE article
+		<!-- 设置set属性 自动添加删除前后缀 -->
+		<set>
+			<if test="collection != null">
+				collection = #{collection},
+			</if>
+			<if test="click != null">
+				click = #{click},
+			</if>
+			<if test="title != null and !&quot;&quot;.equals(title.trim())">
+				title = #{title},
+			</if>
+			<if test="content != null and !&quot;&quot;.equals(content.trim())">
+				content = #{content},
+			</if>
+		</set>
+		WHERE id = #{id}
+	</update>
+	
+</mapper>
