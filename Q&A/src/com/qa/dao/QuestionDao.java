@@ -12,15 +12,19 @@ import com.qa.db.DBAccess;
 public class QuestionDao {
 	
 	public static void main(String[] args) {
-		/*QuestionDao questionDao = new QuestionDao();
+		QuestionDao questionDao = new QuestionDao();
 		QuestionKeyword questionKeyword = new QuestionKeyword();
 		questionKeyword.setTitle("");
 		questionKeyword.setFrom(0);
 		questionKeyword.setTo(10);
 		questionKeyword.setRamdom(true);
+		Question q = new Question();
+		q.setId(3);
+		q.setFollow(314);
+		questionDao.update(q);
 //		Question question = (Question) questionDao.query("这是一篇文章", 1 , 1);
 		List<Question> questionList = questionDao.query(questionKeyword);
-		System.out.println(questionDao.query(3));*/
+		System.out.println(questionDao.query(3));
 	}
 	
 	/**

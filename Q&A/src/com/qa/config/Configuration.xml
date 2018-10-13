@@ -25,6 +25,7 @@
 		<mapper resource="com/qa/config/sqlxml/Question.xml" />
 		<mapper resource="com/qa/config/sqlxml/QuestionFollow.xml" />
 		<mapper resource="com/qa/config/sqlxml/QuestionComment.xml" />
+		<mapper resource="com/qa/config/sqlxml/QuestionCommentLike.xml" />
 		<mapper resource="com/qa/config/sqlxml/User.xml" />
 		<mapper resource="com/qa/config/sqlxml/UserFollow.xml" />
 		<mapper resource="com/qa/config/sqlxml/Search.xml" />

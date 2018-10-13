@@ -12,8 +12,11 @@ import com.qa.db.DBAccess;
 public class QuestionFollowDao {
 
 	public static void main(String[] args) {
-//		QuestionFollowDao questionFollowDao = new QuestionFollowDao();
-	
+		QuestionFollowDao questionFollowDao = new QuestionFollowDao();
+		QuestionFollow questionFollow = new QuestionFollow();
+		questionFollow.setFollowerId(8);
+		questionFollow.setQuestionId(2);
+		System.out.println(questionFollowDao.query(questionFollow));
 	}
 	
 	/**
@@ -58,6 +61,28 @@ public class QuestionFollowDao {
 			}
 		}
 		return followerList;
+	}
+	
+	/**
+	 * 通过questionId和followerId查询QuestionFollow
+	 * @param QuestionFollow
+	 * @return QuestionFollow
+	 */
+	public QuestionFollow query(QuestionFollow questionFollow) {
+		DBAccess dbAccess = new DBAccess();
+		SqlSession sqlSession = null;
+		QuestionFollow qf = null;
+		try {
+			sqlSession = dbAccess.getSqlSession();
+			qf = sqlSession.selectOne("QuestionFollow.queryOne", questionFollow);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (sqlSession != null) {
+				sqlSession.close();
+			}
+		}
+		return qf;
 	}
 	
 	/**

@@ -24,6 +24,15 @@
 		LIMIT #{from}, #{to}
 	</select> 
 	
+	<!-- 通过question_comment_id查询问题评论
+		param:int
+		return:QuestionCommentResult
+	-->
+	<select id="queryOne" parameterType="int" resultMap="QuestionCommentResult">
+		SELECT id, question_id, respondent_id, content, date, likes 
+		FROM question_comment WHERE id = #{_parameter} 
+	</select> 
+	
 	<!-- 写入一条评论，第一次写入的时候使用
 		param:com.qa.bean.QuestionComment
 	 -->

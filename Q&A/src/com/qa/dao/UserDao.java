@@ -18,7 +18,7 @@ public class UserDao {
 		userKeyword.setUsername("xh");
 		userKeyword.setFrom(0);
 		userKeyword.setTo(10);
-		System.out.println(userDao.queryUser(" ", " ", 12));
+		System.out.println(userDao.queryUser("15992321303","", 0));
 	}
 	
 	/**

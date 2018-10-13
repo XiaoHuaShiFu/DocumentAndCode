@@ -54,6 +54,16 @@
 		)
 	</select>
 	
+	<!-- 通过questionId和followerId查询com.qa.bean.QuestionFollow
+		param:com.qa.bean.QuestionFollow
+		return:QuestionFollowResult
+	 -->
+	<select id="queryOne" parameterType="com.qa.bean.QuestionFollow" resultMap="QuestionFollowResult">
+		SELECT id, follower_id, question_id
+		FROM question_follow
+		WHERE follower_id = #{followerId} AND question_id = #{questionId}
+	</select>
+	
 	<!-- 通过关注者id和被关注问题id插入一条关注信息 -->
 	<insert id="insertQuestionFollow" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.QuestionFollow">
 		INSERT INTO question_follow(follower_id, question_id) 

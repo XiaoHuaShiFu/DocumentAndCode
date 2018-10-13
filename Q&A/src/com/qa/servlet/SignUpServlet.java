@@ -20,12 +20,12 @@ public class SignUpServlet extends HttpServlet {
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		// 编码
 		req.setCharacterEncoding("UTF-8");
-		// 获取值ֵ
+		//获取值
 		String username = req.getParameter("username");
 		String phone = req.getParameter("phone");
 		String email = req.getParameter("email");
 		String password = req.getParameter("password");
-		// 设置值 ֵ
+		//设置值
 		req.setAttribute("username", username);
 		req.setAttribute("phone", phone);
 		req.setAttribute("email", email);

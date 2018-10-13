@@ -80,5 +80,31 @@
 		<url-pattern>/ArticleDetail</url-pattern>
 	</servlet-mapping>
 	
+	<servlet>
+		<servlet-name>QuestionDetailServlet</servlet-name>
+		<servlet-class>com.qa.servlet.QuestionDetailServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>QuestionDetailServlet</servlet-name>
+		<url-pattern>/QuestionDetail</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>HomeServlet</servlet-name>
+		<servlet-class>com.qa.servlet.HomeServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>HomeServlet</servlet-name>
+		<url-pattern>/Home</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>QuestionCommentServlet</servlet-name>
+		<servlet-class>com.qa.servlet.QuestionCommentServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>QuestionCommentServlet</servlet-name>
+		<url-pattern>/QuestionComment</url-pattern>
+	</servlet-mapping>
 	
 </web-app>

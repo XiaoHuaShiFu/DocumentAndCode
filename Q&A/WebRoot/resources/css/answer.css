@@ -1,0 +1,130 @@
+body{
+margin:0;
+padding:0;
+}
+.container{
+    display: flex;
+    flex-direction: column;
+    background-color: #f6f6f6;
+    align-items: center;
+}
+.heading{
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 50px;
+    border: none;
+    background-color: white;
+    justify-content: center;
+}
+.title1{
+    width: 400px;
+    height: 30px;
+    border: solid black;
+    position: relative;
+    bottom: -5px;
+    left: 5px;
+    text-align: center;
+}
+.id{
+    width: 50px;
+    height: 25px;
+    position: relative;
+    bottom: -5px;
+    left: 0px;
+    border:none;
+    background-color: white;
+    text-align: center;
+    margin:0px 5px 0px 0px;
+}
+.question{
+    width: 1000px;
+    height: auto;
+    border: none;
+    background-color: white;
+    margin: 30px 0px 10px 0px;
+    font-size: medium;
+    color: gray;
+}
+.answer{
+    width: 1000px;
+    height: 700px;
+    border: solid black;
+    border-radius: 10px;
+    position: relative;
+    left: 0px;
+    bottom: -10px;
+    font-size: medium;
+    margin: 0px 0px 10px 0px;
+}
+.submit{
+    width: 80px;
+    height: 30px;
+    background-color: royalblue;
+    border-radius: 10px;
+    color: white;
+    position: relative;
+    margin: 10px 0px 50px 0px;
+}
+.submit:hover{
+    background-color: blue;
+    cursor: pointer;
+}
+.logo{
+    position: relative;
+    bottom: 50px;
+    left: -85px;
+}
+.ul{
+    list-style-type: none;
+    position: relative;
+    left: -150px;
+    padding: 0;
+}
+.li{
+    display: inline;
+    margin: 5px 20px 0px 5px;
+}
+.li:hover{
+    color: blue;
+    cursor: pointer;
+}
+input{
+    border: 2px solid #7BA7AB;
+    border-radius: 10px;
+    background: white;
+    color: black;
+    width: 300px;
+    height: 30px;
+    position: relative;
+    left: -130px;
+    bottom: 20px;
+}
+.button{
+    border: 0;
+    width: 60px;
+    height: 60px;
+    background-color: transparent;
+    position: relative;
+    bottom: 5px;
+    left: -185px;
+}
+.button2{
+    width:70px;
+    height: 30px;
+    position: relative;
+    bottom: 20px;
+    left: -175px;
+    background-color: white;
+    border: 1px solid black;
+    border-radius: 10px;
+    text-align: center;
+}
+.button2:hover{
+    color: blue;
+    cursor: pointer;
+}
+a{
+    text-decoration: none;
+    color: black;
+}

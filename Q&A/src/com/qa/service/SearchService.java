@@ -282,18 +282,8 @@ public class SearchService {
 	 * 搜索单个用户
 	 * @param String, String, int
 	 * @return User
-	 * @throws Exception 
 	 */
-	public User getUser(String phone, String email, int id) throws Exception {
-		if (phone == null || email == null) {
-			throw new NullPointerException();
-		}
-		if ("".equals(phone)) {
-			throw new Exception("phone can not be blank");
-		}
-		if ("".equals(email)) {
-			throw new Exception("email can not be blank");
-		}
+	public User getUser(String phone, String email, int id) {
 		UserDao userDao = new UserDao();
 		User user = userDao.queryUser(phone, email, id);
 		return user;

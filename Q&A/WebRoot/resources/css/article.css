@@ -1,0 +1,322 @@
+body{
+    padding: 0;
+    margin: 0;
+}
+.container{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    background-color: white;
+}
+.head{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    height: 50px;
+    border: none;
+    background-color: white;
+    margin: 0px;
+    position: fixed;
+}
+.head-content{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width:100%;
+    height:50px;
+    border: none;
+    background-color:white;
+}
+.logo{
+    width: 20%;
+    height:30%;
+    border: none;
+    margin: 10px;
+    margin-left: 230px;
+    margin-top: -80px;
+    cursor: pointer;
+}
+.nav{
+    display: flex;
+    flex-direction: row;
+    width: 50%;
+    height: 100%;
+    border: none;
+}
+.search{
+    border: none;
+    display: flex;
+    flex-direction: row;
+    margin: 10px;
+    background-color: RGB(246,246,246);
+}
+.button{
+    height: 28px;
+    width: 22%;
+    border: none;
+    margin: 10px;
+    background-color: RGB(220,220,220);
+    outline: none;
+    cursor:pointer;
+}
+.allInput{
+    width: 80%;
+    outline: none;
+    background-color: RGB(246,246,246);
+    border: none;
+}
+.search-image{
+    width: 10%;
+    border: none;
+}
+.nav-other{
+    width: 15%;
+    height: 90%;
+    border: none;
+}
+.user-in{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border: none;
+    width: 10%;
+    height:50px;
+    margin: 5px;
+    margin-left: 100px;
+}
+.user-inform{
+    height: 20px;
+    width: 5%;
+    border: none;
+    margin: 10px;
+    margin-top: 25px;
+    margin-left: 150px;
+    background: transparent;
+    align-items: center;
+    text-align:center;
+    cursor:pointer
+}
+.user-mine{
+    height: 20px;
+    width: 5%;
+    border: none;
+    margin: 10px;
+    margin-top: 25px;
+    background: transparent;
+    align-items: center;
+    text-align:center;
+    cursor:pointer
+}
+.user-image{
+
+}
+.user-image:hover{
+    background: RGB(246,246,246);
+}
+.main{
+    display: flex;
+    flex-direction: column;
+    align-items:center;
+    width: 50%;
+    height: 2500px;
+    border: none;
+    margin: 60px;
+}
+.main-image{
+    width: 100%;
+    height: 20%;
+    border: none;
+    margin-top: 5px;
+}
+.main-headline{
+    width: 100%;
+    height: 3%;
+    border: none;
+    margin-top: 5px;
+    font-size: 25px;
+}
+.main-mine{
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 3%;
+    border: none;
+    margin-top: 5px;
+}
+.mine-image{
+    display:flex;
+    flex-direction: column;
+    width: 15%;
+    height: 80%;
+    margin:5px;
+    border: none;
+    cursor:pointer;
+}
+.mine-intro{
+    border: none;
+    width: 50%;
+    height:80%;
+    margin: 5px;
+}
+.attention{
+    display: flex;
+    flex-direction: row;
+    width: 20%;
+    margin:20px;
+    border: none;
+    margin-left: 300px;
+    background-color: RGB(220,220,220);
+    outline: none;
+}
+.atten-image{
+    width: 30%;
+    border: none;
+}
+.atten-txt{
+    width: 75%;
+    border: none;
+}
+.txt{
+    width:100%;
+    height: 50%;
+    border: 1px solid black;
+    margin: 5px;
+    font-size:22px;
+    resize:none;
+    outline: none;
+}
+.other-comment{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 20%;
+    margin: 5px;
+    margin-top: 30px;
+    border: 1px solid black;
+}
+.write-comment{
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 60px;
+    border: 1px solid red;
+}
+.write-down{
+    width: 80%;
+    height: 35px;
+    border: 1px solid black;
+    margin: 10px;
+    color: RGB(26,26,26);
+    resize: none;
+    outline: none;
+}
+.Button{
+    height: 28px;
+    width: 10%;
+    border: black;
+    margin: 10px;
+    margin-top: 15px;
+    margin-left: 50px;
+    background-color: RGB(220,220,220);
+    outline: none;
+    cursor:pointer;
+}
+.others{
+    display: flex;
+    flex-direction: column;
+    width: 95%;
+    height: 80px;
+    border: 1px solid black;
+    margin: 5px;
+}
+.others-info{
+    display: flex;
+    flex-direction: row;
+    width: 80%;
+    height: 30%;
+    border: 1px solid black;
+    cursor:pointer;
+}
+.other-img{
+    width: 7%;
+    height: 100%;
+    border: 1px solid black;
+}
+.other-img2{
+    width: 7%;
+    height: 100%;
+    border: 1px solid black;
+}
+.bottom{
+    align-items:center;
+    display:flex;
+    flex-direction: row;
+    width: 100%;
+    height: 50px;
+    border: none;
+    margin: 5px;
+    margin-top: 695px;
+    position: fixed;
+    background-color: white;
+}
+.like{
+    display:  flex;
+    flex-direction: row;
+    width: 90%;
+    height: 40px;
+    border: none;
+    margin-top: 15px;
+    margin-left: 200px;
+}
+.like1{
+    display:  flex;
+    flex-direction: row;
+    width: 25%;
+    height: 70%;
+    border: none;
+}
+.like-image{
+    margin: 5px;
+    margin-top: 1px;
+    border: none;
+}
+.text{
+    width: 30%;
+    height: 90%;
+    border: none;
+    cursor:pointer;
+}
+.head-image{
+    display: flex;
+    flex-direction: row;
+    width: 10%;
+    height:30px;
+    border: none;
+    margin: 10px;
+    margin-left: 230px;
+}
+.nav{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border: none;
+    margin-left: 30px;
+    width: 50%;
+    height: 30px;
+}
+.user-in{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border: none;
+    width: 50%;
+    height:30px;
+    margin: 5px;
+    margin-left: 100px;
+}
+a{
+    text-decoration:none;
+    color: black;
+}

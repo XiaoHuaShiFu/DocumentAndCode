@@ -26,6 +26,7 @@ public class QuestionCommentDao {
 		questionComment.setContent("这几个sb黄俊豪在干嘛  hahahahahahhhh");
 //		questionCommentDao.delete(7);
 //		questionCommentDao.update(questionComment);
+//		System.out.println(questionCommentDao.query(3));
 	}
 	
 	/**
@@ -48,6 +49,28 @@ public class QuestionCommentDao {
 			}
 		}
 		return questionCommentList;
+	}
+	
+	/**
+	 * 查询数据库返回QuestionComment
+	 * @param int
+	 * @return QuestionComment
+	 */
+	public QuestionComment query(int id) {
+		DBAccess dbAccess = new DBAccess();
+		SqlSession sqlSession = null;
+		QuestionComment questionComment = null;
+		try {
+			sqlSession = dbAccess.getSqlSession();
+			questionComment = sqlSession.selectOne("QuestionComment.queryOne", id);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (sqlSession != null) {
+				sqlSession.close();
+			}
+		}
+		return questionComment;
 	}
 	
 	/**
@@ -109,5 +132,7 @@ public class QuestionCommentDao {
 			}
 		}
 	}
+	
+	
 	
 }

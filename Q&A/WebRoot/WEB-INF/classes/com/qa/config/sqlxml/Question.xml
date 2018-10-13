@@ -68,10 +68,10 @@
 		UPDATE question
 		<!-- 设置set属性 自动添加删除前后缀 -->
 		<set>
-			<if test="follow != null">
+			<if test="follow != 0">
 				follow = #{follow},
 			</if>
-			<if test="click != null">
+			<if test="click != 0">
 				click = #{click},
 			</if>
 			<if test="title != null and !&quot;&quot;.equals(title.trim())">

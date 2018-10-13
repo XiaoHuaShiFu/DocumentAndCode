@@ -107,13 +107,13 @@ body{
     margin-left: 45px;
 }
 .write{
-    display:flex;
-    flex-direction:row;
-    align-items:center;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     border: none;
     width: 15%;
     margin : 90px ;
-    background-color:white;
+    background-color: white;
 }
 .question{
     display:flex;
@@ -124,6 +124,7 @@ body{
     margin : 90px ;
     margin-left: 130px;
     background-color:white;
+    cursor:pointer;
 }
 .user-nav{
     display: flex;
@@ -153,6 +154,7 @@ body{
     margin-top: 5px;
     flex-direction: column;
     align-items: center;
+    cursor:pointer;
 }
 
 .bottom{
@@ -196,9 +198,8 @@ body{
     margin-right:250px;
 }
 .title{
-    height: 20px;
+    height: 30px;
     width: 50%;
-    border: none;
     margin: 10px;
     margin-right:200px;
     color:black;
@@ -207,35 +208,26 @@ body{
 .text{
     height: 300px;
     width: 90%;
-    border: none;
     margin: 10px;
 }
 .action{
     display:flex;
     flex-direction: row;
     align-items:center;
-    height: 40px;
-    width: 70%;
-    margin: 10px;
+    height: 60px;
+    width: 80%;
+    margin: 15px;
+    margin-left: 10px;
     border: none;
 }
 .comment{
     display: flex;
     flex-direction: row;
     height: 20px;
-    width: 20%;
+    width: 25%;
     border: none;
-    margin: 30px;
-    border: none;
-}
-.like{
-    display: flex;
-    flex-direction: row;
-    height: 20px;
-    width: 20%;
-    border: none;
-    margin: 30px;
-    background-color: white;
+    margin: 20px;
+    cursor: pointer;
 }
 .logo{
     width: 10%;
@@ -269,6 +261,7 @@ body{
     height: 80%;
     text-align: center;
     margin-top: 8px;
+    titlecursor:pointer;
 }
 
 .allInput{
@@ -303,6 +296,9 @@ body{
     margin: 5px;
     margin-top: 1px;
 }
-a:hover   {
-	color:blue;
+a{
+    text-decoration:none;
+    color: black;
 }
+a:hover   {color:blue;}
+
