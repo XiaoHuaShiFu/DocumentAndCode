@@ -15,9 +15,12 @@
     <script src="<%=basePath%>resources/js/lib/jquery-3.3.1.min.js"></script>
 	<script src="<%=basePath%>resources/js/front/article.js"></script>
 	<script>
+		function onFollow(authorId, articleId) {
+			window.location.href="ArticleDetail?authorId=" + authorId + "&articleId=" + articleId + "&method=follow";
+		}
 		function tosubmit(id) {
 			var content = $("#content").val();
-			window.location.href="QuestionComment?id=" + id + "&content=" + content + "&method=submit";
+			window.location.href="ArticleDetail?id=" + id + "&content=" + content + "&method=submit";
 		}
 	</script>
 </head>
@@ -48,29 +51,45 @@
         <div>
             <img class="main-image" src="<%=basePath%>resources/images/article/logo.png"/>
         </div>
-        <div class="main-headline">文章标题</div>
+        <div class="main-headline">${article.title }</div>
         <div class="main-mine">
             <img class="mine-image" src="<%=basePath%>resources/images/article/logo.png" >
-            <a class="mine-intro" target="_blank" href="https://www.zhihu.com/">作者简介</a>
+            <a class="mine-intro" target="_blank" href="https://www.zhihu.com/">${user.username },${user.introduction }</a>
             <button class="attention" style="cursor:pointer">
                 <div class="atten-image" ><img src="<%=basePath%>resources/images/article/plus.png" width="15px" height="15px" /></div>
-                <div class="atten-txt">关注他</div>
+                <div class="atten-txt" onclick="onFollow(${article.authorId},${article.id })">
+	       			<c:if test="${isFollow == 'unfollow'}">
+				        	关注他
+				    </c:if>
+					<c:if test="${isFollow == 'followed'}">
+				        	已关注
+				    </c:if>         
+                </div>
             </button>
         </div>
-        <div class="txt">文章内容</div>
+        <div class="txt">${article.content }</div>
         <div class="other-comment">
             <div class="write-comment">
-                <textarea class="write-down" placeholder="请输入评论"></textarea>
-                <button class="Button" onmouseover="this.style.color='blue'" >发表</button>
+                <textarea class="write-down" id="content" placeholder="请输入评论"></textarea>
+                <button class="Button" onclick="tosubmit(${article.id})" onmouseover="this.style.color='blue'" >发表</button>
             </div>
-            <div class="others">
-                <a class="others-info" target="_blank" href="https://www.zhihu.com/">评论者名字</a>
-                <div class="others-info">评论信息</div>
-                <a class="others-info" onmouseover="this.style.color='blue'" onmouseout="this.style.color='black'">
-                    <div class="other-img" ><img class="like-image"  src="<%=basePath%>resources/images/article/like.png" width="20px" height="20px" /></div>
-                    <div class="other-img2">点赞</div>
-                </a>
-            </div>
+			<c:choose>
+				<c:when test="${article.comments != null}">
+					<c:forEach items="${article.comments}" var="comment"
+						varStatus="status">
+				           <div class="others">
+				               <a class="others-info" target="_blank" href="">${comment.respondent.username }</a>
+				               <div class="others-info">${comment.content }</div>
+				               <a class="others-info" href="ArticleDetail?articleId=${article.id }&commentId=${comment.id }&method=like" onmouseover="this.style.color='blue'" onmouseout="this.style.color='black'">
+				                   <div class="other-img" ><img class="like-image"  src="<%=basePath%>resources/images/article/like.png" width="20px" height="20px" /></div>
+				                   <div class="other-img2">${comment.like }</div>
+				               </a>
+				           </div>
+					</c:forEach>
+				</c:when>
+			</c:choose>
+				
+				
         </div>
     </div>
     <div class="bottom">

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="ArticleLike">
+	
+	<!-- ArticleLike对象 -->
+	<resultMap type="com.qa.bean.ArticleLike" id="ArticleLikeResult">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="article_id" jdbcType="INTEGER" property="articleId" />
+		<result column="liker_id" jdbcType="INTEGER" property="likerId" />
+		<result column="date" jdbcType="TIMESTAMP" property="date"/>
+	</resultMap>
+	
+	<!-- 通过id查询ArticleLike
+		param:int
+		return:QuestionCommentLikeResult
+	 -->
+	<select id="query" parameterType="com.qa.bean.ArticleLike" resultMap="ArticleLikeResult">
+		SELECT id, article_id, liker_id, date
+		FROM article_like WHERE article_id = #{articleId} AND liker_id = #{likerId}
+	</select>
+	
+	<!-- 写入一个ArticleLike,并设置该对象的id,第一次写入的时候使用
+		param:com.qa.bean.ArticleLike
+	 -->
+	<insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.ArticleLike">
+		INSERT INTO article_like(article_id, liker_id, date)
+		VALUES(#{articleId}, #{likerId}, now())
+	</insert>
+	
+	<!-- 通过article_id和liker_id删除一个条评论
+		param:com.qa.bean.ArticleLike
+	 -->
+	<delete id="delete" parameterType="com.qa.bean.ArticleLike">
+		DELETE FROM article_like 
+		WHERE article_id = #{articleId} AND liker_id = #{likerId}
+	</delete>
+	
+	
+</mapper>

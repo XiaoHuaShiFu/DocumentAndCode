@@ -1,7 +1,6 @@
 package com.qa.servlet;
 
 import java.io.IOException;
-import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -9,8 +8,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import com.qa.bean.Question;
-import com.qa.bean.Search;
 import com.qa.bean.User;
 import com.qa.service.SearchService;
 
@@ -58,26 +55,7 @@ public class MyServlet extends HttpServlet {
 		}
 		//跳转
 		req.getRequestDispatcher("/WEB-INF/jsp/front/My.jsp").forward(req, resp);
-		
-		
-//		try {
-//			user = searchService.getUsers(keyword, 0, 10);
-//			searchs = searchService.getTopSearchs(0, 20);
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-//		if (users == null) {
-//			//设置值
-//			req.setAttribute("searchResult", "没有找到想要的信息.");
-//			//跳转
-//			req.getRequestDispatcher("/WEB-INF/jsp/front/Search.jsp").forward(req, resp);
-//		} else {
-//			//设置值
-//			req.setAttribute("users", users);
-//			req.setAttribute("searchs", searchs);
-//			//跳转
-//			req.getRequestDispatcher("/WEB-INF/jsp/front/Search.jsp").forward(req, resp);
-//		}
+	
 	}
 	
 }

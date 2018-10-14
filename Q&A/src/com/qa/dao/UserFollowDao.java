@@ -14,7 +14,10 @@ public class UserFollowDao {
 	
 	public static void main(String[] args) {
 		UserFollowDao userFollowDao = new UserFollowDao();
-		System.out.println(userFollowDao.queryFollowerList(8));
+		UserFollow userFollow = new UserFollow();
+		userFollow.setFollowerId(9);
+		userFollow.setUserId(8);
+		System.out.println(userFollowDao.query(userFollow));
 	}
 	
 	/**
@@ -87,6 +90,28 @@ public class UserFollowDao {
 	}
 	
 	/**
+	 *  通过关注人id和被关注人id查询关注信息
+	 * @param UserFollow
+	 * @return UserFollow
+	 */
+	public UserFollow query(UserFollow userFollow) {
+		DBAccess dbAccess = new DBAccess();
+		SqlSession sqlSession = null;
+		UserFollow uf = null;
+		try {
+			sqlSession = dbAccess.getSqlSession();
+			uf = sqlSession.selectOne("UserFollow.query", userFollow);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (sqlSession != null) {
+				sqlSession.close();
+			}
+		}
+		return uf;
+	}
+	
+	/**
 	 * 通过关注者id和被关注者id插入一条关注信息
 	 * @param user
 	 */
@@ -110,7 +135,7 @@ public class UserFollowDao {
 	 * 通过关注者id和被关注者id删除一条关注信息
 	 * @param id
 	 */
-	public void deleteUser(UserFollow userFollow) {
+	public void deleteUserFollow(UserFollow userFollow) {
 		DBAccess dbAccess = new DBAccess();
 		SqlSession sqlSession = null;
 		try {

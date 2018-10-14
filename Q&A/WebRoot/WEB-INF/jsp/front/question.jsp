@@ -25,9 +25,7 @@
 			window.location.href="QuestionDetail?questionId=" + questionId + "&method=follow";
 		}
 	</script>
-	<style>
-		
-	</style>
+
 </head>
 <body>
 	<div class="container">

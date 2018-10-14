@@ -147,22 +147,26 @@
 			                    			</c:if>
 										</div>
 										<div class="action">
-											<a class="comment" onmouseover="this.style.color='blue'"
+											<a class="comment" href="Home?method=like&articleId=${article.id }" onmouseover="this.style.color='blue'"
 												onmouseout="this.style.color='black'"> <img
 												class="user-image2"
 												src="<%=basePath%>resources/images/home/heart.png"
-												width="20px" height="20px" /> ${article.like }赞同
-											</a> <a class="comment" onmouseover="this.style.color='blue'"
+												width="20px" height="20px" /> 
+												${article.like }赞同
+											</a> 
+											<a class="comment" onmouseover="this.style.color='blue'"
 												onmouseout="this.style.color='black'"> <img
 												class="user-image2"
 												src="<%=basePath%>resources/images/home/write.png"
-												width="20px" height="20px" /> ${article.comment }评论
+												width="20px" height="20px" /> 
+												${article.comment }评论
 											</a> 
 											<a class="comment" onmouseover="this.style.color='blue'"
 												onmouseout="this.style.color='black'"> <img
 												class="user-image2"
 												src="<%=basePath%>resources/images/home/star-fill.png"
-												width="20px" height="20px" /> ${article.collection }收藏
+												width="20px" height="20px" />
+												 ${article.collection }收藏
 											</a>
 										</div>
 									</div>

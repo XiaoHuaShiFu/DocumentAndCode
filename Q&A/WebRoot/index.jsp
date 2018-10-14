@@ -11,12 +11,19 @@
 <title>QA，寻求问题的真相</title>
 <link rel="stylesheet" type="text/css"
 	href="<%=basePath%>resources/css/SignIn.css" />
+<style>
+	.logo{
+    width: 170px;
+    height: 55px;
+}
+</style>
 </head>
+
 <body>
 	<div class="container">
 		<div class="header">
 			<div class="logoContent">
-				<img class="logo" src="<%=basePath%>resources/images/logo.png" />
+				<img class="logo" src="<%=basePath%>resources/images/yingxian/logo.png" />
 			</div>
 			<div class="logoText">注册QA，寻求问题的真相</div>
 		</div>

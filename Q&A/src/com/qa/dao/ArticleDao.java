@@ -48,7 +48,7 @@ public class ArticleDao {
 	 * @param id
 	 * @return Article
 	 */
-	public Article queryArticle(int id) {
+	public Article query(int id) {
 		DBAccess dbAccess = new DBAccess();
 		SqlSession sqlSession = null;
 		Article article = null;
@@ -109,7 +109,7 @@ public class ArticleDao {
 	 * 通过文章信息Article更新文章
 	 * @param article
 	 */
-	public void updateArticle(Article article) {
+	public void update(Article article) {
 		DBAccess dbAccess = new DBAccess();
 		SqlSession sqlSession = null;
 		try {

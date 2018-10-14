@@ -219,7 +219,7 @@ public class SearchService {
 		//搜索文章
 		Article article = null;
 		ArticleDao articleDao = new ArticleDao();
-		article = articleDao.queryArticle(Integer.parseInt(id));
+		article = articleDao.query(Integer.parseInt(id));
 		//加载作者信息
 		UserDao userDao = new UserDao();
 		User author = null;

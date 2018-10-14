@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-
 <!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
 
 <configuration>
@@ -20,8 +19,10 @@
 
 	<mappers>
 		<mapper resource="com/qa/config/sqlxml/Article.xml" />
+		<mapper resource="com/qa/config/sqlxml/ArticleLike.xml" />
 		<mapper resource="com/qa/config/sqlxml/ArticleCollect.xml" />
 		<mapper resource="com/qa/config/sqlxml/ArticleComment.xml" />
+		<mapper resource="com/qa/config/sqlxml/ArticleCommentLike.xml" />
 		<mapper resource="com/qa/config/sqlxml/Question.xml" />
 		<mapper resource="com/qa/config/sqlxml/QuestionFollow.xml" />
 		<mapper resource="com/qa/config/sqlxml/QuestionComment.xml" />

@@ -6,8 +6,8 @@ import javax.servlet.*;
 import javax.servlet.http.*;
 
 import com.qa.bean.Article;
-import com.qa.bean.Question;
 import com.qa.bean.User;
+import com.qa.service.CommentService;
 import com.qa.service.FollowService;
 import com.qa.service.LikeService;
 import com.qa.service.SearchService;
@@ -29,43 +29,73 @@ public class ArticleDetailServlet extends HttpServlet {
 			req.getRequestDispatcher("/index.jsp").forward(req, resp);
 		}
 		if (method.equals("detail")) {
-			//获取问题信息
+			//获取文章信息
 			String id = req.getParameter("id");
 			SearchService searchService = new SearchService();
-			Question question = searchService.getQuestion(id);
+			Article article = searchService.getArticle(id);
 			FollowService followService = new FollowService();
-			String isFollow = followService.isFollow(id, user.getId());
+			String isFollow = followService.isFollow(article.getAuthor().getId(), user.getId());
 			//设置值
-			req.setAttribute("question", question);
+			req.setAttribute("article", article);
 			req.setAttribute("isFollow", isFollow);
-			req.getRequestDispatcher("/WEB-INF/jsp/front/question.jsp").forward(req, resp);
+			req.setAttribute("user", user);
+			req.getRequestDispatcher("/WEB-INF/jsp/front/article.jsp").forward(req, resp);
 		} else if (method.equals("like")) {
-			//点赞一个问题的评论
+			//点赞一条评论
+			String articleId = req.getParameter("articleId");
 			String commentId = req.getParameter("commentId");
-			String questionId = req.getParameter("questionId");
 			LikeService likeService = new LikeService();
-			likeService.likeQuestionComment(commentId, user);
+			likeService.likeArticleComment(commentId, user);
 			SearchService searchService = new SearchService();
-			Question question = searchService.getQuestion(questionId);
+			Article article = searchService.getArticle(articleId);
 			FollowService followService = new FollowService();
-			String isFollow = followService.isFollow(questionId, user.getId());
+			String isFollow = followService.isFollow(article.getAuthor().getId(), user.getId());
 			//设置值
-			req.setAttribute("question", question);
+			req.setAttribute("article", article);
 			req.setAttribute("isFollow", isFollow);
-			req.getRequestDispatcher("/WEB-INF/jsp/front/question.jsp").forward(req, resp);
+			req.getRequestDispatcher("/WEB-INF/jsp/front/article.jsp").forward(req, resp);
 		} else if (method.equals("follow")) {
-			//关注一个问题
-			String questionId = req.getParameter("questionId");
+			//关注作者
+			String authorId = req.getParameter("authorId");
+			String articleId = req.getParameter("articleId");
+			//关注
 			FollowService followeService = new FollowService();
-			followeService.followQuestion(questionId, user);
+			followeService.followUser(authorId, user.getId());
+			//获取值
 			SearchService searchService = new SearchService();
-			Question question = searchService.getQuestion(questionId);
+			Article article = searchService.getArticle(articleId);
 			FollowService followService = new FollowService();
-			String isFollow = followService.isFollow(questionId, user.getId());
+			String isFollow = followService.isFollow(article.getAuthor().getId(), user.getId());
 			//设置值
-			req.setAttribute("question", question);
+			req.setAttribute("article", article);
 			req.setAttribute("isFollow", isFollow);
-			req.getRequestDispatcher("/WEB-INF/jsp/front/question.jsp").forward(req, resp);
+			req.getRequestDispatcher("/WEB-INF/jsp/front/article.jsp").forward(req, resp);
+		} else if (method.equals("submit")) {
+			//获取问题信息
+			String content = req.getParameter("content");
+			String id = req.getParameter("id");
+			if (content == null) {
+				SearchService searchService = new SearchService();
+				Article article = searchService.getArticle(id);
+				//设置值
+				req.setAttribute("notice", "评论内容不能为空。");
+				req.setAttribute("Article", article);
+				req.getRequestDispatcher("/WEB-INF/jsp/front/article.jsp").forward(req, resp);
+			} else {
+				//提交评论
+				CommentService commentService = new CommentService();
+				commentService.addArticleComment(content, user, id);
+				
+				//获取文章信息
+				SearchService searchService = new SearchService();
+				Article article = searchService.getArticle(id);
+				FollowService followService = new FollowService();
+				String isFollow = followService.isFollow(id, user.getId());
+				//设置值
+				req.setAttribute("article", article);
+				req.setAttribute("isFollow", isFollow);
+				req.getRequestDispatcher("/WEB-INF/jsp/front/article.jsp").forward(req, resp);
+			}
 		}
 	}
 

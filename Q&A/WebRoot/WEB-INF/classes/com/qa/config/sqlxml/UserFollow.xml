@@ -52,6 +52,12 @@
 		)
 	</select>
 	
+	<!-- 通过UserFollow查询对应的UserFollow是否存在 -->
+	<select id="query" parameterType="com.qa.bean.UserFollow" resultMap="UserFollowResult">
+		SELECT id, follower_id, user_id
+		FROM user_follow
+		WHERE follower_id = #{followerId} AND user_id = #{userId}
+	</select>
 	
 	<!-- 通过关注者id和被关注者id插入一条关注信息 -->
 	<insert id="insertUserFollow" useGeneratedKeys="true" keyProperty="id" parameterType="com.qa.bean.UserFollow">

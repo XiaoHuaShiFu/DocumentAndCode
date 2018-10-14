@@ -66,8 +66,14 @@ public class HomeServlet extends HttpServlet{
 		} else if (method.equals("like")) {
 			//点赞
 			String commentId = req.getParameter("commentId");
-			LikeService likeService = new LikeService();
-			likeService.likeQuestionComment(commentId, user);
+			String articleId = req.getParameter("articleId");
+			if (commentId != null) {
+				LikeService likeService = new LikeService();
+				likeService.likeQuestionComment(commentId, user);
+			} else {
+				LikeService likeService = new LikeService();
+				likeService.likeArticle(articleId, user.getId());
+			}
 			//获取问题和文章
 			SearchService searchService = new SearchService();
 			List<Question> questions = null;

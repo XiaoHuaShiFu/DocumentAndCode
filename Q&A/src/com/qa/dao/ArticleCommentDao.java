@@ -24,8 +24,9 @@ public class ArticleCommentDao {
 		articleComment.setArticleId(3);
 		articleComment.setRespondentId(12);
 		articleComment.setContent("黄俊豪到此二游");
+		System.out.println(articleCommentDao.query(3));
 //		articleCommentDao.insertArticleComment(articleComment);
-		articleCommentDao.updateArticleComment(articleComment);
+//		articleCommentDao.updateArticleComment(articleComment);
 	}
 	
 	/**
@@ -51,10 +52,32 @@ public class ArticleCommentDao {
 	}
 	
 	/**
+	 * 查询数据库返回ArticleComment
+	 * @param int
+	 * @return ArticleComment
+	 */
+	public ArticleComment query(int id) {
+		DBAccess dbAccess = new DBAccess();
+		SqlSession sqlSession = null;
+		ArticleComment articleComment = null;
+		try {
+			sqlSession = dbAccess.getSqlSession();
+			articleComment = sqlSession.selectOne("ArticleComment.queryOne", id);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (sqlSession != null) {
+				sqlSession.close();
+			}
+		}
+		return articleComment;
+	}
+	
+	/**
 	 * 通过文章评论ArticleComment插入一条新的评论
 	 * @param ArticleComment
 	 */
-	public void insertArticleComment(ArticleComment articleComment) {
+	public void insert(ArticleComment articleComment) {
 		DBAccess dbAccess = new DBAccess();
 		SqlSession sqlSession = null;
 		try {
@@ -74,7 +97,7 @@ public class ArticleCommentDao {
 	 * 通过评论的id删除一条评论
 	 * @param id
 	 */
-	public void deleteArticleComment(int id) {
+	public void delete(int id) {
 		DBAccess dbAccess = new DBAccess();
 		SqlSession sqlSession = null;
 		try {
@@ -94,7 +117,7 @@ public class ArticleCommentDao {
 	 * 通过评论信息ArticleComment更新评论
 	 * @param ArticleComment
 	 */
-	public void updateArticleComment(ArticleComment articleComment) {
+	public void update(ArticleComment articleComment) {
 		DBAccess dbAccess = new DBAccess();
 		SqlSession sqlSession = null;
 		try {

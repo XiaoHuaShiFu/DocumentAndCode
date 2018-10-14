@@ -11,7 +11,7 @@ import com.qa.db.DBAccess;
 
 public class QuestionDao {
 	
-	public static void main(String[] args) {
+	/*public static void main(String[] args) {
 		QuestionDao questionDao = new QuestionDao();
 		QuestionKeyword questionKeyword = new QuestionKeyword();
 		questionKeyword.setTitle("");
@@ -25,7 +25,7 @@ public class QuestionDao {
 //		Question question = (Question) questionDao.query("这是一篇文章", 1 , 1);
 		List<Question> questionList = questionDao.query(questionKeyword);
 		System.out.println(questionDao.query(3));
-	}
+	}*/
 	
 	/**
 	 * 查询数据库返回questions

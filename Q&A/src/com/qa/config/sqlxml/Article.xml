@@ -58,10 +58,10 @@
 		UPDATE article
 		<!-- 设置set属性 自动添加删除前后缀 -->
 		<set>
-			<if test="collection != null">
+			<if test="collection != 0">
 				collection = #{collection},
 			</if>
-			<if test="click != null">
+			<if test="click != 0">
 				click = #{click},
 			</if>
 			<if test="title != null and !&quot;&quot;.equals(title.trim())">
@@ -69,6 +69,12 @@
 			</if>
 			<if test="content != null and !&quot;&quot;.equals(content.trim())">
 				content = #{content},
+			</if>
+			<if test="like != 0">
+				likes = #{like},
+			</if>
+			<if test="comment != 0">
+				comment = #{comment}
 			</if>
 		</set>
 		WHERE id = #{id}

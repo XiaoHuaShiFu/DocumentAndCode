@@ -17,6 +17,8 @@
 		<result column="email" jdbcType="VARCHAR" property="email" />
 		<result column="sex" jdbcType="VARCHAR" property="sex" />
 		<result column="introduction" jdbcType="VARCHAR" property="introduction" />
+		<result column="follower" jdbcType="INTEGER" property="follower" />
+		<result column="follow" jdbcType="INTEGER" property="follow" />
 	</resultMap>
 	
 	<!-- 通过phone或email查询单个用户
@@ -24,7 +26,7 @@
 		return:UserResult
 	 -->
 	<select id="queryUser" parameterType="com.qa.bean.User" resultMap="UserResult">
-		SELECT id, username, password, phone, email, sex, introduction 
+		SELECT id, username, password, phone, email, sex, introduction, follower, follow
 		FROM user WHERE phone = #{phone} OR email = #{email} OR id = #{id}
 	</select>
 	
@@ -33,7 +35,7 @@
 		return:List<UserResult>
 	 -->
 	<select id="queryUserList" parameterType="com.qa.bean.UserKeyword" resultMap="UserResult">
-		SELECT id, username, password, phone, email, sex, introduction 
+		SELECT id, username, password, phone, email, sex, introduction, follower, follow
 		FROM user WHERE username LIKE '%' #{username} '%' 
 		LIMIT #{from},#{to}
 	</select>
@@ -75,6 +77,9 @@
 			</if>
 			<if test="introduction != null and !&quot;&quot;.equals(introduction.trim())">
 				introduction = #{introduction},
+			</if>
+			<if test="follower != 0"> 
+				follower = #{follower},
 			</if>
 		</set>
 		WHERE id = #{id}

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="ArticleComment">
@@ -24,14 +23,14 @@
 		LIMIT #{from},#{to}
 	</select> 
 	
-	<!-- 通过id查询文章
-		param:com.qa.bean.Article
-		return:ArticleResult
-	 -->
-	<!-- <select id="queryArticle" parameterType="com.qa.bean.Article" resultMap="ArticleResult">
-		SELECT id, author_id, collection, click, title, content, date, likes, comment 
-		FROM article WHERE id = #{id}
-	</select> -->
+	<!-- 通过article_id查询文章评论 
+		param:int
+		return:ArticleCommentResult
+	-->
+	<select id="queryOne" parameterType="int" resultMap="ArticleCommentResult">
+		SELECT id, article_id, respondent_id, content, date, likes 
+		FROM article_comment WHERE id = #{_parameter}
+	</select> 
 	
 	<!-- 写入一条评论，第一次写入的时候使用
 		param:com.qa.bean.ArticleComment
