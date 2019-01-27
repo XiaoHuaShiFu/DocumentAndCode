@@ -1,0 +1,11 @@
+环境变量：
+CATALINA_HOME：tomcat文件根目录
+
+启动tomcat：
+bin\startup.bat
+
+Web项目虚拟路径 = web项目根目录名称
+
+Tomcat目录结构：		            classes
+		      WEB-INF ->   lib
+webapps -> 主机名 ->   index.html

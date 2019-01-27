@@ -4,3 +4,6 @@ add file  //建立跟踪
 reset Head file //撤销跟踪
 commit //提交项目
 push  //推到github
+pull  //拉库(更新)
+log //修改记录
+reset --hard commitId  //回到这次commit的时间节点
