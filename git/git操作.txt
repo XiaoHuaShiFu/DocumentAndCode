@@ -1,0 +1,6 @@
+clone url //克隆项目
+status  //工作区状态
+add file  //建立跟踪
+reset Head file //撤销跟踪
+commit //提交项目
+push  //推到github

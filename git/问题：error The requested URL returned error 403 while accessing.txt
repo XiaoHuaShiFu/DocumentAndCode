@@ -1,0 +1,3 @@
+解决方法：
+修改
+[remote "origin"]      url = https://github.com/youname/example.git  为：[remote "origin"]      url = https://youname@github.com/youname/example.git  再次git push，弹出框输入密码(你在github上注册的用户名和密码)，即可提交
