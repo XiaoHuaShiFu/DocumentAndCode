@@ -1,0 +1,7 @@
+1：wget xxx
+2：tar -zxvf xxx.tar.gz解压缩
+3：配置环境变量 sudo vim /etc/profile
+	export CATALINA_HOME=/developer/apache-tomcat-7.xxx
+4:配置UTF-8字符集
+	vim server.xml
+	在8080位置 后面加上 URIEncoding="UTF-8"
