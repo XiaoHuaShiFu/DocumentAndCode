@@ -1,0 +1,43 @@
+{
+  "manifest_version" : 2,
+  "name"    : "__MSG_extName__",
+  "short_name" : "DHC",
+  "version" : "0.7.9",
+  "minimum_chrome_version" : "38",
+  "description"     : "REST & HTTP API developer's pocket knife. Easy to use and configurable. HATEOAS, Hypermedia, Requests History+Repository, and  more.",
+
+	"app": {
+		"background": {
+			"scripts": ["background.js"]
+		}
+	},
+
+  "icons": { "16": "ico16.png", "48": "ico48.png", "128": "ico128.png" },
+
+  "default_locale"  : "en",
+  "offline_enabled" : true,
+  
+  "permissions"     : [
+  		 "https://www.google-analytics.com/", 
+  		"storage", 
+  		"unlimitedStorage",
+  		"webview",
+  		"clipboardWrite"
+  ],
+  
+  "sockets" : {
+   "tcp" : {
+      "connect" : [ "*:*" ]
+   }
+  },
+
+  "externally_connectable": {
+    "ids": [
+      "*"
+    ],
+    "matches": [
+      "*://sprintapi.appspot.com/*"
+    ],
+    "accepts_tls_channel_id": false
+  }
+}

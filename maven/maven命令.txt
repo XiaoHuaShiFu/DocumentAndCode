@@ -1,0 +1,4 @@
+mvn clean  //清除
+mvn compile //编译
+mvn package //打包
+mvn clean package -Dmaven.test.skip=true //跳过单元测试

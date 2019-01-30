@@ -1,0 +1,34 @@
+{
+  "manifest_version" : 2,
+  "name"    : "__MSG_extName__",
+  "short_name" : "DHC",
+  "version" : "0.7.8",
+  "minimum_chrome_version" : "28",
+  "description"     : "REST & HTTP API developer's pocket knife. Easy to use and configurable. HATEOAS, Hypermedia, Requests History+Repository, and  more.",
+
+  "app": {
+    "launch": {
+      "local_path": "dhc.html"
+    }
+  },
+
+  "content_security_policy": "script-src 'self' 'unsafe-eval' chrome-extension-resource: https://stats.g.doubleclick.net/dc.js http://localhost:9876/ https://www.google-analytics.com/analytics.js https://apis.google.com/ https://platform.twitter.com/;  object-src 'self'; img-src *; frame-src *;  ",
+
+  "icons": { "16": "ico16.png", "48": "ico48.png", "128": "ico128.png" },
+
+  "default_locale"  : "en",
+  "offline_enabled" : true,
+  "permissions"     : [ "storage", "webRequest","webRequestBlocking","cookies","<all_urls>","unlimitedStorage","clipboardWrite"],
+
+  "options_page" : "dhc.html#settings",
+  
+  "externally_connectable": {
+    "ids": [
+      "*"
+    ],
+    "matches": [
+      "*://sprintapi.appspot.com/*"
+    ],
+    "accepts_tls_channel_id": false
+  }
+}

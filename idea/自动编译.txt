@@ -1,0 +1,1 @@
+file->settings->compiler->make project automatically

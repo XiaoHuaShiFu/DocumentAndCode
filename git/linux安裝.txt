@@ -1,0 +1,14 @@
+1：安裝依賴
+yum -y install zlib-devel openssl-devel cpio expat-devel gettext-devel curl-devel perl-ExtaUtils-CBuilder perl-ExtUtils-MakeMaker
+2：下载git
+3：配置
+1）配置用户名
+git config --global user.name "imooc"
+2)配置邮箱
+git config --global user.email "imooc@163.com"
+3）其他配置
+git config --global core.autocrlf false //不要管换行符的事
+4：编码
+git config --global gui.encoding utf-8  //避免gui中的中文乱码
+git config --global core.quotepath off  //避免status中的中文文件名乱码
+5：配置 git ssh key pair
