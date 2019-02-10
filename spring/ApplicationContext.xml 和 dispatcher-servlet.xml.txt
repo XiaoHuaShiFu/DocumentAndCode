@@ -1,0 +1,6 @@
+　　ApplicationContext.xml  是spring 全局配置文件，用来控制spring 特性的
+　　dispatcher-servlet.xml 是spring mvc里面的，控制器、拦截uri转发view
+　　使用applicationContext.xml文件时是需要在web.xml中添加listener的： 
+　　<listener>
+    　　<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+　　</listener>

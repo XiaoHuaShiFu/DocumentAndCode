@@ -1,0 +1,4 @@
+通过aop命名空间的<aop:aspectj-autoproxy />声明自动为spring容器中那些配置@aspectJ切面的bean创建代理，织入切面
+
+
+https://www.cnblogs.com/zmxie/p/3399629.html

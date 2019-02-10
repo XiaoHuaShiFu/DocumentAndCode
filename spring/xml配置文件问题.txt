@@ -1,0 +1,1 @@
+最后打包时都会加到WEB-INF/classes下面

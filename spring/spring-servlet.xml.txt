@@ -1,0 +1,196 @@
+1.<context:component-scan base-package="com.spring.mvc.controller"/> 
+扫描指定的包中的类上的注解，常用的注解有：
+@Controller 声明Action组件
+@Service    声明Service组件    @Service("myMovieLister") 
+@Repository 声明Dao组件
+@Component   泛指组件, 当不好归类时. 
+@RequestMapping("/menu")  请求映射
+@Resource  用于注入，( j2ee提供的 ) 默认按名称装配，@Resource(name="beanName") 
+@Autowired 用于注入，(srping提供的) 默认按类型装配 
+@Transactional( rollbackFor={Exception.class}) 事务管理
+@ResponseBody
+@Scope("prototype")   设定bean的作用域
+
+
+
+2.<mvc:annotation-driven /> 是一种简写形式，完全可以手动配置替代这种简写形式，简写形式可以让初学都快速应用默认配置方案。<mvc:annotation-driven /> 会自动注册DefaultAnnotationHandlerMapping与AnnotationMethodHandlerAdapter 两个bean,是spring MVC为@Controllers分发请求所必须的。
+
+ 并在action类上使用：
+@Controller
+@RequestMapping("/user") 
+
+
+
+3.十九、 <mvc:annotation-driven /> 到底做了什么工作 
+ 
+一句 <mvc:annotation-driven />实际做了以下工作：（不包括添加自己定义的拦截器） 
+我们了解这些之后，对Spring3 MVC的控制力就更强大了，想改哪就改哪里。 
+
+Xml代码  
+   <!-- 注解请求映射  -->  
+   <bean class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping">          
+    <property name="interceptors">  
+        <list>    
+            <ref bean="logNDCInteceptor"/>   <!-- 日志拦截器，这是你自定义的拦截器 -->  
+            <ref bean="myRequestHelperInteceptor"/>   <!-- RequestHelper拦截器，这是你自定义的拦截器-->   
+            <ref bean="myPermissionsInteceptor"/>  <!-- 权限拦截器，这是你自定义的拦截器-->   
+            <ref bean="myUserInfoInteceptor"/>  <!-- 用户信息拦截器，这是你自定义的拦截器-->   
+        </list>          
+    </property>          
+</bean>     
+<bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">  
+    <property name="messageConverters">    
+        <list>    
+            <ref bean="byteArray_hmc" />    
+            <ref bean="string_hmc" />    
+            <ref bean="resource_hmc" />    
+            <ref bean="source_hmc" />    
+            <ref bean="xmlAwareForm_hmc" />    
+            <ref bean="jaxb2RootElement_hmc" />    
+            <ref bean="jackson_hmc" />    
+        </list>    
+    </property>    
+</bean>    
+<bean id="byteArray_hmc" class="org.springframework.http.converter.ByteArrayHttpMessageConverter" /><!-- 处理.. -->  
+<bean id="string_hmc" class="org.springframework.http.converter.StringHttpMessageConverter" /><!-- 处理.. -->  
+<bean id="resource_hmc" class="org.springframework.http.converter.ResourceHttpMessageConverter" /><!-- 处理.. -->  
+<bean id="source_hmc" class="org.springframework.http.converter.xml.SourceHttpMessageConverter" /><!-- 处理.. -->  
+<bean id="xmlAwareForm_hmc" class="org.springframework.http.converter.xml.XmlAwareFormHttpMessageConverter" /><!-- 处理.. -->  
+<bean id="jaxb2RootElement_hmc" class="org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter" /><!-- 处理.. -->  
+<bean id="jackson_hmc" class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter" /><!-- 处理json-->  
+
+
+
+
+
+4.添加静态资源访问的支持： 
+
+<mvc:resources location="/resources/" mapping="/resources/**"></mvc:resources>
+匹配URL  /resources/**  的URL被当做静态资源，由Spring读出到内存中再响应http。
+
+
+或直接使用默认的Servlet来响应静态文件。
+<mvc:default-servlet-handler/>
+
+
+
+
+5.
+ <!-- 视图解释类 -->  
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">  
+        <property name="prefix" value="/WEB-INF/jsp/"/>  
+        <property name="suffix" value=".jsp"/><!--可为空,方便实现自已的依据扩展名来选择视图解释类的逻辑  -->  
+        <property name="viewClass" value="org.springframework.web.servlet.view.JstlView" />  
+    </bean>  
+
+
+
+
+6.
+ <!-- 拦截器 -->  
+    <mvc:interceptors>  
+        <bean class="com.core.mvc.MyInteceptor" />  
+    </mvc:interceptors>       
+
+
+
+7.
+处理ajax请求 
+ 
+1、引入下面两个jar包，我用的是1.7.2，好像1.4.2版本以上都可以，下载地址： http://wiki.fasterxml.com/JacksonDownload 
+jackson-core-asl-1.7.2.jar  
+jackson-mapper-asl-1.7.2.jar 
+ 
+2、spring的配置文件中要有这一行，才能使用到spring内置支持的json转换。如果你手工把POJO转成json就可以不须要使用spring内置支持的json转换。 
+<mvc:annotation-driven /> 
+ 
+3、使用@ResponseBody注解 
+Java代码  
+/** 
+ * ajax测试 
+* http://127.0.0.1/mvc/order/ajax 
+ */  
+  
+@RequestMapping("/ajax")  
+@ResponseBody  
+public Object ajax(HttpServletRequest request){  
+    List<String> list=new ArrayList<String>();  
+    list.add("电视");  
+nbsp;       list.add("洗衣机");  
+    list.add("冰箱");  
+    list.add("电脑");  
+    list.add("汽车");  
+    list.add("空调");  
+    list.add("自行车");  
+    list.add("饮水机");  
+    list.add("热水器");  
+    return list;  
+}  
+
+
+
+
+8.取得spring管理的bean
+3、通用的方法来了，神器啊，前的  1、2两种方法并不通用，可以抛弃了。
+在配置文件中加入：
+Xml代码  
+<!-- 用于持有ApplicationContext,可以使用SpringContextHolder.getBean('xxxx')的静态方法得到spring bean对象 -->  
+<bean class="com.xxxxx.SpringContextHolder" lazy-init="false" />  
+  
+Java代码  
+import org.springframework.context.ApplicationContext;  
+import org.springframework.context.ApplicationContextAware;  
+/** 
+ * 以静态变量保存Spring ApplicationContext, 可在任何代码任何地方任何时候中取出ApplicaitonContext. 
+ *  
+ */  
+public class SpringContextHolder implements ApplicationContextAware {  
+private static ApplicationContext applicationContext;  
+  
+/** 
+* 实现ApplicationContextAware接口的context注入函数, 将其存入静态变量. 
+*/  
+public void setApplicationContext(ApplicationContext applicationContext) {  
+SpringContextHolder.applicationContext = applicationContext; // NOSONAR  
+}  
+  
+/** 
+* 取得存储在静态变量中的ApplicationContext. 
+*/  
+public static ApplicationContext getApplicationContext() {  
+checkApplicationContext();  
+return applicationContext;  
+}  
+  
+/** 
+* 从静态变量ApplicationContext中取得Bean, 自动转型为所赋值对象的类型. 
+*/  
+@SuppressWarnings("unchecked")  
+public static <T> T getBean(String name) {  
+checkApplicationContext();  
+return (T) applicationContext.getBean(name);  
+}  
+  
+/** 
+* 从静态变量ApplicationContext中取得Bean, 自动转型为所赋值对象的类型. 
+*/  
+@SuppressWarnings("unchecked")  
+public static <T> T getBean(Class<T> clazz) {  
+checkApplicationContext();  
+return (T) applicationContext.getBeansOfType(clazz);  
+}  
+  
+/** 
+* 清除applicationContext静态变量. 
+*/  
+public static void cleanApplicationContext() {  
+applicationContext = null;  
+}  
+  
+private static void checkApplicationContext() {  
+if (applicationContext == null) {  
+throw new IllegalStateException("applicaitonContext未注入,请在applicationContext.xml中定义SpringContextHolder");  
+}  
+}  
+}  
+

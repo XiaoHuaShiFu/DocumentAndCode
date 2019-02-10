@@ -1,0 +1,6 @@
+里面的classpath:后面的文件是可以放在main/下面的文件夹 
+如：main/resources/applicationContext.xml
+
+
+classpath: 是指加载找到的第一个
+classpath* 是加载找到的所有
