@@ -1,0 +1,8 @@
+问题描叙：我用IntelliJ IDEA 创建maven项目时，勾选maven-archetype-webapp后，开始创建。
+
+卡在running C:/User/Administrator/AppData/Local/Temp/archetype1tmp上，一直在运行，目录下没有src文件夹。
+
+
+解决步骤：
+1、重新创建
+点击绿色的 + ，在空格出填好下面的信息 ：archetypeCatalog，internal； ok；    next

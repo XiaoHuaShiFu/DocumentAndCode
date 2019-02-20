@@ -1,0 +1,27 @@
+Mysql报错Fatal error: Can't open and lock privilege tables: Table 'mysql.host' doesn't exist 
+
+安装mysql后，启动时候没有启动成功，查看了下日志报错如下:---------------------------------------------
+
+1   可以：初始化mysql：mysql_install_db
+
+2   目录权限问题chown -R mysql:mysql  /var/lib/mysql
+
+[root@localhost local]# less /var/log/mysqld.log
+1、查看报错信息如下:
+[ERROR] Fatal error: Can't open and lock privilege tables: Table 'mysql.host' doesn't exist
+
+2、经过查阅资料得知。要敲如下命令解决:
+mysql_install_db –usrer=mysql datadir=/var/lib/mysql
+datadir是我的mysql存放文件目录
+
+3、然后重启mysql还是不行:
+MySQL Daemon failed to start.
+正在启动 mysqld：                                          [失败]
+
+4、然后试了下单独的命令，启动完成
+mysql_install_db
+
+5、启动mysql服务
+[root@mysql mysqld]# /etc/init.d/mysqld restart
+停止 mysqld：                                              [确定]
+正在启动 mysqld：                                         [确定]

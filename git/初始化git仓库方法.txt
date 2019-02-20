@@ -1,0 +1,8 @@
+1.到对应工程目录
+2.git init   //初始化仓库   （git status 查看仓库状态）
+3.git add .  //添加所有文件
+4.git commit -am "first commit init  project" //提交初始化项目到本地仓库
+5.git remote add origin git@github.com:XiaoHuaShiFu/ScauAieSP.git //提交到远程仓库
+6.git pull  //拉取远程仓库的文件
+7.git push //提交到远程仓库（git push -u -f origin master）
+ 
