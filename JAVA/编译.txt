@@ -1,2 +1,0 @@
-javac -classpath D:\tomcat\lib\servlet-ap
-i.jar -d classes C:\Users\lenovo\Desktop\Github\DocumentAndCode\JAVA\ServletsAndJSP\src\Ch1Servlet.java

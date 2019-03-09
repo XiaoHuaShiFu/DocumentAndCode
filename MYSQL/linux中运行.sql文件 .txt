@@ -1,0 +1,9 @@
+1，将要导入的.sql文件移至bin文件下，这样的路径比较方便
+2，同上面导出的第1步
+3，进入MySQL：mysql -u 用户名 -p
+如我输入的命令行:mysql -u root -p    (输入同样后会让你输入ySQL的密码)
+4，在MySQL-Front中新建你要建的数据库，这时是空数据库，如新建一个名为blog的目标数据库(mysql>create database blog;)
+5，输入：mysql>use 目标数据库名
+如我输入的命令行:mysql>use blog;
+6，导入文件：mysql>source 导入的文件名;
+如我输入的命令行：mysql>source blog.sql;

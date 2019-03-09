@@ -1,0 +1,4 @@
+1. 选择是整个项目还是模块还是单个文件
+2. 文档输出路径
+3. Locale 选择地区，这个决定了文档的语言，中文就是zh_CN
+4. 传入JavaDoc的参数，一般这样写 -encoding UTF-8 -charset UTF-8 -windowtitle "文档HTML页面标签的标题" -link http://docs.Oracle.com/javase/7/docs/api
