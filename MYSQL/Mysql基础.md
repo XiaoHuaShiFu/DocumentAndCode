@@ -421,7 +421,348 @@
    | time           | 3    | -838:59:59          | 838:59:59           |
    | year           | 1    | 1901                | 2155                |
 
+   **注意：**
+
+   timestamp默认设置为当前系统时间(current_timestamp)，如果有第二个则默认设置为0值；timestamp只能由一列为current_timestamp类型，如果强制修改会报错；
+
+   timestamp和时区相关，如用set time_zone = "+9.00", timestamp的列会快1小时。
+
+   timestamp取值为1970010108001到2038年的某一天，因此它不适合存放比较久远的日期；
+
+   timestamp即使插入null，系统也会自动设置为current_timestamp，如果超出范围则设置为0值。
+
+   **注意：**日期都可以设置为now()
+
+3. 字符串类型
+
+   | 字符串类型   | 字节 | 描述及存储需求                                      |
+   | ------------ | ---- | --------------------------------------------------- |
+   | char(M)      | M    | M为0~255之间的整数                                  |
+   | varchar(M)   |      | M为0~65535之间的整数，值的长度+1个字节              |
+   | tinyblob     |      | 允许长度0~255字节，值的长度+1个字节                 |
+   | blob         |      | 允许长度0~65535字节，值的长度+2个字节               |
+   | mediumblob   |      | 允许长度0~167772150字节，值的长度+3个字节           |
+   | longblob     |      | 允许长度0~4294967295字节，值的长度+4个字节          |
+   | tinytext     |      | 允许长度0~255字节，值的长度+2个字节                 |
+   | text         |      | 允许长度0~65535字节，值的长度+2个字节               |
+   | mediumtext   |      | 允许长度0~167772150字节，值的长度+3个字节           |
+   | longtext     |      | 允许长度0~4294967295字节，值的长度+4个字节          |
+   | varbinary(M) |      | 允许长度0~M个字节的变长字节字符串，值的长度+1个字节 |
+   | binary(M)    | M    | 允许长度0~M个字节的定长字节字符串                   |
+
+   ①char会把字符串尾部的空格去掉，而varchar会保留。
+
+   ②length(s) 可以查看字符串的长度
+
+   **示例：**
+
+   ```java
+   select length(v),length(c) from vc;
+   ```
+
+   ③binary和varbinary类型会自动添加\0在不够长度的位置上。如binary(3), insert 'a',其存储为'a\0\0'
+
+4. enum类型
+
+   对1~255个 成员的枚举需要1字节存储，对255~65535个程序需要两个字节存储，最多由65535个成员。
+
+   **示例：**
+
+   ```mysql
+   create table e(
+       gender enum('M','F'), 
+       name varchar(20)
+   );
+   insert 
+   into e 
+   (gender, name) 
+   values
+   (1,'wjx'),('2','wjc'),('M','zzz'),('f','ddd'),(null,'bbb');
+   ```
+
+5. set类型,类似于enum类型，只是一次可以选多个值，且不允许选重复的值。最多64个成员。
+
+   1~8个成员的集合，占1个字节；9~16个占2个字节；17~24个占3个字节；25~32占4个字节；33~64占8个字节；
+
+   ```mysql
+   create table s (
+       col set ('a','b','c','d') 
+   );
+   insert 
+   into s 
+   (col)
+   values
+   ('a,b'),('a,b,a'),('1'),('A');
+   ```
+
+# 5.运算符
+
+1. 算数运算符
+
+   | 运算符 | 作用 |
+   | ------ | ---- |
+   | +      | 加   |
+   | -      | 减   |
+   | *      | 乘   |
+   | /，DIV | 除法 |
+   | %，MOD | 模   |
+
+   **注意：**在模运算中，如果除数为0，结果返回null，还可以使用MOD(a,b)表示模运算
+
+2. 比较运算符
+
+   **注意：**数字作为浮点数比较，字符串不区分大小写进行比较。
+
+   | 运算符        | 作用                                                         |
+   | ------------- | ------------------------------------------------------------ |
+   | =             | 等于。如果相等返回1，不等返回0                               |
+   | <>或!=        | 不等于                                                       |
+   | <=>           | null安全的等于。如select null<=> null; -> 1而如果不用<=>则只要和null比较都为null |
+   | <             | 小于                                                         |
+   | <=            | 小于等于                                                     |
+   | >             | 大于                                                         |
+   | >=            | 大于等于                                                     |
+   | between       | 存在于指定范围。形式 a between min and max。如select * from user where dep_id between 1 and 2; |
+   | in            | 存在于指定集合。形式 a in (v1,v2,...)。如select 2 in (select dep_id from user); |
+   | is null       | 为null。如select * from user where dep_id is null;           |
+   | is not null   | 不为null。如select * from user where dep_id is not null;     |
+   | like          | 通配符匹配。形式a like '%123%'。如select * from user where username like '%x%'; |
+   | regexp或rlike | 正则表达式匹配。形式str regexp str_pat。如select * from user where username regexp 'xh'; |
+
+3. 逻辑运算符
+
+   | 运算符   | 作用 |
+   | -------- | ---- |
+   | not或!   | 非   |
+   | and或&&  | 与   |
+   | or或\|\| | 或   |
+   | xor      | 异或 |
+
+4. 位运算符
+
+   | 运算符 | 作用 |
+   | ------ | ---- |
+   | &      | 与   |
+   | \|     | 或   |
+   | ^      | 异或 |
+   | ~      | 取反 |
+   | >>     | 右移 |
+   | <<     | 左移 |
+
+5. 运算符优先级
+
+   **注意：**可以使用()将要优先的括起来
+
+   | 优先级 | 运算符                                             |
+   | ------ | -------------------------------------------------- |
+   | 1      | :=                                                 |
+   | 2      | \|\|、or、xor                                      |
+   | 3      | &&、and                                            |
+   | 4      | not                                                |
+   | 5      | between、case、when、then、else                    |
+   | 6      | =、<=>、>=、>、<=、<、<>、!=、is、like、regexp、in |
+   | 7      | \|                                                 |
+   | 8      | &                                                  |
+   | 9      | <<、>>                                             |
+   | 10     | -、+                                               |
+   | 11     | *、/、div、%、mod                                  |
+   | 12     | ^                                                  |
+   | 13     | -、~                                               |
+   | 14     | !                                                  |
+
+# 6.函数
+
+1. 字符串函数
+
+   | 函数                  | 功能                                                         |
+   | --------------------- | ------------------------------------------------------------ |
+   | concat(s1,s2,...,sn)  | 连接s1,s2,...,sn为一个字符串                                 |
+   | insert(str,x,y,instr) | 将字符串str从第x位置开始，y个字符长的子串替换为字符串instr   |
+   | lower(str)            | 转换成小写                                                   |
+   | upper(str)            | 转换成大写                                                   |
+   | left(str,x)           | 返回字符串str最左边的x个字符                                 |
+   | right(str,x)          | 返回字符串str最右边的x个字符                                 |
+   | lpad(str,n,pad)       | 用字符串pad对str最左边进行填充，直到长度为n个字符长度。比如lpad('d',3,'a'); -> 'aad'，即用a对左边进行填充，直到字符串长度为3 |
+   | rpad(str,n,pad)       | 用字符串pad对str最右边进行填充，直到长度为n个字符长度        |
+   | ltrim(str)            | 去掉字符串str左侧空格                                        |
+   | rtrim(str)            | 去掉字符串str右侧空格                                        |
+   | repeat(str,x)         | 返回str重复x次的结果                                         |
+   | replace(str,a,b)      | 用字符串b替换字符串str中所有的字符串a                        |
+   | strcmp(s1,s2)         | 比较字符串s1和s2                                             |
+   | trim(str)             | 去掉字符串行尾和行头的空格                                   |
+   | substring(str,x,y)    | 返回字符串str从x位置起y个字符长度的字符串                    |
+
+2. 数值函数
+
+   | 函数          | 功能                               |
+   | ------------- | ---------------------------------- |
+   | abs(x)        | 返回x的绝对值                      |
+   | ceil(x)       | 返回大于x的最小整数值              |
+   | floor(x)      | 返回小于x的最大整数值              |
+   | mod(x,y)      | 返回x/y的膜                        |
+   | rand()        | 返回0~1内的随机值                  |
+   | round(x,y)    | 返回参数x的四舍五入的由y位小数的值 |
+   | truncate(x,y) | 返回数字x截断位y位小数的结果       |
+
+3. 日期和时间函数
+
+   | 函数                              | 功能                                                         |
+   | --------------------------------- | ------------------------------------------------------------ |
+   | curdate()                         | 返回当前日期                                                 |
+   | curtime()                         | 返回当前的时间                                               |
+   | now()                             | 返回当前的日期和时间。如date_format(now(),'%Y-%m-%d %H:%i:%s'); |
+   | unix_timestamp(date)              | 返回日期date的unix时间戳                                     |
+   | from_unixtime                     | 返回unix时间戳的日期值                                       |
+   | week(date)                        | 返回日期date为一年中的第几周                                 |
+   | year(date)                        | 返回日期date的年份                                           |
+   | hour(time)                        | 返回time的小时值                                             |
+   | minute(time)                      | 返回time的分钟值                                             |
+   | monthname(date)                   | 返回date的月份名                                             |
+   | date_format(date,fmt)             | 返回按字符串fmt格式化日期date值                              |
+   | date_add(date,interval expr type) | 返回一个日期或时间值加上一个时间间隔的时间值                 |
+   | datediff(expr,expr2)              | 返回起始时间expr和结束时间expr2之间的天数                    |
+
+   fmt的格式符：
+
+   | 格式符 | 格式说明                                                   |
+   | ------ | ---------------------------------------------------------- |
+   | %S和%s | 两位数字形式的秒(00,01,...,59)                             |
+   | %i     | 两位数字形式的分(00,01,...,59)                             |
+   | %H     | 两位数字形式的小时,24小时(00,01,...,23)                    |
+   | %h和%I | 两位数字形式的小时,12小时(01,02,...,12)                    |
+   | %k     | 数字形式的小时，24小时(0,1,...,23)                         |
+   | %l     | 数字形式的小时，12小时(1,2,...,12)                         |
+   | %T     | 24小时的时间形式(hh:mm:ss)                                 |
+   | %r     | 12小时的时间形式(hh:mm:ssAM或hh:mm:ssPM)                   |
+   | %p     | AM或PM                                                     |
+   | %W     | 一周每一天的名字(Sunday,Monday,...,Saturday)               |
+   | %a     | 一周中每一天的名字缩写(Sun,Mon,...,Sat)                    |
+   | %d     | 两位数字表示月中的天数(00,01,...,31)                       |
+   | %e     | 数字表示月中的天数(1,2,...,31)                             |
+   | %D     | 英文后缀表示月中的天数(1st,2nd,3rd,...)                    |
+   | %w     | 以数字形式表示周中的天数(0=Sunday,1=Monday,...,6=Saturday) |
+   | %J     | 以3位数字表示年中的天数(001,002,...,366)                   |
+   | %U     | 周(0,1,...,52)，其中Sunday为周中的第一天                   |
+   | %u     | 周(0,1,...,52)，其中Monday为周中的第一天                   |
+   | %M     | 月名(January,February,...,December)                        |
+   | %b     | 缩写的月名(January,February,...,December)                  |
+   | %m     | 两位数字表示的月份(01,02,...,12)                           |
+   | %c     | 数字表示的月份(1,2,...,12)                                 |
+   | %Y     | 4位数字表示的年份                                          |
+   | %y     | 两位数字表示的年份                                         |
+   | %%     | 直接值%                                                    |
+
+   时间间隔类型：
+
+   | 表达式类型    | 描述     | 格式        |
+   | ------------- | -------- | ----------- |
+   | hour          | 小时     | hh          |
+   | minute        | 分       | mm          |
+   | second        | 秒       | ss          |
+   | year          | 年       | YY          |
+   | month         | 月       | MM          |
+   | day           | 日       | DD          |
+   | year_month    | 年和月   | YY-MM       |
+   | day_hour      | 日和小时 | DD hh       |
+   | day_minute    | 日和分钟 | DD hh:mm    |
+   | day_second    | 日和秒   | DD hh:mm:ss |
+   | hour_minute   | 小时和分 | hh:mm       |
+   | hour_second   | 小时和秒 | hh:ss       |
+   | minute_second | 分钟和秒 | mm:ss       |
+
+4. 流程函数
+
+   | 函数                                                   | 功能                                    |
+   | ------------------------------------------------------ | --------------------------------------- |
+   | if(value,t,f)                                          | 如果value为真，返回t，否则返回f         |
+   | ifnull(v1,v2)                                          | 如果v1不为空，返回1，否则返回v2         |
+   | case when [v1] then [r1] ... else [default] end        | 如果v1为真，返回r1，否则返回default     |
+   | case [expr] when [v1] then [r1] ... else [default] end | 如果expr等于v1，返回r1，否则返回default |
+
+   **示例：**
+
+   ```mysql
+   select 
+   if(username='xhsf', 'my', 'other') 
+   from user;
    
+   select
+   ifnull(dep_id, -1) 
+   from user;
+   
+   //类似于if else
+   select 
+   case 
+   when dep_id = 1 
+   then 10 
+   when dep_id = 2
+   then 20 
+   else -1 
+   end 
+   from user;
+   
+   //类似于switch
+   select 
+   case 
+   dep_id 
+   when 1 then 10 
+   when 2 then 20 
+   else -1 
+   end 
+   from user;
+   ```
 
-3. 
+5. 其他常用函数
 
+   | 函数           | 功能                    |
+   | -------------- | ----------------------- |
+   | database()     | 返回当前数据库名        |
+   | version()      | 返回当前数据库版本      |
+   | user()         | 返回当前登录用户名      |
+   | inet_aton(ip)  | 返回ip地址的数字表示    |
+   | inet_ntoa(num) | 返回数字代表的ip地址    |
+   | password(str)  | 返回字符串str的加密版本 |
+   | md5()          | 返回字符串str的md5值    |
+
+# 7.存储引擎
+
+1. 查看命令
+
+   show engines \G 查看支持的存储引擎
+
+   show variables like 'table_type' 查看默认存储引擎
+
+2. 设置表的引擎
+
+   ```mysql
+   create table eg(
+   	name varchar(20)
+   ) engine=myisam default charset=utf-8;
+   
+   查看表详细结果
+   show create table eg \G 
+   
+   修改表存储引擎
+   alter table eg engine = innodb;
+   ```
+
+3. 存储引擎对别
+
+   | 特点           | MyISAM | InnoDB | MEMORY | MERGE | NDB  |
+   | -------------- | ------ | ------ | ------ | ----- | ---- |
+   | 存储限制       | 有     | 64TB   | 有     | 没有  | 有   |
+   | 事务安全       |        | 支持   |        |       |      |
+   | 锁机制         | 表锁   | 行锁   | 表锁   | 表锁  | 行锁 |
+   | B树索引        | 支持   | 支持   | 支持   | 支持  | 支持 |
+   | 哈希索引       |        |        | 支持   |       | 支持 |
+   | 全文索引       | 支持   |        |        |       |      |
+   | 集群索引       |        | 支持   |        |       |      |
+   | 数据缓存       |        | 支持   | 支持   |       | 支持 |
+   | 索引缓存       | 支持   | 支持   | 支持   | 支持  | 支持 |
+   | 数据可压缩     | 支持   |        |        |       |      |
+   | 空间使用       | 低     | 高     | N/A    | 低    | 低   |
+   | 内存使用       | 低     | 高     | 中等   | 低    | 高   |
+   | 批量插入的速度 | 高     | 低     | 高     | 高    | 高   |
+   | 支持外键       |        | 支持   |        |       |      |
+
+   
