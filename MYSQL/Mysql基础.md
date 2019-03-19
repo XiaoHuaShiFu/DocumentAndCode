@@ -1,4 +1,4 @@
-# 定点数有decimal或numberic两种。Mysql基础
+# Mysql基础
 
 # 1.DDL语句
 
