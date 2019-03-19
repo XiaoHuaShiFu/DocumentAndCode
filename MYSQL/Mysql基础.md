@@ -1,4 +1,4 @@
-# Mysql基础
+# 定点数有decimal或numberic两种。Mysql基础
 
 # 1.DDL语句
 
@@ -28,7 +28,7 @@
 
 8. \G 使字段竖向排列
 
-9. show create table tablename \G 显示表的详细结构
+9. show create table tablename \G 或 show table status like tablename \G显示表的详细结构
 
 10. drop table tablename; 删除一张数据表
 
@@ -495,6 +495,77 @@
    ('a,b'),('a,b,a'),('1'),('A');
    ```
 
+6. 正确的选择数据类型
+
+   ①char和varchar
+
+   - char是固定长度的，varchar是变长的，但是varchar的实际长度比值的长度多1字节。
+
+   - char会把字符串尾部的空格去掉，而varchar会保留。
+
+   - char的处理速度比varchar快得多，因为它是固定长度的。
+
+   - MyISAM存储引擎：建议使用固定长度的数据列代表可变长度的数据列。
+
+     MEMORY存储引擎：不管是char还是varchar都作为char类型处理。
+
+     InnoDB存储引擎：建议使用varchar类型。因为内部的行存储格式没有区分固定长度和可变长度列（所有数据行都使用指向数据列值的头指针），因此在本质上，使用固定长度的char列不一定比使用可变长度的varchar性能要号。因而，主要的性能因素是数据行使用的存储总量，由于char平均占用的空间多余varchar，因此使用varchar来最小化需要处理的数据行的存储总量和磁盘io是比较好的。
+
+   ②text和blob
+
+   - blob能用来保存二进制数据，比如照片；而text只能保存字符数据，比如一篇温总或日记。
+
+   - text和blob会引起一些性能问题，特别在执行了大量删除操作时。
+
+   - 删除操作会在数据表中留下很大的“空洞”，以后填入这些“空洞”的记录在插入的性能上会有影响。为了提高性能，建议定期使用optimize table或ALTER TABLE tablename ENGINE='InnoDB';功能对这些表进行碎片整理。
+
+   - 使用合成的索引（Synthetic）来提高大文本字段的查询性能。就是通过文本内容建立一个散列值，并把这个值存到单独的数据列中。
+
+     可以用md5()、sha1()、crc32()或自己的生成散列值。数值散列值可以很高效的存储。
+
+     如果散列值尾部空格，就不要存储在char或varchar中，它们会收到尾部空格去除的影响。
+
+     **示例：**
+
+     ```mysql
+     create table t(
+         id varchar(100), 
+         context blob, 
+         hash_code varchar(40)
+     );
+     
+     insert 
+     into t2 
+     values(1,'beijing',md5(context));
+     
+     select 
+     * 
+     from t2 
+     where hash_code = md5('beijing');
+     ```
+
+   - 对blob或clob字段进行模糊查询，MySQL提供了前缀索引，也就是只为字段的前n列创建索引。
+
+     **示例：**
+
+     ```mysql
+     create index idx_blob 
+     on t2(context(100));
+     
+     select * from t2 where context like 'beijing %';
+     ```
+
+   ③定点数和浮点数
+
+   - 定点数己实际上是以字符串形式存放的。如果实际插入的数值精度大于实际定义的精度，则MySQL会进行警告。超出部分按照四舍五入后插入。
+
+   - 浮点数有float、double。
+
+   - 定点数有decimal或numberic两种。
+
+   - 浮点数存在误差,尽量避免做浮点数比较.
+
+
 # 5.运算符
 
 1. 算数运算符
@@ -797,4 +868,171 @@
 
    • 压缩表；压缩表由myisampack工具创建，占据非常小的磁盘空间。因为每个记录是被单独压缩的，所以只有非常小的访问开支。
 
+   ⑤MyISAM的自动增长列可以是组合索引的其他列，插入数据后，根据组合索引的前几列的向后递增。也就是如过由两个字段的索引，那么就像一个二维自动增长索引一样。
+
+   **示例：**其中index是把字段设置为索引
+
+   ```mysql
+   create table ma(
+   d1 smallint not null auto_increment,
+   d2 smallint not null,
+   name varchar(10),
+   index(d2,d1)
+   ) engine=myisam;
+   ```
+
    
+
+5. InnoDB
+
+   ①相比MyISAM，InnoDB写的处理效率差一些，并且会占用更多的磁盘空间以保留数据和索引。
+
+   ②自动增长列，自动增长列可以手工插入，但是插入的值如果是空或者0，则实际插入的将是自动增长后的值。
+
+   •自动增长列必须是索引，和必须是组合索引的第一列。
+
+   •可以通过列的auto_increment 设置。
+
+   •如果通过alter table user auto_increment = n;是存储在内存种的，重启后需要重新设置。
+
+   •通过last_insert_id();可以查询最后一条自动增长插入的值。
+
+   create table dep0( id int not null primary key auto_increment,city varchar(20),key idx_fk_country_id (country_id),onstraint 'fk_city_country' foreign key (country_id) references country (id) ;
+
+   ③外键约束
+
+   •在创建约束时，可以指定在删除、更新父表时，对字表进行相应操作。
+
+   restrict和no action相同，限制在字表有关联记录的情况下，父表不能更新；
+
+   cascade表锁父表在更新或者删除时，更新或删除字表对应的记录；
+
+   set null 表锁父表在更新或者删除时，字表对应字段被设置为null。
+
+   指定格式是：on delete restrict on update cascade...
+
+   •在某个表被其他表创建了外键参照，那么该表对应索引或者主键禁止被删除。
+
+   •在导入多个表的数据时，如果需要忽略表之前的导入顺序，可以暂时关闭外键检查；同理，在执行load data和alter table操作的时候，可以通过暂时关闭外键约束来加快处理速度，关闭的命令是set foreign_key_checks = 0; 通过set foreign_key_checks = 1;恢复外键检查。
+
+   **示例：**
+
+   ```mysql
+   create table city(
+       city_id smallint unsigned not null auto_increment primary key, 
+       city varchar(50) not null, 
+       country_id smallint unsigned not null, 
+       key idx_fx_country_id(country_id), 
+       
+       constraint `fk_city_counttry` 
+       foreign key (country_id) 
+       references country (country_id) 
+       on delete restrict 
+       on update cascade
+       
+   ) engine=iinnodb default charset=utf8;
+   ```
+
+   ④
+
+   •使用共享表空间存储，这种方式创建的表的表结构保存在.frm文件中，数据和索引保存在innodb_data_home_dir 和 innodb_data_file_path定义的表空间中，可以是多个文件。
+
+   •使用多表空间存储，表结果仍然保存在.frm文件中，每个表的数据和索引都单独保存在.idb中。如果是个分区表，则每个分区对应单独的.idb文件，文件名是“表名+分区名”，可以在创建分区的时候指定每个分区的数据文件的位置，以此来将表的IO均匀分布在多个磁盘上。
+
+   使用多表空间存储方式，需要设置参数innodb_file_per_table，并且重新启动服务后才生效。对于新建的表按照多表空间的方式创建，已有的表仍然使用共享表空间存储。
+
+   如果将已有的多表空间方式修改回共享表空间的方式，则新建表会在共享表空间中创建，但已有的多表空间的表仍然保存原来的访问方式。所以多表空间的参数生效后，只对新建的表生效。
+
+   多表空间的数据文件没有大小限制，不需要设置初始大小，也不需要设置文件的最大限制、扩展大小等参数。
+
+   对于使用多表空间特性的表，可以方便的进行单表备份和恢复操作，但是直接复制.ibd文件是不行的，因为没有共享表空间的数据字典信息，直接复制.idb文件和.frm文件恢复时是不能被正确识别的，但是可以通过以下命令：
+
+   alter table tbl_name discard tablespace;
+
+   alter table tbl_name importtablespace;
+
+   将备份数据恢复到数据库中，但是这样的单表备份，只能恢复到表原来所在的数据库中，而不能恢复到其他的数据库中。如果要将单表恢复到目标数据库，则需要通过mysqldump和mysqllimport来实现。
+
+6. MEMORY
+
+   ①memory存储引擎使用存在内存中的内容来创建表。每个memory表只实际对于一个磁盘文件，格式是.frm。memory类型的访问非常快，因为它的数据是放在内存中，并且默认使用hash所以，但不能持久化。
+
+   **示例：**创建缓存表。
+
+```mysql
+create table cac0 
+engine=memory  
+select 
+* 
+from dep10;
+```
+
+​	**示例：**为memory表指定索引，可以使用hash索引或者是btree索引。
+
+```mysql
+create index id_hash 
+using hash 
+on cac0 (id);
+//取消索引
+drop index mem_hash 
+on cac0;
+```
+
+​	②可以在启动mysql服务的时候使用--init-file选项，把insert into ... select 或load data infile这样的语句放入这个文件中，这样就可以在服务启动时用持久的数据源装配表。
+
+​	③使用delete from tablename或 truncate table tablename释放memory使用的内存，或整个的删除表drop table tablename。
+
+​	④memory表中放置数据量的大小，受到max_heap_table_size系统变量的约束，这个系统变量的初始值是16MB，可以根据需要加大。可以在定义memory表的时候，可以通过max_rows子句指定表的最大行数。
+
+7. MERGE
+
+   ①MERGE存储引擎是一组MyISAM表的组合，这些MyISAM表必须结构完全相同，MERGE表本身没有数据，对MERGE表的增删查改操作实际上是在MyISAM表进行的。
+
+   ②对MERGE表类型的插入操作，是通过insert_method指定的表，可以有first和last表示插入到第一个或最后一个表，no表示不能进行插入操作。
+
+   ③对MERGE表进行drop操作，实际上自身删除MERGE的定义，对数据没有影响。
+
+   ④MERGE表在磁盘上保留两个文件，文件以表的名字开始，一个.frm文件存储表定义，另一个.MRG文件包含组合表信息，包含MERGE表由哪些表组成、插入新的数据时的依据。
+
+   **示例：**
+
+   ```mysql
+   create table payment_2018( 
+       amount decimal(15,2), 
+       id int not null primary key auto_increment, 
+       payment__date datetime
+   ) 
+   engine=myisam;
+   create table payment_2019( 
+       amount decimal(15,2), 
+       id int not null primary key auto_increment, 
+       payment__date datetime
+   ) 
+   engine=myisam;
+   
+   create table payment_all(
+        amount decimal(15,2),
+        id int not null primary key auto_increment,
+        payment_date datetime
+   ) 
+   engine=merge 
+   union=(payment_2018,payment_2019) 
+   insert_method=last;
+   ```
+
+8. 引擎选择
+
+   ①MyISAM：如果以读操作和插入操作为主，只有很少的更新和删除操作，并且对事务的完整性、并发性要求不是很高，那这个引擎非常适合。
+
+   ②InnoDB：用于事务处理应用程序，支持外键。如果对事务的完整性要求比较高，在并发条件下要求数据的一致性，数据操作除了插入和查询外，还包括很多的更新、删除操作，那么InnoDB存储引擎比较适合。可以确保事务的完整提交(commit)和回滚(rollback)，对于类似计费系统或者财务系统等对数据准确性要求比较高的系统，InnoDB都是合适的选择。
+
+   ③MEMORY：速度快。但是对表的大小由限制。
+
+   ④MERGE：将一系列相同的MyISAM表以逻辑方式组合在一起。可以用于突破单个MyISAM表的大小限制，并且通过将不同表分布在多个磁盘上，可以有效的改善MERGE表的访问效率。
+
+   
+
+
+
+
+
