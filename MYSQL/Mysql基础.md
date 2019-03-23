@@ -72,6 +72,12 @@
     alter table user rename user0;
     ```
 
+16. 分析此次查询
+
+    ```mysql
+    explain select * from city where city = 'gd' \G
+    ```
+
 ## 2.DML语句
 
 1. 向数据表插入一条数据
@@ -1030,7 +1036,176 @@ on cac0;
 
    ④MERGE：将一系列相同的MyISAM表以逻辑方式组合在一起。可以用于突破单个MyISAM表的大小限制，并且通过将不同表分布在多个磁盘上，可以有效的改善MERGE表的访问效率。
 
-   
+
+# 8.字符集
+
+1. MySQL的字符串集支持到字段级别。
+
+2. MySQL的字符集包括字符集（character）和校对规则（collation）两个概念。其中字符集用来定义MySQL的存储字符串方式，校对规则用来定义比较字符串的方式。
+
+   可以使用show character set;查看字符集，用show collation like ‘’;查看校对规则。
+
+   其中校对规则的命名约定：它们以其相关的字符集名开始，通常包括一个语言名并且以ci（大小写不敏感）、cs（大小写敏感）、_bin（二元，即比较是基于字符串编码的值而与language无关）。
+
+3. 设置服务器字符集和校对规则
+
+   ①可以在my.cnf中设置：character-set-server=utf8
+
+   ②在启动选项中指定：mysqld --character-set-server=utf8
+
+   ③在编译时指定： cmake . -DDEFAULT_CHARSET=utf8
+
+   ④使用show variables like 'character_set_server';和show variables like 'collation_server';命令查询当前服务器的字符集和校对规则。
+
+4. 数据库字符集和校对规则
+
+   ①查看show variables like 'character_set_database';和show variables like 'collation_database';
+
+   ②
+
+5. 数据表字符集和校对规则
+
+   ①查看show create table tablename \G;
+
+6. 连接字符集和校对规则
+
+   ①character_set_client、character_set_connection、character_set_result反别代表客户端、连接和返回结果的字符集，通常这3个应该是相同的。
+
+   ②可以在my.cnf中设置 default-character-set=utf8
+
+7. 导出表结构、数据等
+
+   - 导出表结构
+
+     **语法：**
+
+     ```mysql
+     mysqldump -uroot -p --default-character-set=gbk -d databasename> newdatabasename.sql
+     ```
+
+     **注：**--default-character-set标识设置以什么字符集连接，-d标识只导出表结构，不导出数据
+
+     ```mysql
+     mysqldump -uroot -p --default-character-set=gbk -d xhsf> xhsf.sql
+     ```
+
+   - 导出数据
+
+     **语法：**
+
+     ```mysql
+     mysqldump -uroot -p --quick --no-create-info --extended-insert --default-character-set=utf8 xhsf> xhsf-data.sql
+     ```
+
+     **注：**
+
+     - --quick用于一次一行地检索表中的行而不是检索所有行，并在输出前将它缓存到内存中。用于转储大的表。
+     - --extended-insert：使用包括几个values列表的多行insert语法。这样转储的文件更新，重载文件时可以加速插入。
+     - --no-create-info：不导出每个转储表的create table语句。
+     - --default-character-set=utf8：按照原有的字符集导出所有数据，这样导出的文件中，所有中文都是可见的，不会保存成乱码。
+
+   - 导入表结构
+
+     **语法：**
+
+     ```mysql
+     mysql -uroot -p xhsf0 < xhsf.sql
+     ```
+
+   - 导入数据
+
+     **语法：**
+
+     ```mysql
+     mysql -uroot -p xhsf0 < xhsf-data.sql
+     ```
+
+# 9.索引
+
+1. MyISAM和InnoDB都是默认创建BTREE索引。MEMORY默认使用HASH索引，但也支持BTREE索引。
+
+2. MyISAM的前缀索引可以1000字节长，InnoDB可以767字节长。（注是字节长，不是字符长）
+
+3. MyISAM支持全文本索引（FULLTEXT）索引，只限于char、varchar和text列。
+
+4. MyISAM支持空间类型索引，且索引的字段必须是非空的。
+
+5. 创建新索引的语法为：
+
+   ```mysql
+   create [unique|fulltext|spatial] index index_name [using index_type] on table_name (index_col_name,...) 
+   ```
+
+   **其中：**index_col_name表示<!--col_name[(length)][asc|desc]-->
+
+   **示例：**
+
+   ```mysql
+   create index cityname on city (city(10));
+   ```
+
+6. 删除索引的语法：
+
+   ```mysql
+   drop index index_name on table_name
+   ```
+
+   **示例：**
+
+   ```mysql
+   drop index cityname on city
+   ```
+
+7. 设计索引原则
+
+   - 用于搜索的列，也就是出现在where或info中指定的列。
+
+   - 使用唯一索引。考虑某列中值的分布。索引的列的基数越大，索引的效果越好。比如用生日作为索引比用性别作为索引好。
+
+   - 使用短索引。如果对字符串列进行索引，应该指定一个前缀长度，只要有可能就应该这样做。
+
+     - 如对一个char(200)的列
+     - 对前10或20个字符进行索引能够节省大量索引空间
+     - 较小的索引涉及的磁盘IO较少
+     - 较短的值比较起来也更快
+     - 在高速缓存中的块能容纳更多的键值
+     - 因此，MySQL也可以在内存中容纳更多的值。加快速度。
+
+   - 利用最左前缀。在创建一个n列索引时，实际是创建MySQL可利用的n个索引，多列索引可起几个索引的作用，因为可利用索引中最左边的列集来匹配行。这样的列集称为最左前缀。
+
+   - 不要过度索引。
+
+     - 过度索引不但增加额外磁盘空间，还降低写操作的性能。
+     - 在修改表内容时，索引必须进行更新，有时可能需要重构，因此，索引越多，所花事件越长。
+     - 如果有一个索引很少利用或从不利用，那么会不必要地减缓表的修改速度。
+     - 此外，MySQL生成一个执行计划时，要考虑各个索引，也要花费时间。创建多余的索引给查询优化带来了更多的工作。索引太多，也可能会使MySQL选择不到所要使用的最好索引。只保持所需的索引有利于查询优化。
+
+   - 对于InnoDB存储引擎的表，记录默认会按照一定的顺序保持
+
+     - 如果有明确定义主键，则按照主键顺序保存。
+     - 如果没有主键，但是又唯一索引，就按照唯一索引的顺序保存。
+     - 如果没有主键又没有唯一索引，那么表中会自动生成一个内部列，按照这个列的顺序保存。
+     - 按照主键或者内部列进行的访问是最快的，所以InnoDB表尽量自己指定主键，尽量选择最常用作访问条件的列作为主键。
+     - InnoDB的普通索引都会保存主键的键值，所以主键要尽可能的选择较短的数据类型，减少索引的磁盘占用，提高索引缓存效果。
+
+8. btree索引和hash索引
+
+   - hash索引的重要特征：
+
+     - 只用于=或<=>操作符的等式比较。
+     - 优化器不能使用hash索引来加速order by操作。
+     - MySQL不能确定在两个值之间大约又多少行。如果将一个MyISAM表改为hash索引的MEMORY表，会影响一些查询的执行效率。
+     - 只能使用整个关键字来搜索一行。
+
+   - btree：
+
+     - 当使用>、<、>=、<=、between、!=或者<>，或者like 'pattern'（其中pattern不以通配符开始）的操作符时，都可以使用相关列上的索引。
+
+# 10.视图
+
+
+
+
 
 
 
