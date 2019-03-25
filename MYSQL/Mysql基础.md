@@ -1203,7 +1203,171 @@ on cac0;
 
 # 10.视图
 
+1. 创建视图
 
+   **注意：**
+
+   - 视图的限制：from后面不能包含子查询，不过可以将子查询定义成一个视图，然后对该视图再创建视图就可以实现相同的功能。
+   - 下面类型的视图是不可更新的：
+     - 包含以下关键字的sql语句：聚合函数（sum、min、max、count等）、distinct、group by、having、union或者union all；
+     - 常量视图；
+     - select中包含子查询；
+     - join；
+     - from一个不能更新的视图；
+     - where字句的子查询引用了from字句中的表。
+   - [with[cascaded|local] check option]决定了是否允许更新数据使记录不再满足视图的条件。
+     - local只要满足本视图的条件就可以更新；
+     - cascaded则必须满足所有针对该视图的所有视图的条件才可以更新。
+     - 默认是cascaded。
+
+       **比如：**在cascaded情况下，视图A对dep_id的判断条件是dep_id < 10，而引用视图A的视图B条件是dep_id > 5，那么视图B不能插入大于10或者小于5的数据。
+
+   **语法：**
+
+   ```mysql
+   create [or replace][algorithm={undefined|merge|temptable}] view view_name[(column_list)] as select_statement [with[cascaded|local] check option]
+   ```
+
+   **示例：**
+
+   ```mysql
+   create or replace view 
+   user_view 
+   as  
+   select 
+   u.id, u.username,d.dep_name  
+   from user as u, dep as d  
+   where u.dep_id = d.id;
+   ```
+
+2. 修改视图
+
+   **语法：**
+
+   ```mysql
+   alter [algorithm={undefined|merge|temptable}] view view_name[(column_list)] as select_statement [with[cascaded|local] check option]
+   ```
+
+3. 删除视图
+
+   **语法：**
+
+   ```mysql
+   drop view [if exists] view_name [,view_name] ... [restrict|cascade]
+   ```
+
+   **示例：**
+
+   ```mysql
+   drop view user_view1;
+   ```
+
+# 11.存储过程和函数
+
+1. 创建、修改存储过程或函数
+
+   **语法：**创建存储过程
+
+   ```mysql
+   create procedure sp_name([proc_parameter[,...]]) [characteristic ...] routine_body
+   ```
+
+   **示例：**
+
+   ```mysql
+   delimiter $$
+   
+   create procedure get_all_user(in low int, in high int, out count int) 
+   reads sql data 
+   begin 
+       select * from user where id > low and id < high;
+       select count(1) from user into count;
+   end $$
+   
+   delimiter ;
+   ```
+
+   **语法：**创建函数
+
+   ```mysql
+   create function sp_name([func_parameter[,...]]) returns type [characteristic ...] routine_body
+   ```
+
+   **示例：**
+
+   ```mysql
+   
+   ```
+
+   其中：
+
+   - proc_parameter：
+
+     ```mysql
+     [in|out|inout] param_name type
+     ```
+
+   - func_parameter：
+
+     ```mysql
+     param_name type
+     ```
+
+   - type：
+
+     ```mysql
+     any valid MySQL data type
+     ```
+
+   - characteristic：
+
+     ```mysql
+     language sql 
+     | [not] determinstic 
+     | {contains sql | no sql | reads sql data | modifies sql data}
+     | sql security {definer | invoker} 
+     | comment 'string'
+     ```
+
+   - routine_body：
+
+     ```mysql
+     valid sql procedure statement or statements
+     ```
+
+   **语法：**修改存储过程或函数
+
+   ```mysql
+    alter {procedure | function} sp_name [characteristic ...]
+   ```
+
+   其中：
+
+   - characteristic：
+
+     ```mysql
+     {contains sql | no sql | reads sql data | modifies sql data} 
+     | sql security {definer | invoker} 
+     | comment 'string'
+     ```
+
+   **语法：**调用过程
+
+   ```mysql
+   call sp_name([parameter [,...]])
+   ```
+
+   **示例：**
+
+   ```mysql
+   call get_all_user(1, 10, @a);
+   ```
+
+   
+
+2. 存储过程和函数中允许有DDL语句，也允在存储过程总执行提交和回滚，但是不允许有load data infile语句。存储过程和函数中可以调用其他的过程或函数。
+
+   
 
 
 
