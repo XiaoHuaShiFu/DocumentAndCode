@@ -1296,7 +1296,19 @@ on cac0;
    **示例：**
 
    ```mysql
-   
+   create function dep_id_is_exist(dep_id0 int) 
+   returns int 
+   reads sql data  
+   begin 
+       declare result int; 
+       select 
+       	count(1) 
+       	from dep
+           where dep_id0 = id 
+           limit 1 
+       into result;
+       return result;  
+   end$$
    ```
 
    其中：
@@ -1361,11 +1373,19 @@ on cac0;
 
    ```mysql
    call get_all_user(1, 10, @a);
+   select @a;
    ```
 
-   
+   **语法：**调用函数，其中dep_id_is_exist(dep_id)就是函数
 
-2. 存储过程和函数中允许有DDL语句，也允在存储过程总执行提交和回滚，但是不允许有load data infile语句。存储过程和函数中可以调用其他的过程或函数。
+   ```mysql
+   select 
+   *
+   from user 
+   where dep_id_is_exist(dep_id);
+   ```
+
+2. 存储过程和函数中允许有DDL语句，也允在存储过程中执行提交（commit）和回滚（rollback），但是不允许有load data infile语句。存储过程和函数中可以调用其他的过程或函数。
 
    
 
