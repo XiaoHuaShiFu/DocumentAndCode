@@ -1,0 +1,1 @@
+**在insert语句标签中添加  useGeneratedKeys="true" keyProperty="id"** 
