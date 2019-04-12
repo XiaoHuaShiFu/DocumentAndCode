@@ -1,4 +1,4 @@
-# Mysql基础
+# Mysql基础1
 
 # 1.DDL语句
 
@@ -84,12 +84,31 @@
 
    ```mysql
    insert into tablename 
-   (field1, field2, ..., fieldn) 
+   (field1, field2, ..., f ieldn) 
    values
    (value1, value2,...,valuen); 
    ```
 
-   
+   - 插入一条语句在满足条件的时候
+
+     **注：**DUAL是一张伪表，为了满足select的语法
+
+     ```mysql
+     insert
+     into user
+     (username, password, dep_id) 
+     select 
+     'wujiaxian','1234567',3
+     from DUAL
+     where exists(
+         select 
+         * 
+         from user 
+         where id = 30
+     );
+     ```
+
+     
 
 2. 向数据表插入n条数据
 
@@ -382,6 +401,8 @@
    | tables     | 提供关于数据库中的表的信息(包括视图),详细的描述了某个表属于哪个schema, 表类型,表引擎,创建时间等信息. show tables schemaname的结果取之此表. |
    | columns    | 提供了表中的列信息,详细表述了某张表的所有列以及每个列的信息. show columns from schemaname.tablename的结果取之此表. |
    | statistics | 提供了关于索引的信息. show index from schemaname.tablename的结果取之此表. |
+
+4. show warnings;查看警告信息
 
 # 4.数据类型
 
@@ -698,6 +719,8 @@
    | date_format(date,fmt)             | 返回按字符串fmt格式化日期date值                              |
    | date_add(date,interval expr type) | 返回一个日期或时间值加上一个时间间隔的时间值                 |
    | datediff(expr,expr2)              | 返回起始时间expr和结束时间expr2之间的天数                    |
+   | to_days(date)                     | 转换成日数                                                   |
+   | to_seconds(date)                  | 转换成秒数                                                   |
 
    fmt的格式符：
 
@@ -1266,7 +1289,7 @@ on cac0;
 
 1. 创建、修改存储过程或函数
 
-   **语法：**创建存储过程
+   ①创建存储过程
 
    ```mysql
    create procedure sp_name([proc_parameter[,...]]) [characteristic ...] routine_body
@@ -1287,7 +1310,7 @@ on cac0;
    delimiter ;
    ```
 
-   **语法：**创建函数
+   ②创建函数
 
    ```mysql
    create function sp_name([func_parameter[,...]]) returns type [characteristic ...] routine_body
@@ -1335,11 +1358,50 @@ on cac0;
 
      ```mysql
      language sql 
-     | [not] determinstic 
+     | [not] deterministic 
      | {contains sql | no sql | reads sql data | modifies sql data}
      | sql security {definer | invoker} 
      | comment 'string'
      ```
+
+     - language sql：表明body是用sql语言写的，为以后可能会支持其他语言做准备
+
+     - [not] deterministic：表明每次输入一样输出也一样的程序。当前，这个特征值还没有被优化程序使用（5.7）。
+
+     - {contains sql | no sql | reads sql data | modifies sql data}：这些特征值提供子程序的内部信息。
+
+       - contains sql表明子程序不包含读或写数据的语句。（默认）
+       - no sql表明子查询不包含sql语句。
+       - reads sql data表示子程序包含读数据的语句，但不包含写数据的语句。
+       - modifies sql data表示子程序包含写数据的语句。
+
+     - sql security {definer|invoker}：可以用来指定子程序该用创建子程序者的许可来执行，还是使用调用者的许可来执行，默认值definer。
+
+       **示例：**其中sql security invoker 表示只有创建者才能调用，所以其他用户无法调用，
+
+       这个可以配合权限，让用户只能执行存储过程，而不能直接使用sql。
+
+       ```mysql
+       create procedure 
+           select_count_by_dep_id0(in p_dep_id int, out count int)  
+           sql security invoker  
+       begin 
+           select 
+           count(1) 
+           from user 
+           where dep_id = p_dep_id 
+           into count; 
+       end$$
+       ```
+
+       **如：**让scau数据库下面的所有表，对于scau这个本地用户，只能执行存储过程，不能直接使用sql查询
+
+       ```mysql
+       grant execute on scau.* to 'scau'@'localhost'  IDENTIFIED BY '123456'
+       
+       ```
+
+     - comment ‘string’：存储过程或者函数的注释信息。
 
    - routine_body：
 
@@ -1347,7 +1409,7 @@ on cac0;
      valid sql procedure statement or statements
      ```
 
-   **语法：**修改存储过程或函数
+   ③修改存储过程或函数
 
    ```mysql
     alter {procedure | function} sp_name [characteristic ...]
@@ -1363,7 +1425,47 @@ on cac0;
      | comment 'string'
      ```
 
-   **语法：**调用过程
+   ④删除存储过程或者函数
+
+   ```mysql
+   drop {procedure|function}[if exists] sp_name
+   ```
+
+   ⑤查看存储过程或函数
+
+   - 查看存储过程或者函数的状态
+
+     ```mysql
+     show {procedure|function} status [like 'pattern'] \G
+     ```
+
+     **示例：**
+
+     ```mysql
+     show procedure status like 'select_count_by_dep_id' \G
+     ```
+
+   - 查看存储过程或者函数的定义
+
+     ```mysql
+     show create {procedure|function} sp_name
+     ```
+
+     **示例：**
+
+     ```mysql
+     show create procedure select_count_by_dep_id \G
+     ```
+
+   - 通过查看information_schema.Routines了解存储过程和函数的信息（如存储过程和函数的名称、类型、语法、创建人等）
+
+     ```mysql
+     select * from information_schema.routines where ROUTINE_NAME = 'select_count_by_dep_id' \G
+     ```
+
+     
+
+   ⑥调用过程
 
    ```mysql
    call sp_name([parameter [,...]])
@@ -1376,7 +1478,7 @@ on cac0;
    select @a;
    ```
 
-   **语法：**调用函数，其中dep_id_is_exist(dep_id)就是函数
+   ⑦调用函数，其中dep_id_is_exist(dep_id)就是函数
 
    ```mysql
    select 
@@ -1387,7 +1489,444 @@ on cac0;
 
 2. 存储过程和函数中允许有DDL语句，也允在存储过程中执行提交（commit）和回滚（rollback），但是不允许有load data infile语句。存储过程和函数中可以调用其他的过程或函数。
 
+3. 变量的使用
+
+   - 定义变量
+
+     ```mysql
+     declare var_name[,...] type [default value]
+     ```
+
+     **示例：**
+
+     ```mysql
+     declare max_count int default 99999;
+     ```
+
+   - 赋值变量
+
+     ```mysql
+     set var_name = expr [,var_name=expr]...
+     ```
+
+     **例如：**
+
+     ```mysql
+     set max_count = max(a,b);
+     ```
+
+     **or**
+
+     **注：**这里要求结果只有一行
+
+     ```mysql
+     select col_name[,...] into var_name[,...] table_expr
+     ```
+
+   - **示例：**
+
+     ```mysql
+     create function get_count_by_dep_ids(dep_id1 int, dep_id2 int) 
+         returns int 
+         reads sql data  
+     begin  
+         declare count1 int;  
+         declare count2 int; 
+         select 
+             count(1) 
+             into count1 
+             from user 
+             where dep_id = dep_id1; 
+         select 
+             count(1) 
+             into count2 
+             from user 
+             where dep_id = dep_id2; 
+         return count1 + count2; 
+     end$$
+     ```
+
+4. 定义条件和处理
+
+   - 定义条件
+
+     ```mysql
+     declare condition_name condition for condition_value
+     
+     condition_value:
+     sqlstate [value] sqlstate_value | mysql_error_code
+     ```
+
+   - 条件的处理
+
+     ```mysql
+     declare handler_type handler for condition_value [,...] sp_statement 
+     
+     handle_type:
+     continue|exit|undo（未支持5.7）
+     
+     condition_value:
+     sqlstate [value] sqlstate_value | condition_name | sqlwarning | not found | sqlexception | mysql_error_code
+     
+     其中：
+     sqlwarning 是对所有以01开头的 sqlstate 代码的速记
+     not found 是对所有以02开头的 sqlstate 代码的速记
+     sqlexception 是对所有没有被 sqlwarning | not found 收录的 sqlstate 代码速记
+     ```
+
+   - **示例：**处理主键重复报错，类似于Java里的捕获异常。
+
+     但是这种做法我觉得并不好，错误处理还是尽量让程序去处理，除非是程序不可控制的错误。
+
+     ```mysql
+     //这个会报错，如果主键id重复的话
+     create procedure user_insert()  
+     begin  
+         set @x = 1; 
+         insert 
+             into user
+             (id, username) 
+             values(3,'aaa'); 
+         set @x = 2; 
+         insert 
+             into user
+             (id, username) 
+             values(33,'aaa'); 
+         set @x = 3; 
+         end;
+     $$
+     
+     //这里的handler会处理异常
+     create procedure user_insert0()  
+     begin 
+         declare 
+         	continue handler 
+             for sqlstate '23000' 
+             set @x2=23000;   
+         set @x = 1; 
+         insert 
+         	into user
+             (id, username) 
+             values(3,'aaa'); 
+         set @x = 2; 
+         insert 
+         	into user
+             (id, username) 
+             values(33,'aaa'); 
+         set @x = 3; 
+     end;
+     $$
+     
+     select @x2;
+     +-------+
+     | @x2   |
+     +-------+
+     | 23000 |
+     +-------+
+     
+     //另外一种写法，使用mysql-error-code
+     create procedure user_insert0()  
+     begin 
+         declare 
+         	continue handler 
+             for 1062 
+             set @x2=1062;
+         set @x = 1; 
+         insert 
+         	into user
+             (id, username) 
+             values(3,'aaa'); 
+         set @x = 2; 
+         insert 
+         	into user
+             (id, username) 
+             values(33,'aaa'); 
+         set @x = 3; 
+     end;
+     $$
+     
+     
+     //事先定义condition
+     create procedure user_insert3()  
+     begin 
+     	declare 
+     		exist_exception condition 
+     		for sqlstate '23000';
+         declare 
+         	continue handler 
+             for exist_exception
+             set @x2=23001;
+         set @x = 1; 
+         insert 
+         	into user
+             (id, username) 
+             values(3,'aaa'); 
+         set @x = 2; 
+         insert 
+         	into user
+             (id, username) 
+             values(33,'aaa'); 
+         set @x = 3; 
+     end;
+     $$
+     
+     //使用 sqlexception 表示异常
+     create procedure user_insert4()  
+     begin 
+         declare 
+         	continue handler 
+             for sqlexception
+             set @x2=23002;
+         set @x = 1; 
+         insert 
+         	into user
+             (id, username) 
+             values(3,'aaa'); 
+         set @x = 2; 
+         insert 
+         	into user
+             (id, username) 
+             values(33,'aaa'); 
+         set @x = 3; 
+     end;
+     $$
+     ```
+
+5. 光标
+
+   ```mysql
+   声明光标：
+   declare cursor_name cursor for select_statement
    
+   open光标：
+   open cursor_name
+   
+   fetch光标：
+   fetch cursor_name into var_name [,var_name]...
+   
+   close光标：
+   close cursor_name
+   ```
+
+   **示例：**当捕获not found条件时退出循环，fetch会一直查找下一条记录。
+
+   - open cur_dep_id;close cur_dep_id;类似于循环的for语句
+
+   - repeat 和 until 0 end repeat;类似于循环的循环递增条件
+   - fetch cur_dep_id into p_dep_id;类似于foreach循环的每次获取的元素
+   - set @sum = @sum + p_dep_id;类似于for的主题执行部分
+
+   ```mysql
+   create procedure sum_of_dep_id9() 
+   begin
+   	declare p_dep_id int ;
+   	declare cur_dep_id cursor for select dep_id from user;
+   	declare exit handler for not found close cur_dep_id;
+   	
+   	set @sum = 0;
+   	
+   	open cur_dep_id;
+           repeat
+               fetch cur_dep_id into p_dep_id;
+                   if p_dep_id then 
+                   	set @sum = @sum + p_dep_id;
+                   end if;
+           until 0 end repeat;
+   	close cur_dep_id;
+   
+   end;
+   $$
+   ```
+
+   **注：**declare声明顺序：变量、条件、光标、程序。
+
+6. if语句
+
+   ```mysql
+   if search_condition then statement_list 
+   	[elseif search_condition then statement_list]...
+   	[else statement_list]
+   end if
+   ```
+
+7. case语句
+
+   ```mysql
+   case case_value
+   	when when_value then statement 
+   	[when when_value then statement_list]...
+   	[else statement_list]
+   end case
+   
+   或
+   
+   case 
+   	when search_condition then statement_list
+   	[when search_condition then statement_list]...
+   	[else statement_list]
+   end case
+   ```
+
+8. loop语句
+
+   ```mysql
+   [begin_tabel:] loop
+   	statement_list
+   end loop [end_label]
+   ```
+
+   **注：**如果不在statement_list中增加退出循环的语句，那么loop语句可以用来实现简单的死循环。
+
+9. leave语句（类似于其他语言的break）
+
+   退出循环
+
+   **例如：**
+
+   ```mysql
+   create procedure insert_list()
+   begin
+   
+   set @i = 0;
+   ins: loop
+   	set @i = @i + 1;
+   	if @i = 100 then 
+           leave ins;
+   	end if;
+   	insert into user(id,username) values(50+@i,"xhsf");
+   end loop ins;
+   
+   end;
+   $$
+   ```
+
+10. iterate语句（类似于其他语言的continue）
+
+    ```mysql
+    create procedure insert_list1()
+    begin
+    
+    set @i = 0;
+    ins: loop
+    	set @i = @i + 1;
+    	if @i = 100 then 
+            leave ins;
+        elseif mod(@i,2) = 0 then
+        	iterate ins;
+    	end if;
+    	insert into user(id,username) values(300+@i,"xhsf");
+    end loop ins;
+    
+    end;
+    $$
+    ```
+
+11. repeat语句：一直循环，直到条件满足(类似dowhile)
+
+    ```mysql
+    [begin_label:] repeat
+    	statement_list
+    until search_condition
+    end repeat[end_label]
+    ```
+
+    **示例：**
+
+    ```mysql
+    create procedure insert_list2()
+    begin
+    
+    set @i = 0;
+    repeat 
+    	set @i = @i + 1;
+    until @i = 200 end repeat;
+    
+    end;
+    $$
+    ```
+
+12. while语句：满足条件才执行循环
+
+    ```mysql
+    [begin_label:] while search_condition do
+    	statement_list
+    end while [end_label]
+    ```
+
+    **示例：**
+
+    ```mysql
+    create procedure insert_list3()
+    begin
+    
+    set @i = 0;
+    while @i < 300 do 
+    	set @i = @i + 1;
+    end while;
+    
+    end;
+    $$
+    ```
+
+13. 时间调度器（类似于Java的Timer）
+
+    **适用场景：**定期收集统计信息、定期清除历史数据、定期数据库检查。
+
+    **示例1：**到某个时刻计数+1
+
+    ```mysql
+    create event myevent
+    	on schedule at current_timestamp + interval 1 hour 
+    	do update xhsf.save_time set count = count + 1;
+    ```
+
+    **示例2：**定时清除qrcode
+
+    ```mysql
+    create event clear_qrcode
+    on schedule
+    every 5 second 
+    do 
+    delete from qrcode limit 1
+    ```
+
+    - 查调度器状态
+
+      ```mysql
+      show events \G;
+      ```
+
+    - 查看调度器状态
+
+      ```mysql
+      show variables like '%scheduler%';
+      ```
+
+    - 打开调度器
+
+      ```mysql
+      set global event_scheduler = 1;
+      ```
+
+    - 查看后台进程
+
+      ```mysql
+      show processlist \G;
+      ```
+
+    - 禁用event
+
+      ```mysql
+      alter event clear_qrcode disable;
+      ```
+
+    - 删除event
+
+      ```mysql
+      drop event clear_qrcode;
+      ```
+
+
 
 
 
