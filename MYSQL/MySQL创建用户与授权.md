@@ -34,8 +34,9 @@ CREATE USER 'pig'@'%';
 
 ### 命令:
 
-```
-GRANT privileges ON databasename.tablename TO 'username'@'host'
+```mysql
+GRANT privileges ON databasename.tablename TO 'username'@'host' identified by password;
+GRANT privileges ON sakila.* TO 'root'@'*' identified by password;
 ```
 
 ### 说明:

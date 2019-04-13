@@ -360,9 +360,159 @@
 
 10. hash分区：基于给定分区个数，把数据分配到不同的分区。（分区键必须是int类型）
 
-    
+    - hash分区主要用来分散热点读，确保数据在预先确定个数的分区中尽可能平均分布。对一个表执行hash分区时，MySQL会对分区键应用一个散列函数，以确定数据应当放在n个分区中的哪个分区中。
 
-    
+    - hash分区有常规hash分区和线性hash分区（linear hash 分区），常规hash分区是使用取模算法，线性hash分区是使用一个线性的2的幂的运算法则。
+
+    - 创建hash分区
+
+      - 常规hash分区：会按照store_id 取模4之后存储到对应的0，1，2，3分区
+
+        - 但是对于增加或者合并分区时不太方便，因为取模导致大部分数据都要重新计算。
+
+        ```mysql
+        create table emp3 (
+        	id int not null,
+            store_id int not null
+        )
+        partition by hash (store_id) partitions 4;
+        ```
+
+      - 线性hash分区：
+
+        - ```mysql
+          partition by linear hash (p_key) partitions num;
+          ```
+
+        - 找到一个大于等于num的2的幂V，V=Power(2,Ceiling(Log(2,num)))
+
+        - 设置N=F(column_list)&(V-1)，如N = 234&(4-1)=2
+
+        - 当N >= num，设置V = Ceiling(V / 2), 设置N=N&(V-1)
+
+        - 其实也就是取分区键值的低V位，作为分区的依据，类似于Java里ArrayList里的hash。
+
+        - 当线性hash的分区数是2的N次幂时，线性分区的分区结果和常规分区的结果一致。
+
+        - 线性hash在分区维护（增、删、合并、拆分分区）时，处理得更快；但是hash的分布不太均衡。
+
+        ```mysql
+        create table emp4 (
+        	id int not null,
+            store_id int not null
+        )
+        partition by linear hash (store_id) partitions 4;
+        ```
+
+11. key分区：必须使用MySQL服务器提供的hash函数，支持除blob和text类型外的其他类型作为分区键。
+
+    - 创建分区
+
+      ```mysql
+      create table emp4 (
+      	id int not null,
+          job varchar(30) not null,
+          store_id int not null
+      )
+      partition by key (job) partitions 4;
+      
+      create table emp5 (
+      	id int not null,
+          job varchar(30) not null,
+          store_id int not null
+      )
+      partition by linear key (job) partitions 4;
+      ```
+
+    - key分区不能执行alter table drop primary key;来删除主键，会报错。
+
+12. 子分区（subpartitioning）：对每个分区再分割，又称复合分区（composite partitioning）
+
+    - 创建子分区
+
+      这样之际上就有2x3=6个分区，小于1990的被保存在第1和2个分区中。
+
+      ```mysql
+      create table ts (
+      	id int,
+          purchased date
+      )
+      partition by range(year(purchased)) 
+      subpartition by hash(to_days(purchased)) subpartitions 2
+      (
+      	partition p0 values less than (1990),
+          partition p1 values less than (2000),
+          partition p2 values less than maxvalue
+      );
+      ```
+
+13. 分区中处理null值的方式
+
+    - 在range分区中，null值当作最小值来处理；
+    - list分区中，null值必须出现在枚举列表中；
+    - hash/key分区中，null值会被当作0值来处理。
+
+14. 分区管理
+
+    - range和list
+
+      - 删除分区
+
+        ```mysql
+        alter table tbl_name drop partition p_name;
+        ```
+
+      - 增加分区，只能添加到分区表的最大一端
+
+        ```mysql
+        alter table tbl_name add partition (
+        	partition p_name values less than (value)
+        );
+        ```
+
+      - 拆分分区，重新定义分区必须与原分区覆盖的范围一样
+
+        ```mysql
+        alter table tbl_name reorganize partition p_name into (
+        	partition p_name1 values less than (value),
+            partition p_name2 values less than (value)
+        );
+        ```
+
+      - 合并相邻分区
+
+        ```mysql
+        alter table tbl_name reorganize partition p_name1,p_name2,... into (
+        	partition p_name values less than (value)
+        );
+        ```
+
+      - list调整分区：不能跳过某个分区，直接调整中间的分区，必须从开始位置连续调整。
+
+    - hash和key
+
+      - 合并分区
+
+        ```mysql
+        alter table tbl_name coalesce partition num;
+        ```
+
+      - 增加分区
+
+        ```mysql
+        alter table tbl_name add partition partitions add_num;
+        ```
+
+        
+
+
+​        
+
+
+
+​      
+
+​    
 
 
 

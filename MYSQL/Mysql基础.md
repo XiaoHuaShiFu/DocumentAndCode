@@ -24,15 +24,21 @@
 
    创建数据表
 
-7. desc tablename; 显示表结构
+7. 另外一种创建表的方法：复制一个结构一模一样的表
 
-8. \G 使字段竖向排列
+   ```mysql
+   create table new_tbl_name like old_tbl_name;
+   ```
 
-9. show create table tablename \G 或 show table status like tablename \G显示表的详细结构
+8. desc tablename; 显示表结构
 
-10. drop table tablename; 删除一张数据表
+9. \G 使字段竖向排列
 
-11. alter table tablename modify [column] column_definition [first|after col_name] 修改表类型
+10. show create table tablename \G 或 show table status like tablename \G显示表的详细结构
+
+11. drop table tablename; 删除一张数据表
+
+12. alter table tablename modify [column] column_definition [first|after col_name] 修改表类型
 
     **示例:**
 
@@ -40,7 +46,7 @@
     alter table user modify username varchar(30);
     ```
 
-12. alter table tablename add [column] column_definition [first|after col_name] 增加表字段
+13. alter table tablename add [column] column_definition [first|after col_name] 增加表字段
 
     **示例:**
 
@@ -48,7 +54,7 @@
     alter table user add phone varchar(11);
     ```
 
-13. alter table tablename drop [column] column_name 删除表字段
+14. alter table tablename drop [column] column_name 删除表字段
 
     **示例:**
 
@@ -56,7 +62,7 @@
     alter table user drop age;
     ```
 
-14. alter table tablename change [column] old_col_name column_definition first|after col_name] 修改字段名
+15. alter table tablename change [column] old_col_name column_definition first|after col_name] 修改字段名
 
     **示例:**
 
@@ -64,7 +70,7 @@
     alter table user change password pass varchar(21);
     ```
 
-15. alter table tablename rename newname; 修改表名
+16. alter table tablename rename newname; 修改表名
 
     **示例:**
 
@@ -72,7 +78,7 @@
     alter table user rename user0;
     ```
 
-16. 分析此次查询
+17. 分析此次查询
 
     ```mysql
     explain select * from city where city = 'gd' \G
@@ -910,7 +916,7 @@
    ) engine=myisam;
    ```
 
-   
+   ⑥对于select count(*/1) from tbl_name; myisam引擎做了优化，不需要访问磁盘。
 
 5. InnoDB
 
@@ -1157,6 +1163,9 @@ on cac0;
 
    ```mysql
    create [unique|fulltext|spatial] index index_name [using index_type] on table_name (index_col_name,...) 
+   
+   //前缀索引
+   create index index_name on tbl_name(filed(len));
    ```
 
    **其中：**index_col_name表示<!--col_name[(length)][asc|desc]-->
