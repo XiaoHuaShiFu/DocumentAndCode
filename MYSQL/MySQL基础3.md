@@ -1097,4 +1097,771 @@
      - 不可重复读（Non-Repeatable Reads）：一个事务在读取某些数据后的某个时间，再次读取以前读过的数据，却发现其读出的数据已经发生了改变或某些记录已经被删除了。
      - 幻读（Phantom Reads）：一个事务按相同的查询条件重新读取以前检索过的数据，却发现其他事务插入了满足查询条件的新数据。
 
+   - 事务隔离级别
+
+     - 更新丢失，需要应用程序对更新的数据加必要的锁来解决。
+
+     - “脏读”、”不可重复读“、”幻读“，都是数据库读一致性问题，必须由数据库提供一定的事务隔离机制来解决。实现事务隔离的方式有：
+
+       - 在读取数据前，对其加锁，阻止其他事务对数据进行修改。
+       - 不加任何锁，通过一定机制生成一个数据请求时间点的一致性数据快照（Snapshot）。好像数据库可以提供同一数据的多个版本，也叫数据多版本并发控制（MultiVersion concurrency Control），也经常成为多版本数据库。
+
+     - ISO/ANSI SQL92定义的四个事务隔离级别：
+
+       |                              | 读数据一致性                             | 脏读 | 不可重复读 | 幻读 |
+       | ---------------------------- | ---------------------------------------- | ---- | ---------- | ---- |
+       | 未提交读（Read uncommitted） | 最低级别，只能保证不读取物理上损坏的数据 | 是   | 是         | 是   |
+       | 已提交读（Read committed）   | 语句级                                   | 否   | 是         | 是   |
+       | 可重复读（Repeatable read）  | 事务级                                   | 否   | 否         | 是   |
+       | 可序列化（Serializable）     | 最高级别，事务级                         | 否   | 否         | 否   |
+
+   - 获取InnoDB行锁争用情况
+
+     - 检查InnoDB_row_lock状态变量来分析系统上的行锁争夺情况：
+
+       ```mysql
+       show status like 'innodb_row_lock%';
+       ```
+
+   - InnoDB的行锁模式及加锁方法
+
+     - 行锁
+
+       - 共享锁（S）：允许一个事务去读一行，阻止其他事务获得相同数据集的排他锁。
+       - 排他锁（X）：允许获得排他锁的事务更新数据，阻止其他事务获得相同数据集的共享读锁和排他写锁。
+
+     - 表锁
+
+       - 意向共享锁（IS）：事务打算给数据行加行共享锁，事务在给一个数据行加共享锁前必须取得该表的IS锁。
+       - 意向排他锁（IX）：事务打算给数据行加行排他锁，事务在给一个数据行加排他锁前必须取得该表的IX锁。
+
+     - InnoDB行锁模式兼容性：
+
+       |      | X    | IX   | S    | IS   |
+       | ---- | ---- | ---- | ---- | ---- |
+       | X    | 冲突 | 冲突 | 冲突 | 冲突 |
+       | IX   | 冲突 | 兼容 | 冲突 | 兼容 |
+       | S    | 冲突 | 冲突 | 兼容 | 兼容 |
+       | IS   | 冲突 | 兼容 | 兼容 | 兼容 |
+
+       - 如果一个事务请求的锁模式与当前的锁兼容，InnoDB就将请求的锁授予该事务；反之，事务就要等待锁被释放。
+       - 意向锁是InnoDB自动加的，不需用户干预。对于update、delete和insert语句，InnoDB会自动给涉及数据集加排他锁（X）；对于普通select语句，InnoDB不会加任何锁；
+
+     - 显式的给记录集加共享锁或排他锁
+
+       - 共享锁（S）：select * from tbl_name where ... lock in share mode
+
+         - 用于数据依存关系时确定某行记录是否存在，并确保没有人对这个记录进行update或者delete操作。
+         - 如果当前事务也需要对该记录进行更新操作，可能会造成死锁。
+
+       - 排他锁（X）：select * from tbl_name where ... for update
+
+         - 对于锁定行记录后需要进行更新操作的应用，应该适用select ... for update方式获得排他锁。
+
+       - **示例：**通过此语句可以在搜索后，不会在此期间，有其他用户更新了此用户对象，造成脏读。
+
+         ```mysql
+         select actor_id, first_name, last_name from actor where actor_id = 178 for update;
+         update actor set last_name = 'MONROE T' where actor_id = 178;
+         commit;
+         ```
+
+   - InnoDB行锁的实现方式
+
+     - InnoDB行锁是通过给索引上的索引项加锁来实现的，如果没有索引，InnoDB将通过隐藏的聚簇索引对记录加锁。
+       - Record lock：对索引项加锁。
+       - Gap lock：对索引项之间的“间隙”、第一条记录前的“间隙”或最后一条记录后的“间隙”加锁。
+       - Next-key lock：前两种结合，对记录及前面的间隙加锁。
+     - 这意味着，如果不通过索引条件检索数据，那么InnoDB将对表中的所有记录加锁，实际效果跟表锁一样。
+     - 如果适用相同的索引键，有可能出现锁冲突。也就是两行适用同一个索引键作为索引，比如两个都使用id=1作为索引。
+     - 当表有多个索引时，使用不同索引对同一行加锁效果一样。
+     - 即便在条件中使用索引字段，但MySQL可能也会不用索引，这张情况下InnoDB会对所有记录加锁。
+
+   - Next-key锁
+
+     - 当我们用范围条件而不是相等条件检索数据，并请求共享或排他锁是，InnoDB会给符合条件的已有数据记录的索引加锁；
+
+     - 对于键值在条件范围内但并不存在的记录，叫做“间隙”，InnoDB也会对这个“间隙”加锁，这种锁机制就是所谓的Next-key锁。
+
+     - 例如：不仅对存在的8加锁，也对不存在的大于8的值加锁（假设这个表的值为1,2,...,8）
+
+       ```mysql
+       select * from empid where id > 7 for update;
+       ```
+
+     - Next-key可以防止幻读，如：先查询是否有大于7的，然后其他事务插入大于8的值，那么再次查询就会出现幻读。
+
+     - 满足恢复和复制的需要。
+
+     - 给不存在的记录加for update锁，InnoDB也会使用Next-key锁：
+
+       ```mysql
+       select * from empid where id > 8 for update;
+       ```
+
+   - 恢复和复制的需要，对InnoDB锁机制的影响
+
+     - MySQL支持的4种复制模式：
+       - 基于SQL语句的复制SBR
+       - 基于行数据的复制RBR：优点是支持对非安全SQL的复制
+       - 混合复制模式：对安全SQL语句采用基于SQL语句的复制模式，对非安全SQL语句采用居于行的复制模式。
+       - 使用全局事务ID（GTID）的复制：主要是解决主从自动同步一致问题。
+     - 对基于语句日志格式（SBL）的恢复和复制而言，由于MySQL的binlog是按照事务提交的先后顺序记录的，因此要正确恢复或复制数据，就必须满足：在一个事务未提交前，其他并发事务不能插入满足其锁定条件的任何记录，也就是不允许出现幻读。
+     - insert ... select ... 和 create table ... select ...可能会阻止对源表的并发更新。被MySQL称为不确定SQL，属于Unsafe SQL，不推荐使用。有以下代替措施：
+       - 将innodb_locks_unsafe_for_binlog的值设置为on，强制MySQL使用多版本数据一致性读。但可能无法用BINLOG正确的恢复或复制数据。不推荐。
+       - 使用 select * from source_tab ... into outfile 和 load data infile语句组合来间接实现，采用这种方式MySQL不会给source_tab加锁。
+       - 使用基于行的BINLOG格式和基于行数据的复制。
+
+   - InnoDB在不同隔离级别下的**一致性读及锁**的差异
+
+     | SQL                                      | 条件     | Read uncommited    | Read commited             | repeatable read           | serializable       |
+     | ---------------------------------------- | -------- | ------------------ | ------------------------- | ------------------------- | ------------------ |
+     | select                                   | 相等     | None locks         | Consisten read /None lock | Consisten read/None lock  | Share locks        |
+     | select                                   | 范围     | None locks         | Consisten read /None lock | Consisten read/None lock  | Share Next-Key     |
+     | update                                   | 相等     | exclusive locks    | exclusive locks           | exclusive locks           | exclusive locks    |
+     | update                                   | 范围     | exclusive next-key | exclusive next-key        | exclusive next-key        | exclusive next-key |
+     | insert                                   | N/A      | exclusive locks    | exclusive locks           | exclusive locks           | exclusive locks    |
+     | replace                                  | 无键冲突 | exclusive locks    | exclusive locks           | exclusive locks           | exclusive locks    |
+     | replace                                  | 键冲突   | exclusive next-key | exclusive next-key        | exclusive next-key        | exclusive next-key |
+     | delete                                   | 相等     | exclusive locks    | exclusive locks           | exclusive locks           | exclusive locks    |
+     | delete                                   | 范围     | exclusive next-key | exclusive next-key        | exclusive next-key        | exclusive next-key |
+     | select ... from lock in share mode       | 相等     | share locks        | share locks               | share locks               | share locks        |
+     | select ... from lock in share mode       | 范围     | share locks        | share locks               | share next-key            | share next-key     |
+     | select * from ... for update             | 相等     | exclusive locks    | exclusive locks           | exclusive locks           | exclusive locks    |
+     | select * from ... for update             | 范围     | exclusive locks    | share locks               | exclusive next-key        | exclusive next-key |
+     | insert into ... select ... （值源表锁）  | off      | share next-key     | share next-key            | share next-key            | share next-key     |
+     | insert into ... select ... （值源表锁）  | on       | None locks         | Consisten read /None lock | Consisten read /None lock | share next-key     |
+     | create table ... select ... （值源表锁） | off      | share next-key     | share next-key            | share next-key            | share next-key     |
+     | create table ... select ... （值源表锁） | on       | None locks         | Consisten read /None lock | Consisten read /None lock | share next-ke      |
+
+     **注：**其中on和off是指innodb_locks_unsafe_for_binlog=on或off
+
+     - 隔离级别越高，InnoDB给记录集加的锁就越严格（尤其是使用范围条件的适合）。
+     - 大部分应用使用Read COmmited隔离级别就足够了。
+     - 对于需要高级隔离级别的事务，可以设置set session transaction isolation level repeatable read 或 set session transaction isolation level serializable动态改变隔离级别的方式满足需求。
+
+   - 什么时候使用表锁
+
+     - 事务需要更新大部分或全部数据，且表比较大。
+     - 事务涉及多个表，比较复杂，很可能引起死锁，造成大量事务回滚。
+
+     - 使用lock tables可以给InnoDB加表锁，但表锁不是由InnoDB存储引擎管理的，是由MySQL Server负责的，仅当autocommit=0且innodb_table_locks=1（默认设置）时，InooDB层才知道MySQL加的表锁，MySQL Server也才能感知InnoDB加的行锁，这种情况下，InnoDB才能自动识别涉及表锁的死锁；否则，InnoDB将无法自动检测并处理这种死锁。
+
+     - unlock tables释放锁会隐含地提交事务，正确的做法是：
+
+       ```mysql
+       set autocommit = 0;
+       lock tables t1 write.....
+       ....
+       commit;
+       unlock tables;
+       ```
+
+   - 死锁
+
+     - 一般死锁后，InnoDB都能自动检测到，并使一个事务释放锁并回退，另外一个事务获得锁，继续完成事务。
+
+     - 可以通过设置锁等待超时参数innodb_lock_wait_timeout来解决。
+
+     - 避免死锁的方法：
+
+       - 当不同程序并发读取多个表，应尽量约定以相同的顺序来访问表，可以降低产生死锁的机会。
+
+       - 在程序以批量方式处理数据时，先对数据排序，保证每个线程按固定的顺序来处理记录，可以大大降低出现死锁的可能。
+
+       - 要更新时，应该直接申请排他锁。
+
+       - 在REPEATABLE-READ隔离级别下，如果两个线程同时对相同条件记录用select ... for update加排他锁，在没有符合该条件记录下，两个线程都会加锁成功。程序发现记录不存在，会插入一条新记录，如果两个线程都这么做，会出现死锁。应该将隔离级别改成read committed。
+
+         ```mysql
+         //session1
+         select  actor_id , first_name, last_name from actor where actor_id = 201 for update;
+         Empty set (0.00 sec)
+         //因为innodb会自动解决死锁，所以另外一个session退出，此session获得锁
+         insert into actor(actor_id, first_name, last_name) values(201,'Lisa','Tom');
+         Query OK, 1 row affected (0.00 sec)
+         
+         //session2
+         select  actor_id , first_name, last_name from actor where actor_id = 201 for update;
+         Empty set (0.00 sec)
+         insert into actor(actor_id, first_name, last_name) values(201,'Lisa','Tom');
+         ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+         ```
+
+       - 当隔离级别为read committed时，如果两个线程都指向select ... for update，然后插入数据，此时，只有一个线程能插入成功，另外一个线程会出现锁等待，当第一个线程提交后，第二个线程会因主键重复出错，然后获得一个排他锁，这时第三个线程来申请排他锁，就会出现死锁。
+
+     - 可以使用show engine innodb status \G查看最近引擎产生的信息。
+
+# 21.优化MySQL Server
+
+1. 默认情况下，MySQL由7组后台线程，分别是1个主线程，4组IO线程，1个锁线程，1个错误监控线程。
+
+   - master thread：主要负责将脏缓存页刷新到数据文件，执行purge操作，触发检查点，合并插入缓冲区等。
+   - insert buffer thread：主要负责插入缓冲区的合并操作。
+   - read thread：负责数据库读取操作，可配置多个读线程。
+   - write thread：负责数据库写操作，可配置多个写线程。
+   - log thread：用于将重做日志刷新到logfile中。
+   - purge thread：执行purge操作。
+   - lock thread：负责锁控制和死锁检测等。
+   - 错误监控线程：主要负责错误监控和错误处理。
+   - 可以用show engine innodb status \G;查看这些线程的状态
+
+2. 内存优化
+
+   - 内存分配注意点
+
+     - 尽量多分配内存给MySQL做缓存
+     - MyISAM的数据文件读取依赖于操作系统自身的IO缓存，因此如果由MyISAM表，就要预留更多的内存给操作系统做IO缓存。
+     - 排序区、连接区等缓存是分配给每个数据库会话专用的，其默认注设置要根据最大连接数合理分配。
+
+   - MyISAM内存优化
+
+     - key_buffer_size
+
+       key_buffer_size决定MyISAM索引块缓存区的大小，直接影响MyISAM表的存取效率。对于一般MyISAM数据库，建议至少把内存分配1/4给key_buffer_size
+
+     - 多索引缓存：将不同session直接的索引缓存到不同的key buffer
+
+       - 创建新的key buffer：
+
+         hot_cache是索引的名字，global表锁新建的缓存对每个新的连接都有效
+
+         ```mysql
+         set global hot_cache.key_buffer_size=128*1024;
+         ```
+
+       - 删除索引缓存
+
+         ```mysql
+         set global hot_cache.key_buffer_size=0;
+         ```
+
+       - 查看默认索引缓存
+
+         ```
+         show variables like 'key_buffer_size';
+         ```
+
+       - 用cache index命令指定表的索引缓存：
+
+         ```mysql
+         cache index tbl_name1,tbl_name2 in hot_cache;
+         ```
+
+       - 在mysql配置文件设置MySQL启动时自动创建并加载索引缓存：
+
+         ```mysql
+         key_buffer_size=4g
+         hot_cache.key_buffer_size=2g
+         cold_cache.key_buffer_size=1g
+         init_file=/path/to/data-directory/mysqld_init.sql
+         ```
+
+         在mysqld_init.sql中通过cache index命令分配索引缓存，并用load index into cache命令来进行索引预加载
+
+         ```mysql
+         cache index tbl_name1 in hot_cache;
+         cache index tbl_name2 in cold_cache;
+         load index into cache tbl_name1,tbl_name2;
+         ```
+
+     - 调整重点插入策略
+
+       - MySQL默认使用LRU策略来淘汰索引数据块，有时候会导致热块被淘汰。
+
+       - 可以调节key_cache_division_limit来控制使用hot和warm表的比例，如：
+
+         ```mysql
+         set global key_cache_division_limit=70;
+         set global hot_cache.key_cache_division_limit=70;
+         ```
+
+       - 设置key_cache_age_threshold控制数据块由hot子表降级为warm字表的时间。
+
+     - 调整read_buffer_size和read_rnd_buffer_size
+
+       - 如果经常需要顺序扫描MyISAM表，可以通过增加read_buffer_size来改善性能。read_buffer_size是每个session独占的。
+       - 对带用order by的SQL，增大read_rnd_buffer_size可以改善SQL的性能。read_rnd_buffer_size是每个session独占的。
+
+   - InnoDB内存优化
+
+     - InnoDB用一块内存做IO缓存池，缓存索引块、数据块。
+
+     - 缓存池逻辑上由free list（空闲缓存块列表）、flush list（需要刷新到磁盘的缓存块列表）和LRU list（正在使用的缓存块）组成。
+
+     - 默认BP（innodb_buffer_pool）中不存在可用数据页时，会扫描LRU list尾部的innodb_lru_scan_depth个数据页（默认1024个），放入到free list中。
+
+     - 通过改变innodb buffer pool的大小，改变young sublist和old sublist分配比例、控制脏缓存的刷新活动、使用多个Innodb缓冲池来优化innodb性能。
+
+     - innodb_buffer_pool_size：决定表数据和索引数据的最大缓存区大小。在专用的数据库服务器上，可用将80%的物理内存分配给innodb_buffer_pool
+
+     - old sublist：由系统参数innodb_old_blocks_pct决定（5~95）
+
+       - 设置innodb_old_blocks_pct
+
+         ```mysql
+         set global innodb_old_blocks_pct = 40;
+         ```
+
+       - 查看当前设置：
+
+         ```mysql
+         show global variables like '%innodb_old_blocks_pct%';
+         ```
+
+       - 在大表扫描或索引扫描对的情况下，需要适当增大innodb_old_blocks_pct或减小innodb_old_blocks_time。
+
+     - innodb_old_blocks_time：决定缓存数据库由old sublist转移到young sublist的快慢。
+
+     - 调整缓存池数量，减少内部对缓存池数据结构的争用：innodb缓存系统会将参数innodb_buffer_pool_size指定大小的缓存平分为innodb_buffer_pool_instances个buffer pool。
+
+     - 控制innodb buffer刷新，延长数据缓存时间，减少磁盘I/O
+
+       - innodb_max_dirty_pages_pct，控制缓冲池中脏页的最大比例，默认值75%。
+       - innodb_io_capacity：代表磁盘每秒可完成的I/O次数。此参数决定每次刷新的脏页数量。
+         - 在脏页小于innodb_max_dirty_pages_pct时，如果innodb_adaptive_flushing设置为true，innodb将根据函数buf_flush_get_desired_flush_rate返回的重做日志产生的速度来确定要刷新的脏页数。Innodb每次合并插入缓存是页数是0.05*innodb_io_capacity；
+
+     - InnoDB doublewrite
+
+   - 调整服务线程排序缓存区
+
+     - show global status看到sort_merge_passes值很大，可用考虑增大sort_buffer_size来增加排序缓存区，改善带有order by子句或group子句的SQL。
+     - 无法通过索引进行连接操作的查询，可用尝试通过增大，join_buffer_szie的值来改善性能。
+     - 上面都是面向当个session的。
+
+3. InnoDB log机制及优化
+
+   - InnoDB通过redo log机制来保证事务更新的一致性和持久性。
+   - 其中innodb log buffer的大小、redo日志文件的大小、innodb_flush_log_at_trx_commit参数的设置都会影响inndb的性能。
+   - innodb_flush_log_at_trx_commit：控制将redo buffer中的更新记录写入到日志文件及将日志文件刷新到磁盘的时机。
+     - 0表锁提交事务时不会立即触发将缓存日志写道磁盘文件的操作，而是美妙触发一次缓存日志回写磁盘操作，并调用操作系统的fsync刷新io缓存。最不安全，效率最高。
+     - 1表锁在提交事务时立即将缓存中的redo日志写回到日志文件，并调用fsync刷新io缓存。默认。最安全，效率最低。
+     - 2表锁在提交事务时立即将缓存中的redo日志写回到日志文件，但不立刻调用fsync刷新io缓存而是美妙只做一次磁盘io缓存刷新操作。
+   - log file size控制检查点：当一个日志文件写满后，innodb回自动切换到另一个日志文件，但切换时回触发数据库检查点，这将导致innodb缓存脏页的小批量更新，明显降低innodb性能。
+     - 平均半小时写满1个日志文件比较合适。
+     - 设置日志文件大小innodb_log_file_size
+   - innodb_log_buffer_size：对产生大批量更新记录的大事务，可增加innodb_log_buffer_size大小。
+
+4. MySQL并发相关参数
+
+   - max_connections：提高并发连接会话数，默认151。
+   - back_log：监听TCP端口积压请求栈大小，默认50+(max_connection/5)，最大900。如果需要短时间内处理大量请求，可用适当增大back_log。
+   - table_open_cache：每个SQL执行线程至少要打开1个表缓存，此参数控制所有SQL可打开的表缓存数量。
+     - 值为max_connections*N，其中N为每个连接执行关联查询中涉及表的最大个数。
+   - thread_cache_size：为了加快连接数据库的速度，MySQL缓存的客户服务线程。
+   - innodb_lock_wait_timeout：控制等待行锁的时间，默认50ms。
+
+# 22.磁盘I/O问题
+
+# 23.应用优化
+
+1. 使用线程池
+
+2. 减少对MySQk的访问
+
+   - 避免对同一数据做重复检索
+
+   - 使用查询缓存
+
+     - 查看查询缓存参数 show variables like '%query_cache%';
+
+       ```mysql
+       show variables like '%query_cache%';
+       +------------------------------+---------+
+       | Variable_name                | Value   |
+       +------------------------------+---------+
+       //服务器是否配置了高速缓存
+       | have_query_cache             | YES     |
+       | query_cache_limit            | 1048576 |
+       | query_cache_min_res_unit     | 4096    |
+       //缓存区大小，单位MB
+       | query_cache_size             | 1048576 |
+       //缓存是否打开，off关闭，on打开（使用sql_no_cache提示的select除外），demand（只有带sql_cache的select提供高速缓存）
+       | query_cache_type             | OFF     |
+       | query_cache_wlock_invalidate | OFF     |
+       +------------------------------+---------+
+       ```
+
+   - 增加cache层
+
+3. 负载均衡（Load Balance）
+
+   - MySQL复制分流查询操作
+     - 主从复制可用有效分流更新操作和查询操作，具体的实现是一主服务器承担更新操作，而多台服务器承担查询操作，主从之间通过复制实现数据同步。
+   - 采用分布式数据库架构
+     - 适合大数据量、负载搞的情况，有良好的扩展性和高可用性。
+
+4. 其他优化措施
+
+   - 对于没有删除行操作的MyISAM表，插入操作和查询操作可用并行进行，因为没有删除操作的表查询期间不会阻塞插入操作。
+   - 充分利用列有默认值的事实。只有当插入的值不同于默认值时，才明确的插入值。这回减少MySQL需要做的语法分析从而提高插入速度。
+   - 表的字段尽量不适用自增长变量，在高并发情况下该字段的自增长可能对效率有比较大的影响，推荐通过应用来实现字段的自增长。
+
+# 24.
+
+# 25.常用工具
+
+1. mysql
+
+   - 参数
+
+     - -u 
+     - -p
+     - -h 指定服务器ip或域名
+     - -P 指定连接端口
+
+   - 客户端字符集选项
+
+     - --default-character-set=charset-name
+
+       **例如：**
+
+       ```mysql
+       mysql -uroot -p --default-character-set=utf8
+       ```
+
+   - 执行选项
+
+     - -e 执行SQL并退出
+
+       **例如：**
+
+       ```mysql
+       mysql -uroot -p -e "select * from xhsf.user";
+       ```
+
+     - 多个sql用;分隔
+
+   - 格式化选项
+
+     - -E 将输出的方式按照字段顺序竖着显式，类似加\G
+     - -s 去掉mysql中的线条框显式
+
+   - 错误处理选项
+
+     - -f 强制执行SQL
+     - -v 显示更多信息
+     - --show-warnings 显示警告信息
+
+2. myisampack（MyISAM表压缩工具）
+
+   - 压缩后是一个只读表，不能进行DML操作
+   - 语法：myisampack [options] filename 
+
+3. mysqladmin（管理工具）
+
+4. mysqlbinlog（日志管理工具）
+
+   - 语法：mysqlbinlog [options] log-files1 log-files2...
+     - -d 数据库名
+     - -o 忽略掉日志中的前n行命令
+     - -r ,--result-file=name将输出的文本格式日志输出到指定文件
+     - -s 显示简单格式，忽略掉一些信息
+     - --set-charset=char-name
+     - --start-datetime=name -stop-datetime=name 指定日期间隔内的所有日志
+     - --start-position=# --stop-position=# 指定位置间隔内的所有日志
+
+5. mysqlcheck（myisam表维护工具）：集成了mysql工具中的check、repair、analyze、optimize功能
+
+   - mysqlcheck [options] db_name [tables]
+   - mysqlcheck [options] --database db1[db2 db3...]
+   - mysqlcheck [options] --all-database
+     - -c 检查表（默认）
+     - -r 修复表
+     - -a 分析表
+     - -o 优化表
+
+6. mysqldump（数据导出工具）
+
+   - mysqldump [options] db_name [tables] 备份单个数据库或数据库中的部分数据表
+   - mysqldump [options] --database db1 [db2 db3...] 备份指定的一个或多个数据库
+   - mysqldump [options] --all-database 备份所有数据库
+     - -u
+     - -p
+     - -h
+     - -P
+     - --add-drop-database 每个数据库创建语句前加上drop database语句
+     - --add-drop-table 每个表创建前加上drop table语句
+     - -n 不包含数据库的创建语句
+     - -t 不包含数据表的创建语句
+     - -d 不包含数据
+     - --compact 使输出结果见解，不包含各种注释
+     - -c 使得输出文件中的insert语句包含字段名字，默认是不包含字段名字
+     - -T 将指定数据表中的数据备份为单纯的数据文本和建表SQL两个文件。
+     - --fields-terminated-by=name 域分隔符
+     - --fields-enclosed-by=name 域引用符
+     - --fields-optionally-enclosed-by=name 域可选引用符
+     - --fields-escaped-by=name 转义字符
+   - show variables like '%secure%';查看可以导出的文件位置
+   - 字符集选项
+     - --default-character-set=name 
+   - 其他常用选项
+     - -F 备份前刷新日志，将关闭旧日志，生成新日志。使得进行恢复的时候直接从新日志开始重做，大大方便了恢复过程。
+     - -l 给所有表加读锁，在备份期间使用，使得数据无法被更新，从而使备份的数据保持一致性，可以配合-F选项一起使用。
+
+7. mysqlhotcopy（MyISAM表热备份工具）
+
+8. mysqlimport（数据导入工具）
+
+   - 用来导入mysqldump -T导出后的文本文件，实际上是客户端提供了load data infileql语句的一个命令行接口
+   - 语法：mysqlimport [options] db_name textfile1 [textfile2]...
+
+9. mysqlshow（数据库对象查看工具）
+
+   - mysqlshow [option] [db_name [tbl_name [col_name] ] ] 
+     - --count 显示数据库和表的统计信息
+     - -k 显示指定表中的所有索引
+     - -i 显示表的一些状态信息
+
+10. perror（错误代码查看工具）
+
+    - perror [options] [errorcode [errorcode...]]
+
+    - **示例：**
+
+      ```
+      perror 30 60
+      OS error code  30:  Read-only file system
+      OS error code  60:  Device not a stream
+      ```
+
+11. replace（文本替换工具）：对文件中的字符串进行替换
+
+    - replace from to [from to] ... --file [file] ...
+
+    - replace from to [from to] ... < file
+
+    - 覆盖方式 --
+
+      **示例：**
+
+      ```shell
+      repalce a1 aa1 b1 bb1 -- a
+      ```
+
+    - 非覆盖方式 <
+
+      **示例：**
+
+      ```
+      repalce a1 aa1 b1 bb1 < a
+      ...
+      ```
+
+# 26.日志文件
+
+1. 错误日志
+   - 记录mysqld启动和停止时，服务器运行过程中发生的任何严重错误。
+   - 可以使用--log-error[=file_name]来指定mysqld保存错误日志文件的位置
+   - show variables like 'log_error';查看错误日志的位置
+2. 二进制日志
+   - 记录DDL和DML语句，但不包括数据查询语句。语句以事件的形式保存，描述了数据的更改过程。
+   - 日志的位置和格式
+     - 当使用--log-bin[=file_name]启动时，mysqld开始将数据变更情况写入日志文件。如果没有file_name值，默认名为主机名后面跟-bin
+     - 二进制日志格式分为3种，statement、row、mined，可以在启动时通过参数--binlog_format进行设置。
+     - statement：日志记录的都是语句（statement），主从复制的时候，从库（slave）会将日志解析为原文本，并在从库重新执行一次。
+       - 优点：清晰易读，日志量少、对io影响小
+       - 缺点：在某些情况下slave的日志复制会出错
+     - row：将每一个的更变记录到日志中，而不是SQL。
+       - 比如update emp set name = 'abc';会插入n条日志，而statement只会插入一条。
+       - 优点：记录每一行数据变化的细节。
+       - 缺点：日志量大，对io影响较大。
+     - mixed（默认）：默认情况下采用statement，但一些特殊情况下采用row，比如采用NDB存储引擎；客户端使用临时表；客户端采用不确定函数，比如current_user()等。
+   - 日志的读取
+
+
+
+# 27.备份与恢复
+
+# 28.MySQL权限与安全
+
+1. 权限表
+
+   | 表名       | user                  | db   | host |
+   | ---------- | --------------------- | ---- | ---- |
+   | 用户列     | host                  | host | host |
+   |            | user                  | db   | db   |
+   |            | password              | user |      |
+   | 权限列     | select_priv           | .    | .    |
+   |            | insert_priv           | .    | .    |
+   |            | update_priv           | .    | .    |
+   |            | delete_priv           | .    | .    |
+   |            | index_priv            | .    | .    |
+   |            | alter_priv            | .    | .    |
+   |            | create_priv           | .    | .    |
+   |            | drop_priv             | .    | .    |
+   |            | grant_priv            | .    | .    |
+   |            | create_view_priv      | .    | .    |
+   |            | show_view_priv        | .    | .    |
+   |            | create_routine_priv   | .    |      |
+   |            | alter_routin_priv     | .    |      |
+   |            | references_priv       | .    | .    |
+   |            | reload_priv           |      |      |
+   |            | shutdown_priv         |      |      |
+   |            | process_priv          |      |      |
+   |            | file_priv             |      |      |
+   |            | show_db_priv          |      |      |
+   |            | super_priv            |      |      |
+   |            | create_tmp_table_priv | .    | .    |
+   |            | lock_table_priv       | .    | .    |
+   |            | execute_priv          |      |      |
+   |            | repl_slave_priv       |      |      |
+   |            | repl_client_priv      |      |      |
+   | 安全列     | ssl_type              |      |      |
+   |            | ssl_cipher            |      |      |
+   |            | x509_issuer           |      |      |
+   |            | x509_subject          |      |      |
+   | 资源控制列 | max_questions         |      |      |
+   |            | max_updates           |      |      |
+   |            | max_connections       |      |      |
+   |            | max_user_connections  |      |      |
+
+   - **示例：**赋予z1所有数据库所有表上的select权限
+
+     ```mysql
+     grant select on *.* to z1@localhost;
+     ```
+
+   - **示例：**查看用户的权限
+
+     ```mysql
+     select * from user where user = 'xhsf' \G
      
+     show grants for user@host;
+     
+     select * from information_schema.schema_privileges where grantee="'xhsf'@'localhost'";
+     ```
+
+2. 账号管理
+
+   - 创建账号 
+
+     ```mysql
+     grant priv_type [(column_list)] [,priv_type[(column_list)]] ...
+     on [object_type] {tbl_name | * | *.* | db_name.*} 
+     to user_name@host [identified by [password] 'password'] 
+     [, user_name@host [identified by [password] 'password']] ...
+     [with grant option]
+     
+     object_type = table | function | procedure 
+     user_name='' | name
+     host='%' | ip | url | %.url
+     ```
+
+     - **示例：**
+
+       ```mysql
+       grant all privileges on *.* to hlws@"%.xhsf.top" identified by '123456';
+       ```
+
+   - 更改用户权限
+
+     - **示例：**赋予z2所有库上所有表的insert权限
+
+       ```mysql
+       grant insert on *.* to 'z2'@'localhost';
+       ```
+
+     - **示例：**回收用户权限
+
+       ```mysql
+       revoke priv_type [(column_list)] [,priv_type[(column_list)]] ...
+       on [object_type] {tbl_name | * | *.* | db_name.*}
+       from user [,user]...
+       
+       revoke all privileges, grant option from user [,user]...
+       ```
+
+       - **示例：**回收z2的insert和select权限
+
+         ```mysql
+         revoke select, insert on *.* from xhsf@localhost;
+         ```
+
+       - **注：** usage权限不能被回收
+
+   - 修改账号密码
+
+     - mysqladmin -u user_name -h host_name password '123456';
+     - set password for 'xhsf'@'%' = password('123456');
+     - set password = password('123456');
+     - grant usage on  \*.\* to 'xhsf'@'%' identified by '123456';
+     - update mysql.user set Password = password('123456') where Host = '%' and User  = 'xhsf'; flush privileges;
+     - 使用md5密码值来对密码更改
+       - grant usage on  \*.\* to 'xhsf'@'%' identified by password '213213213131123313131232131';
+       - set password = '213213213131123313131232131';
+
+   - 删除账号
+
+     - drop user user [,user]...
+
+   - 账号资源限制
+
+     - 单个账号每小时执行查询次数；
+
+     - 单个账号每小时执行更新次数；
+
+     - 单个账号每小时连接服务器次数；
+
+     - 单个账号并发连接服务器的次数；
+
+     - **语法：** grant ... with option
+
+       - max_queries_per_hour count;
+
+       - max_updates_per_hour count;
+
+       - max_connections_per_hour count;
+
+       - max_user_connections count;最大用户连接数，也就是并发连接数
+
+       - **示例：**
+
+         ```
+         grant select on xhsf.* to xhsf@localhost 
+         with max_queries_per_hour 3
+         max_user_connections 5;
+         ```
+
+     - 清除对账号的资源限制：root执行flush  user_resources / flush privileges / mysqladmin reload 3个中的一个。如果数据库重启，原先累计的计数值清零。
+
+     - 修改删除限制
+
+       ```mysql
+       grant usage on *.* to 'z1'@'localhost' 
+       with max_connections_per_hour 0;
+       ```
+
+   - 删除匿名用户
+
+   - 除root外，任何用户不应该有mysql库user表的存取权限
+
+   - 不要把file、resoures或super权限授予管理员外的账号
+
+     - file权限可以select ... into outfile ...写道服务器其上有写权限的目录下。
+
+       load data infile ... 写入数据库表。
+
+     - process权限可能造成密码泄露
+
+     - super权限可以杀死任何用户进程
+
+       ```mysql
+       show processlist;
+       kill 51;
+       ```
+
+   - load data local 带来的安全问题
+
+     - load data默认读的是服务器上的文件，但是加上local参数后，就可以将本地具有访问权限的文件加载到数据库中。
+     - 可以加载任何本地文件到数据库
+     - 在Web环境中，客户从Web服务器连接，用户可以使用load data local语句来读取Web服务器进程有读访问权限的任何文件（就嘉定用户可以运行SQL服务器的任何命令）。在这种环境中，MySQL服务器的客户实际上是Web服务器，而不说连接Web服务器的用户运行程序。
+     - 解决方法是，可以用--local-infile=0选项启动mysqld从服务器金庸所有load data local命令。
+     - 在mysql命令行客户端，通过指定--local-infile[=1]选项启用load data local或通过--local-infile=0选项禁用。对于mysqlimport，--local或-L选项启用本地文件装载。
+
+   - 使用merge存储引擎潜藏的安全漏洞
+
+   - drop table命令并不回收以前的相关访问授权
+
+     - drop表时，其他用户对此表的权限并没有被收回，下次创建同名表时，用户还是有此表的权限。因此，删除表时，也要删除此表上的权限。
+

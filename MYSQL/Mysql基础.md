@@ -90,6 +90,12 @@
     show index from tbl_name;
     ```
 
+19. 查看数据库安装位置
+
+    ```mysql
+    show global variables like "%datadir%";
+    ```
+
     
 
 ## 2.DML语句
