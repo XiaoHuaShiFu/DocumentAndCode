@@ -96,6 +96,12 @@
     show global variables like "%datadir%";
     ```
 
+20. 显示表详细结构
+
+    ```mysql
+    show full columns from tbl_name;
+    ```
+
     
 
 ## 2.DML语句
