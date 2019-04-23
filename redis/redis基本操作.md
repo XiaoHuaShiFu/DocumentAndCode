@@ -42,6 +42,8 @@
     - opecation可以是AND OR NOT XOR
 14. strlen key：取指定key的value值的长度
 15. setex key time value：设置key对应的值value，并设置有效期为time秒 
+16. setnx key value 
+    - 在键不存在的情况下为键设置值
 
 # 3、链表操作
 
@@ -49,22 +51,40 @@
 
 　　list的pop操作还有阻塞版本，主要是为了避免轮询
 
+- 有序，且占用的内存是最少的。
+
 1. lpush key value：把值插入到链表头部
+
 2. rpush key value：把值插入到链表尾部
+
 3. lpop key ：返回并删除链表头部元素
+
 4. rpop key： 返回并删除链表尾部元素
+
 5. lrange key start stop：返回链表中[start, stop]中的元素  lrange sort-input 0 -1
+
 6. lrem key count value：从链表中删除value值，删除count的绝对值个value后结束
+
    - count > 0 从表头删除　　count < 0 从表尾删除　　count=0 全部删除
+
 7. ltrim key start stop：剪切key对应的链接，切[start, stop]一段并把改制重新赋给key
+
 8. lindex key index：返回index索引上的值
+
 9. llen key：计算链表的元素个数
+
 10. linsert key after|before search value：在key 链表中寻找search，并在search值之前|之后插入value
+
 11. rpoplpush source dest：把source 的末尾拿出，放到dest头部，并返回单元值
     - 应用场景： task + bak 双链表完成安全队列　![https://images0.cnblogs.com/blog/649054/201502/211807189718832.png](file:///C:/Users/lenovo/AppData/Local/Temp/msohtmlclip1/01/clip_image001.png)
     - 业务逻辑： rpoplpush task bak：接收返回值并做业务处理，如果成功则rpop bak清除任务，如果不成功，下次从bak表取任务。
+
 12. brpoplpush source dest timeout：把source 的末尾拿出，放到dest头部，并返回单元值,如果source为空，那么在timeout秒之内阻塞并等待可弹出的元素出现。
-13. brpop，blpop key timeout：等待弹出key的尾/头元素
+
+13. brpop，blpop key [key1...]timeout：等待弹出key的尾/头元素
+
+    - 可接受多个列表作为参数
+
     - timeout为等待超时时间，如果timeout为0则一直等待下去
     - 应用场景：长轮询ajax，在线聊天时能用到
 
@@ -120,24 +140,53 @@
 - 当redis尝试按分值对有序集合进行排序的时候，如果成员分值都为0，那么会按照成员名进行排序。
 
 1. zadd key score1 value1：添加元素
+
 2. zrange key start stop [withscore]：把集合排序后,返回名次[start,stop]的元素  默认是升续排列  withscores 是把score也打印出来
+
 3. zrank key member：查询member的排名（升序0名开始）
+
 4. zrangebyscore key min max [withscores] limit offset N：集合（升序）排序后取score在[min, max]内的元素，并跳过offset个，取出N个 
+
+   - 指令规则
+
+     ```
+     指令	是否必须	说明
+     ZREVRANGEBYSCORE	是	指令
+     key	是	有序集合键名称
+     max	是	最大分数值,可使用”+inf”代替
+     min	是	最小分数值,可使用”-inf”代替
+     WITHSCORES	否	将成员分数一并返回
+     LIMIT	否	返回结果是否分页,指令中包含LIMIT后offset、count必须输入
+     offset	否	返回结果起始位置
+     count	否	返回结果数量
+     ```
+
 5. zrevrank key member：查询member排名（降序 0名开始）
+
 6. zremrangebyscore key min max：按照score来删除元素，删除score在[min, max]之间
+
 7. zrem key value1 value2：删除集合中的元素
+
 8. zremrangebyrank key start end：按排名删除元素，删除名次在[start, end]之间的
+
 9. zcard key：返回集合元素的个数
+
 10. zcount key min max：返回[min, max]区间内元素数量
+
 11. zinterstore dest numkeys key1[key2..] [WEIGHTS weight1 [weight2...]] [AGGREGATE SUM|MIN|MAX]
     - 求key1，key2的交集，key1，key2的权值分别是weight1，weight2
     - 聚合方法用 sum|min|max
     - 聚合结果 保存子dest集合内
     - 注意：weights,aggregate：如果有交集，交集元素又有score，score怎么处理？aggregate sum->score相加，min最小score，max最大score，另外可以通过weights设置不同的key的权重，交集时  score*weight
+
 12. zscore key member 获取对应key的对应member的分数值
+
 13. zincrby key increment member 对应key的对应member的分数值自增
+
 14. ZREVRANGE key start stop [WITHSCORES] 返回有序集中，指定区间内的成员。
+
 15. ZREVRANGEbyscore key-name min max 返回有序集中，指定区间内的成员，按照分支从大到小的顺序来返回。
+
 16. zunionstore dest-key key-count key1 key2 key3 [weights weight1 weight2] [aggregate sum|min|max] :对给定的有序集合执行类似于集合的并集运算。默认为sum
 
 # 7、发布与订阅
