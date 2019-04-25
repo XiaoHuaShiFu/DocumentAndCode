@@ -1333,5 +1333,956 @@
 
 6. redis进行文件分发
 
+   - 把文件分发到redis 服务器
    
+     ```java
+     public class CopyLogsThread
+             extends Thread {
+         private Jedis conn;
+         private File path;
+         private String channel;
+         private int count;
+         private long limit;
+     
+         public CopyLogsThread(Jedis conn, File path, String channel, int count, long limit) {
+             this.conn = conn;
+             this.path = path;
+             this.channel = channel;
+             this.count = count;
+             this.limit = limit;
+         }
+     
+         public void run() {
+             Deque<File> waiting = new ArrayDeque<>();
+             long bytesInRedis = 0;
+     
+             Set<String> recipients = new HashSet<>();
+             for (int i = 0; i < count; i++) {
+                 recipients.add(String.valueOf(i));
+             }
+             //创造一个群组
+             createChat(conn, "source", recipients, "", channel);
+             //获取该路径下的文件列表
+             File[] logFiles = path.listFiles((dir, name) -> name.startsWith("redis.md"));
+             System.out.println(logFiles);
+             //对文件进行排序
+             Arrays.sort(logFiles);
+             //遍历所有日志文件
+             for (File logFile : logFiles) {
+                 long fsize = logFile.length();
+                 //如果程序需要更多的空间，那么清除已经处理完毕的文件
+                 while ((bytesInRedis + fsize) > limit) {
+                     long cleaned = clean(waiting, count);
+                     if (cleaned != 0) {
+                         bytesInRedis -= cleaned;
+                     } else {
+                         try {
+                             sleep(250);
+                         } catch (InterruptedException ie) {
+                             Thread.interrupted();
+                         }
+                     }
+                 }
+     
+                 BufferedInputStream in = null;
+                 try {
+                     in = new BufferedInputStream(new FileInputStream(logFile));
+                     int read;
+                     byte[] buffer = new byte[8192];
+                     //读取文件
+                     while ((read = in.read(buffer, 0, buffer.length)) != -1) {
+                         //如果读出的长度不等于数组长度，那么也就是buffer里的内容，并不是所有都是这次读出来的
+                         //从buffer里复制出此次读出的长度，添加到新的bytes数组里
+                         if (buffer.length != read) {
+                             byte[] bytes = new byte[read];
+                             System.arraycopy(buffer, 0, bytes, 0, read);
+                             System.out.println(String.valueOf(bytes));
+                             //把日志一直追加到之前日志的后面
+                             conn.append((channel + logFile).getBytes(), bytes);
+                         } else {
+                             conn.append((channel + logFile).getBytes(), buffer);
+                         }
+                     }
+                 } catch (IOException ioe) {
+                     ioe.printStackTrace();
+                     throw new RuntimeException(ioe);
+                 } finally {
+                     try {
+                         in.close();
+                     } catch (Exception ignore) {
+                     }
+                 }
+     
+                 sendMessage(conn, channel, "source", logFile.toString());
+     
+                 bytesInRedis += fsize;
+                 //把刚查询过的日志文件加到队列末端
+                 waiting.addLast(logFile);
+             }
+     
+             sendMessage(conn, channel, "source", ":done");
+     
+             while (waiting.size() > 0) {
+                 long cleaned = clean(waiting, count);
+                 if (cleaned != 0) {
+                     bytesInRedis -= cleaned;
+                 } else {
+                     try {
+                         sleep(250);
+                     } catch (InterruptedException ie) {
+                         Thread.interrupted();
+                     }
+                 }
+             }
+         }
+     
+         //清除处理完毕的文件
+         private long clean(Deque<File> waiting, int count) {
+             if (waiting.size() == 0) {
+                 return 0;
+             }
+             File w0 = waiting.getFirst();
+             //如果此群组的此文件已经被标识为done，则删除该文件
+             if (String.valueOf(count).equals(conn.get(channel + w0 + ":done"))) {
+                 conn.del(channel + w0, channel + w0 + ":done");
+                 //返回被删除文件的长度
+                 return waiting.removeFirst().length();
+             }
+             return 0;
+         }
+     }
+     ```
+   
+   - 接收并处理日志文件
+   
+     ```java
+     public interface Callback {
+         void callback(String line);
+     }
+     
+     //接收日志文件
+     public void processLogsFromRedis(Jedis conn, String id, Callback callback)
+             throws InterruptedException, IOException
+     {
+         while (true){
+             List<ChatMessages> fdata = fetchPendingMessages(conn, id);
+     
+             for (ChatMessages messages : fdata){
+                 for (Map<String,Object> message : messages.messages){
+                     System.out.println(message);
+                     String logFile = (String)message.get("message");
+     
+                     if (":done".equals(logFile)){
+                         return;
+                     }
+                     if (logFile == null || logFile.length() == 0){
+                         continue;
+                     }
+     
+                     //调用回调函数处理日志
+                     InputStream in = new RedisInputStream(
+                             conn, messages.chatId + logFile);
+                     if (logFile.endsWith(".gz")){
+                         in = new GZIPInputStream(in);
+                     }
+     
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                     try{
+                         String line;
+                         while ((line = reader.readLine()) != null){
+                             callback.callback(line);
+                         }
+                         callback.callback(null);
+                     }finally{
+                         reader.close();
+                     }
+     
+                     conn.incr(messages.chatId + logFile + ":done");
+                 }
+             }
+     
+             if (fdata.size() == 0){
+                 Thread.sleep(100);
+             }
+         }
+     }
+     
+     //redis流处理函数
+     public class RedisInputStream
+             extends InputStream
+     {
+         private Jedis conn;
+         private String key;
+         private int pos;
+     
+         public RedisInputStream(Jedis conn, String key){
+             this.conn = conn;
+             this.key = key;
+         }
+     
+         @Override
+         public int available()
+                 throws IOException
+         {
+             long len = conn.strlen(key);
+             return (int)(len - pos);
+         }
+     
+         @Override
+         public int read()
+                 throws IOException
+         {
+             byte[] block = conn.substr(key.getBytes(), pos, pos);
+             if (block == null || block.length == 0){
+                 return -1;
+             }
+             pos++;
+             return (block[0] & 0xff);
+         }
+     
+         @Override
+         public int read(byte[] buf, int off, int len)
+                 throws IOException
+         {
+             byte[] block = conn.substr(key.getBytes(), pos, pos + (len - off - 1));
+             if (block == null || block.length == 0){
+                 return -1;
+             }
+             System.arraycopy(block, 0, buf, off, block.length);
+             pos += block.length;
+             return block.length;
+         }
+     
+         @Override
+         public void close() {
+             // no-op
+         }
+     }
+     ```
 
+# 7、基于搜索的应用程序
+
+1. 使用redis进行搜索
+
+   - 对文档进行预处理：通常称为建索引（indexing）
+
+     - 反向索引（inverted indexes）：
+
+       - redis的set和zset都很适合处理反向索引。
+
+       - 反向索引会从每个被索引的文档里提取出一些单词，并创建表格来记录每篇文章都包含哪些单词。
+
+       - 如对只含标题《lord of the rings》的文档docA以及只含标题《lord of the dance》的文档docB，程序将在redis里面为lord这个单词创建一个集合，并在集合里包含docA和docB着两个文档的名字。
+
+         ```
+         ind:lord 					set
+         docA
+         docB
+         ```
+
+         ```
+         ind:of 					set
+         docA
+         docB
+         ```
+
+         ```
+         ind:the 					set
+         docA
+         docB
+         ```
+
+         ```
+         ind:rings 					set
+         docA
+         ```
+
+         ```
+         ind:dance 					set
+         docB
+         ```
+
+     - 从文档提取单词：
+
+       - 语法分析（parsing）
+
+       - 标记化（tokenization）：生成一系列用于标识文档的标记（token），有时候称为单词（word）
+
+         - 移除内容中的非用词（stop word）：在文档中频繁出现但是没用提供相应信息量的单词，减少索引体积，加快搜索速度。
+
+       - 实现：
+
+         ```java
+         private static final Pattern QUERY_RE = Pattern.compile("[+-]?[a-z']{2,}");
+         private static final Pattern WORDS_RE = Pattern.compile("[a-z']{2,}");
+         private static final Set<String> STOP_WORDS = new HashSet<>();
+         
+         static {
+             for (String word :
+                     ("able about across after all almost also am among " +
+                             "an and any are as at be because been but by can " +
+                             "cannot could dear did do does either else ever " +
+                             "every for from get got had has have he her hers " +
+                             "him his how however if in into is it its just " +
+                             "least let like likely may me might most must my " +
+                             "neither no nor not of off often on only or other " +
+                             "our own rather said say says she should since so " +
+                             "some than that the their them then there these " +
+                             "they this tis to too twas us wants was we were " +
+                             "what when where which while who whom why will " +
+                             "with would yet you your").split(" ")) {
+                 STOP_WORDS.add(word);
+             }
+         }
+         
+         //获取被保留的，不是非用词的单词
+         public Set<String> tokenize(String content) {
+             Set<String> words = new HashSet<>();
+             Matcher matcher = WORDS_RE.matcher(content);
+             while (matcher.find()) {
+                 String word = matcher.group().trim();
+                 if (word.length() > 2 && !STOP_WORDS.contains(word)) {
+                     words.add(word);
+                 }
+             }
+             return words;
+         }
+         ```
+
+   - 基本搜索操作
+
+     - 建立反向索引库
+
+       ```java
+       /**
+        * 把文档添加到反向索引集合里
+        *
+        * @param conn
+        * @param docid   文档名称
+        * @param content 内容
+        * @return 成功建立索引的个数
+        */
+       public int indexDocument(Jedis conn, String docid, String content) {
+           Set<String> words = tokenize(content);
+           Gson gson = new Gson();
+       
+           //删除失效单词
+           Set<String> oldWords = gson.fromJson(conn.get(docid), new TypeToken<Set<String>>() {
+           }.getType());
+           if (oldWords != null) {
+               Transaction trans = conn.multi();
+               for (String oldWord : oldWords) {
+                   if (!words.contains(oldWord)) {
+                       trans.srem("idx:" + oldWord, docid);
+                   }
+               }
+               trans.exec();
+           }
+       
+       
+           //添加文档对应单词的索引
+           Transaction trans = conn.multi();
+           for (String word : words) {
+               trans.sadd("idx:" + word, docid);
+           }
+           //把当前文档的键值添加到一个键里
+           trans.set(docid, gson.toJson(words));
+       
+           return trans.exec().size() - 1;
+       }
+       ```
+
+     - 使用sinter和sinterstore命令来找出那些同时存在于所有给定集合的元素。
+
+     - 使用交集操作处理反向索引可以彻底的忽略无关信息。
+
+     - 包含某个单词或句子，但是不包含另外的单词或句子，可以使用sdiff和sdiffstore。
+
+     - 实现：
+
+       ```java
+       //事务流水线
+       //执行所调用的聚合函数
+       private String setCommon(Transaction trans, String method, int ttl, String... items) {
+           String[] keys = new String[items.length];
+           //给每个单词加上idx:前缀
+           for (int i = 0; i < items.length; i++) {
+               keys[i] = "idx:" + items[i];
+           }
+       
+           String id = UUID.randomUUID().toString();
+           try {
+               //获取对应方法并执行
+               trans.getClass()
+                       .getDeclaredMethod(method, String.class, String[].class)
+                       .invoke(trans, "idx:" + id, keys);
+           } catch (Exception e) {
+               throw new RuntimeException(e);
+           }
+           //设置生成的集合的过时时间
+           trans.expire("idx:" + id, ttl);
+           return id;
+       }
+       
+       //交集操作
+       public String intersect(Transaction trans, int ttl, String... items) {
+           return setCommon(trans, "sinterstore", ttl, items);
+       }
+       
+       //并集操作
+       public String union(Transaction trans, int ttl, String... items) {
+           return setCommon(trans, "sunionstore", ttl, items);
+       }
+       
+       //差集操作
+       public String difference(Transaction trans, int ttl, String... items) {
+           return setCommon(trans, "sdiffstore", ttl, items);
+       }
+       ```
+
+   - 分析并执行搜索
+
+     - 如果只是包含某些单词，那么只需执行sinterstore。
+
+     - 如果使用了“-”号表示不希望包含这个单词，则使用sdiffstore。
+
+     - 如果使用了“+”号表示这个单词是前一个单词的同义词，搜索程序会首先收集各个同义词组并对他们执行union操作，然后再执行sintersotre。（如果带“+”号的单词前面有带”-“号的单词，那么程序会掠过那些带“-”号的单词，并把最先遇到的不带“-”号的单词看作是同义词）。
+
+     - 什么都不加类似于且，+号类似于或，-号类似于非
+
+     - 排序：关联度计算，判断一个文档具有更高关联度的方法就是看哪个文档的更新时间最接近当前时间。
+
+     - 实现：解析查询语句
+
+       ```java
+       /**
+        * 搜索查询语句的语法分析器
+        *
+        * @param queryString
+        * @return
+        */
+       public Query parse(String queryString) {
+           Query query = new Query();
+           //存储同义词
+           Set<String> current = new HashSet<>();
+           //获取匹配的单词
+           Matcher matcher = QUERY_RE.matcher(queryString.toLowerCase());
+           while (matcher.find()){
+               //获取匹配单词中的一个
+               String word = matcher.group().trim();
+               //获取单词的前缀
+               char prefix = word.charAt(0);
+               //如果前缀是+或-，则去掉前缀
+               if (prefix == '+' || prefix == '-') {
+                   word = word.substring(1);
+               }
+       
+               //如果单词的长度小于2，或者是非用词，则过滤掉
+               if (word.length() < 2 || STOP_WORDS.contains(word)) {
+                   continue;
+               }
+       
+               //如果前缀是-
+               if (prefix == '-') {
+                   //把单词添加到不需要的set里
+                   query.unwanted.add(word);
+                   continue;
+               }
+       
+               //如果有同义词集合非空，且单词的前缀不等于+，创建一个新的同义词集合
+               //反过来也就是说，第一个单词是一个普通的单词，只会加到同义词set里
+               //下次如果遇到一个带+号的单词，那么就会跳过这个语句，直接执行下条语句
+               //那么等到执行这条语句的时候，那么current里就会有多个单词，也就是多个同义词
+               if (!current.isEmpty() && prefix != '+') {
+                   query.all.add(new ArrayList<>(current));
+                   current.clear();
+               }
+               current.add(word);
+           }
+       
+           //如果有最后一个同义词
+           //把它加到交集运算的集合里
+           if (!current.isEmpty()){
+               query.all.add(new ArrayList<>(current));
+           }
+           return query;
+       }
+       
+       public class Query {
+           //需要执行交集的单词
+           public final List<List<String>> all = new ArrayList<>();
+           //存储不需要的单词
+           public final Set<String> unwanted = new HashSet<>();
+       }
+       ```
+
+     - 实现：搜索结果
+
+       ```java
+       //解析和查询
+       public String parseAndSearch(Jedis conn, String queryString, int ttl) {
+           //解析查询语句
+           Query query = parse(queryString);
+           if (query.all.isEmpty()) {
+               return null;
+           }
+       
+           //要进行交集的列表
+           List<String> toIntersect = new ArrayList<>();
+           //遍历各个同义词列表
+           for (List<String> syn : query.all) {
+               //如果同义词列表布置一个，那么执行并集计算
+               if (syn.size() > 1) {
+                   Transaction trans = conn.multi();
+                   toIntersect.add(union(trans, ttl, syn.toArray(new String[syn.size()])));
+                   trans.exec();
+               }
+               //否则，直接把这个单词加入交集列表
+               else {
+                   toIntersect.add(syn.get(0));
+               }
+           }
+       
+           //交集结果
+           String intersectResult;
+           //对交集列表的集合进行交集操作
+           if (toIntersect.size() > 1) {
+               Transaction trans = conn.multi();
+               intersectResult = intersect(
+                       trans, ttl, toIntersect.toArray(new String[toIntersect.size()]));
+               trans.exec();
+           } else {
+               intersectResult = toIntersect.get(0);
+           }
+       
+           //对不需要列表里的集合进行差集运算
+           if (!query.unwanted.isEmpty()) {
+               String[] keys = query.unwanted
+                       .toArray(new String[query.unwanted.size() + 1]);
+               keys[keys.length - 1] = intersectResult;
+               ArrayUtils.swap(keys, 0, keys.length - 1);
+               Transaction trans = conn.multi();
+               intersectResult = difference(trans, ttl, keys);
+               trans.exec();
+           }
+           return intersectResult;
+       }
+       ```
+
+     - 搜索并对结果进行排序
+
+       ```java
+       //搜索并对结果进行排序
+       @SuppressWarnings("unchecked")
+       public SearchResult searchAndSort(Jedis conn, String queryString, String sort, int ttl, int pageNum, int pageSize) {
+           //决定文档是更具哪个属性进行排序的，以及是升序还是降序
+           boolean desc = sort.startsWith("-");
+           //获取排序的属性
+           if (desc){
+               sort = sort.substring(1);
+           }
+           //判断是以数值的方式进行排序还是以字母的方式
+           //如果是updated或id字段进行排序，则使用数值
+           //否则使用字母
+           boolean alpha = !"updated".equals(sort) && !"id".equals(sort);
+           //按照kb:doc:{sort}属性对idx:{id}进行排序
+           String by = "kb:doc:*->" + sort;
+       
+           //查找查询结果集合的id
+           String id = parseAndSearch(conn, queryString, ttl);
+       
+           Transaction trans = conn.multi();
+           //获取结果集合的元素数量
+           trans.scard("idx:" + id);
+           SortingParams params = new SortingParams();
+           if (desc) {
+               params.desc();
+           }
+           if (alpha){
+               params.alpha();
+           }
+           params.by(by);
+           //分页
+           params.limit((pageNum - 1) * pageSize, pageSize);
+           trans.sort("idx:" + id, params);
+           List<Object> results = trans.exec();
+           return new SearchResult(id,
+                   (Long) results.get(0),
+                   (List<String>)results.get(1));
+       }
+       
+       public class SearchResult {
+           public final String id;
+           public final long total;
+           public final List<String> results;
+       
+           public SearchResult(String id, long total, List<String> results) {
+               this.id = id;
+               this.total = total;
+               this.results = results;
+           }
+       }
+       
+       //添加文档的相关信息
+       public void addDoc(Jedis conn, String updated, String id, String docid) {
+           HashMap<String,String> values = new HashMap<>();
+           values.put("updated", updated);
+           values.put("id", id);
+           conn.hmset("kb:doc:" + docid, values);
+       }
+       ```
+
+2. 有序索引
+
+   - 使用有序集合对搜索结果进行排序
+
+     - 可以把存储“文档搜索结果的有序集合”和“文档更新时间的有序集合”，通过zinterstore命令，通过设置更新时间的分值为1，进行排序。
+
+     - 问题：通过文章的更新时间和投票数进行排序
+
+     - 使用两个有序集合分别记录文章的更新时间以及文章获得投票的数量，成员都是文章的ID。
+
+     - 实现：搜索与排序，同时基于更新时间和投票数进行排序。
+
+       ```java
+       /**
+        * 通过zinterstore按照更新时间和投票数的一定比例进行交集运算，
+        * 生成有序集合
+        * 再进行输出
+        *
+        * @param conn
+        * @param queryString 查询字符串
+        * @param desc 是否降序
+        * @param weights 关键字的权重
+        * @param ttl 超时时间
+        * @param pageNum 页码
+        * @param pageSize 每页条数
+        * @return
+        */
+       @SuppressWarnings("unchecked")
+       public SearchResult searchAndZsort(
+               Jedis conn, String queryString, boolean desc, Map<String, Integer> weights, int ttl, int pageNum, int pageSize) {
+           //获取搜索结果集合
+           String id = parseAndSearch(conn, queryString, ttl);
+       
+           //获取排序的权重
+           int updateWeight = weights.containsKey("update") ? weights.get("update") : 1;
+           int voteWeight = weights.containsKey("vote") ? weights.get("vote") : 0;
+       
+       
+           String[] keys = new String[]{id, "sort:update", "sort:votes"};
+           Transaction trans = conn.multi();
+           //对搜索结果集合，更新时间集合，和投票集合，按照给定的权重，进行球交集
+           id = zintersect(
+                   trans, ttl, new ZParams().weights(0, updateWeight, voteWeight), keys);
+       
+           //获取交集后，交集元素的个数
+           trans.zcard("idx:" + id);
+           //降序排列
+           if (desc) {
+               trans.zrevrange("idx:" + id, (pageNum - 1) * pageSize, pageNum * pageSize);
+           }
+           //升序排列
+           else {
+               trans.zrange("idx:" + id, (pageNum - 1) * pageSize, pageNum * pageSize);
+           }
+           List<Object> results = trans.exec();
+       
+           return new SearchResult(
+                   id,
+                   (Long) results.get(results.size() - 2),
+                   // Note: it's a LinkedHashSet, so it's ordered
+                   new ArrayList<>((Set<String>) results.get(results.size() - 1)));
+       }
+       
+       private String zsetCommon(Transaction trans, String method, int ttl, ZParams params, String... sets) {
+           String[] keys = new String[sets.length];
+           for (int i = 0; i < sets.length; i++) {
+               keys[i] = "idx:" + sets[i];
+           }
+       
+           String id = UUID.randomUUID().toString();
+           try {
+               trans.getClass().getSuperclass()
+                       .getDeclaredMethod(method, String.class, ZParams.class, String[].class)
+                       .invoke(trans, "idx:" + id, params, keys);
+           } catch (Exception e) {
+               throw new RuntimeException(e);
+           }
+           trans.expire("idx:" + id, ttl);
+           return id;
+       }
+       
+       public String zintersect(Transaction trans, int ttl, ZParams params, String... sets) {
+           return zsetCommon(trans, "zinterstore", ttl, params, sets);
+       }
+       
+       public String zunion(
+               Transaction trans, int ttl, ZParams params, String... sets) {
+           return zsetCommon(trans, "zunionstore", ttl, params, sets);
+       }
+       
+       //保存一个文档的更新时间和投票数到集合里
+       public void saveSortVoteAndUpdate(Jedis conn, int update, int vote, String id) {
+           conn.zadd("idx:sort:update", update, id);
+           conn.zadd("idx:sort:votes", vote, id);
+       }
+       ```
+
+     - 使用有序集合实现非数值排序
+
+       - 有序集合的分值是以IEEE754双精度浮点数格式存储的，所以转换操作最大只能使用64个二进制，且不能全部使用64个二进制位，使用63个是可行的。
+
+       - 对每个字符进行排序需要8位。
+
+       - 转换操作：把字符串截取6位（不足6位扩展到6位），接着把字符串的每个字符都转换成ASCII值，最后将这些ASCII值合并为一个整数。也就是score = score * 257 + piece + 1;之前的分值*257并添加当前的分值。
+
+       - 实现：把字符串转换成分值
+
+         ```java
+         //把字符串转换成分值
+         public long stringToScore(String string, boolean ignoreCase) {
+             //忽略大小写
+             if (ignoreCase) {
+                 string = string.toLowerCase();
+             }
+         
+             //将字符转换成ASCII码值
+             List<Integer> pieces = new ArrayList<>();
+             for (int i = 0; i < Math.min(string.length(), 6); i++) {
+                 pieces.add((int) string.charAt(i));
+             }
+         
+             //补充到6位
+             while (pieces.size() < 6) {
+                 pieces.add(-1);
+             }
+         
+             int score = 0;
+             for (Integer piece : pieces) {
+                 score = score * 257 + piece + 1;
+             }
+         
+             //大于6位+1使得可以区分robber和robbers这样的单词
+             return score * 2 + (string.length() > 6 ? 1 : 0);
+         }
+         ```
+
+       - 实现：搜索并排序
+
+         ```java
+         //保存一个文档用于排序的分值到有序集合里
+         public void saveSortScore(Jedis conn, long score, String id) {
+             conn.zadd("idx:sort:score", score, id);
+         }
+         
+         //搜索并通过字符前缀进行排序
+         @SuppressWarnings("unchecked")
+         public SearchResult searchAndZsortWithScore(
+                 Jedis conn, String queryString, boolean desc, int ttl, int pageNum, int pageSize) {
+             //获取搜索结果集合
+             String id = parseAndSearch(conn, queryString, ttl);
+         
+             String[] keys = new String[]{id, "sort:score"};
+             Transaction trans = conn.multi();
+             //对搜索结果集合，和文档的分值集合，进行交集操作
+             id = zintersect(trans, ttl, new ZParams().weights(0, 1), keys);
+         
+             //获取交集后，交集元素的个数
+             trans.zcard("idx:" + id);
+             //降序排列
+             if (desc) {
+                 trans.zrevrange("idx:" + id, (pageNum - 1) * pageSize, pageNum * pageSize);
+             }
+             //升序排列
+             else {
+                 trans.zrange("idx:" + id, (pageNum - 1) * pageSize, pageNum * pageSize);
+             }
+             List<Object> results = trans.exec();
+         
+             return new SearchResult(
+                     id,
+                     (Long) results.get(results.size() - 2),
+                     new ArrayList<>((Set<String>) results.get(results.size() - 1)));
+         }
+         ```
+
+       - 实现：使用字符串的分值进行自动补全，只支持前6位
+
+         ```java
+         //找出自动补全的分值范围，最大6位
+         //如a，匹配的最小分值为a本身，最大为azzzzz
+         //如abc，匹配的最小值为abc本身，最大为abczzz
+         //如Abc，匹配的最小值为Abc本身，最大为abczzz
+         //如AbCdEf，匹配的最小值和最大值都为如AbCdEf
+         public long[] findScorePrefixRange(String prefix) {
+             long start = Charter7.stringToScore(prefix, false);
+             int addLenth = 6 - prefix.length();
+             for (int i = 0; i < addLenth; i++) {
+                 prefix = prefix + "z";
+             }
+             long end = Charter7.stringToScore(prefix, false);
+             return new long[]{start, end};
+         }
+         
+         //自动补全函数，通过把字符串转换为分值来实现
+         @SuppressWarnings("unchecked")
+         public Set<String> autocompleteOnPrefixWithScore(Jedis conn, String guild, String prefix) {
+             long[] range = findScorePrefixRange(prefix.length() > 6 ? prefix.substring(0, 6) : prefix);
+             long start = range[0];
+             long end = range[1];
+             String zsetName = "members:" + guild;
+         
+             //获取元素列表
+             return conn.zrangeByScore(zsetName, start, end);
+         }
+         
+         //加入公会，并附带名字的分值
+         public void joinGuildWithScore(Jedis conn, String guild, String user) {
+             conn.zadd("members:" + guild, Charter7.striScore(user, false), user);
+         }
+         ```
+
+3. 广告定向
+
+   - 广告服务器
+
+     - 需要接收一系列定向参数以便挑选出具体的广告，包含浏览者的基本位置信息（IP，GPS）、浏览者的操作系统、Web浏览器、正在浏览的页面的内容，甚至最近浏览过的一些页面。
+     - 广告预算：每个广告都会有一个随着时间减少的预算。一般，广告预算应该被分配到不同的时间上。可以基于小时数对广告的总预算进行划分，并在同一小时的不同时间段把预算分配给不同广告。
+
+   - 对广告进行索引
+
+     - 广告索引是一对一。被索引的广告通常都拥有像位置、年龄或性别这类必须的定向参数。
+
+     - 计算广告的价格：
+
+       - 按展示次数计费（cost per view）：又称CMP或按千次计费（cost per mille）
+       - 按点击次数计费（cost per click）：CPC
+       - 按执行动作次数计费（cost per action）：按购买次数收费（cost per acquisition）
+
+     - 让广告的价格保持一致：估算CPM（estimated CPM），简称eCPM。对于CPC和CPA广告，可以按照相应规制计算出eCPM。
+
+     - 计算CPC广告的eCPM：
+
+       ```
+       eCPM=每次点击的价格*广告的点击通过率(click-through rate,CTR)*1000
+       广告的点击通过率=广告被点击的次数/广告展示的次数
+       如eCPM=0.25*0.002*1000=0.5
+       
+       eCOM=广告被点击的次数/广告展示的次数*每次点击的价格*1000
+       ```
+
+       - 实现：
+
+         ```java
+         public enum Ecpm {CPC, CPA, CPM}
+         public double toEcpm(Ecpm type, double views, double avg, double value) {
+             switch(type){
+                 case CPC:
+                 case CPA:
+                     return 1000. * value * avg / views;
+                 case CPM:
+                     return value;
+             }
+             return value;
+         }
+         ```
+
+     - 计算CPA广告的eCPM
+
+       ```
+       eCPM=广告的点击通过率*目标网页上执行动作的概率*被执行动作的价格*1000
+       如 eCPM=0.002*0.1*3*1000=0.6
+       
+       eCOM=目标网页上执行动作的次数/广告展示的次数*被执行动作的价格*1000
+       ```
+
+     - 将广告插入索引
+
+       - 这个定向广告的实现接受两个定向选项：位置和内容。其中位置选项（包括城市、州和国家）是必须的，而广告与页面的内容直接的任何匹配单词是可选的，并且只作为广告的附加值存在。
+
+       - 使用集合和有序集合构成的反向索引来存储广告ID。必须的位置定向参数会被存储到集合里面。
+
+       - 索引做的事情：
+
+         - 将广告与任意个位置关联起来
+         - 将广告的平均点击次数和平均执行动作次数的相关新信息存储起来，使得可以对e'CPM
+           做出合理估算。
+         - 把能够对广告进行定向的单词都存储到集合里面。
+
+       - 实现：
+
+         ```java
+         //对广告进行索引
+         private Map<Ecpm,Double> AVERAGE_PER_1K = new HashMap<>();
+         public void indexAd(Jedis conn, String id, String[] locations, String content, Ecpm type, double value) {
+             Transaction trans = conn.multi();
+         
+             //把广告ID添加到索引相关的位置集合里
+             for (String location : locations) {
+                 trans.sadd("idx:req:" + location, id);
+             }
+         
+             //对广告包含的单词进行索引
+             Set<String> words = tokenize(content);
+             for (String word : tokenize(content)) {
+                 trans.zadd("idx:" + word, 0, id);
+             }
+         
+             //每1000次操作的数量，如点击，购买等
+             double avg = AVERAGE_PER_1K.containsKey(type) ? AVERAGE_PER_1K.get(type) : 1;
+             //计算出eCPM
+             double rvalue = toEcpm(type, 1000, avg, value);
+         
+             //把广告的id和对应的类型加到hash里
+             trans.hset("type:", id, type.name().toLowerCase());
+             //把广告的eCPM和对应的id加到zset里
+             trans.zadd("idx:ad:value:", rvalue, id);
+             //把广告的每次操作的价钱和队友的id加到zset里
+             trans.zadd("ad:base_value:", value, id);
+             //把能够对广告进行定向的单词记录起来
+             for (String word : words){
+                 trans.sadd("terms:" + id, word);
+             }
+             trans.exec();
+         }
+         ```
+
+   - 执行广告定向操作
+
+     - 在匹配用户所在位置的一系列广告里面，找出eCPM最高的那个广告。
+
+     - 与Web页面相匹配的内容会作为附加值被计入由CPC和CPA计算出的eCPM里面，使得那些包含了匹配内容的广告能够更多地被展示出来。
+
+     - 系统会记录下广告中包含的哪个单词改善或损害了广告的预期效果，并据此修改各个可选的定向单词的相对价格。
+
+     - 对所有相关位置集合执行并集操作，产生出最初的一组广告，向浏览者进行展示；再分析广告所在页面，添加相关的附加值，并最终为每个广告计算出一个总计eCPM值；然后获取eCPM最高的哪个广告ID，记录一些关于本次定向操作的统计数据；最后返回那个广告。
+
+     - 实现：
+
+       - 寻找匹配位置的所有广告：
+
+         ```java
+         //寻找匹配位置的所有广告
+         public String matchLocation(Transaction trans, String[] locations) {
+             String[] required = new String[locations.length];
+             for (int i = 0; i < locations.length; i++) {
+                 required[i] = "req:" + locations[i];
+             }
+             return union(trans, 300, required);
+         }
+         ```
+
+       - 计算定向附加值：
+
+         - 基于页面内容和广告内容两者之间相匹配的单词，计算出应该给广告的eCPM价格加上多少增量。
+
+         - 预先为每个广告中的每个单词都计算好了附加值，并将这些附加值存储到每个单词的有序集合里，其中有序集合的成员为广告的ID，而成员的分值则是给eCPM增加的分值。
+
+         - 估算广告真正eCPM的最佳方法，就是找出最大附加值和最小附加值，然后计算它们的平均值，并将这个平均值用作多个匹配单词的附加值。（由更好的计算方法，但是次方法简单）
+
+         - 通过zunionstore和max、min聚合函数，可以计算出广告的最大附加值和最小附加值。在执行zunionstore操作并使用sum作为聚合函数的时候，只要将最大附加值和最小附加值用作命令输入，并将最大附加值和最小附加值的权重设置为0.5就可以计算出平均附加值。
+
+         - 实现：
+
+           

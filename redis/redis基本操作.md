@@ -125,7 +125,7 @@
 9. sinter key1 key2 key3：求key1 key2 key3的交集
 10. sunion key1 key2：求key1 key2 的并集
 11. sdiff key1 key2：求key1 key2的差集
-12. sinterstore res key1 key2：求key1 key2的交集并存在res里
+12. sinterstore des key1 key2：求key1 key2的交集并存在res里
 13. sdiffstore dest key-name1 key-name2：将那些存在第一个集合但不存在于其他集合中的元素（数学上的差集运算）存储到dest里面。
 14. sunionstore dest key-name1 key-name2 将那些至少存在于一个集合中的元素（数学上的并集运算）存储到dest里面。
 
@@ -141,7 +141,7 @@
 
 1. zadd key score1 value1：添加元素
 
-2. zrange key start stop [withscore]：把集合排序后,返回名次[start,stop]的元素  默认是升续排列  withscores 是把score也打印出来
+2. zrange key start stop [withscore]：把集合排序后,返回名次[start,stop]的元素  默认是升序排列  withscores 是把score也打印出来
 
 3. zrank key member：查询member的排名（升序0名开始）
 
@@ -234,6 +234,18 @@
 
    ```
    sort sort-input store sort0
+   ```
+   
+   **示例：**让 `uid` 键按照 `user_level_{uid}` 的大小来排序：
+   
+   ```
+   SORT uid BY user_level_*
+   ```
+   
+   **示例：**让 `idx:xxxx` 键按照 `kb:doc{idx:xxxx}`里的`updated`属性 的大小来排序：
+   
+   ```
+   SORT idx:xxxx BY kb:doc:*-> updated
    ```
 
 # 9、事务
