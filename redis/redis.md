@@ -2285,4 +2285,917 @@
 
          - 实现：
 
+           ```java
+           //计算附加值
+           public Pair<Set<String>, String> finishScoring(Transaction trans, String matched, String base, String content) {
+               //寻找由和传进来的匹配zset里相匹配的单词的集合的Map
+               Map<String, Integer> bonusEcpm = new HashMap<>();
+               //获取页面内容的单词
+               Set<String> words = tokenize(content);
+               //找出那些即位于定向位置之内，又拥有页面内容其中一个单词的广告
+               for (String word : words) {
+                   //新生成的zset的score为单词zset对应的score
+                   String wordBonus = zintersect(trans, 30, new ZParams().weights(0, 1), matched, word);
+                   bonusEcpm.put(wordBonus, 1);
+               }
            
+               if (bonusEcpm.size() > 0) {
+           
+                   //新生成集合键值数组
+                   String[] keys = new String[bonusEcpm.size()];
+                   //权重数组
+                   double[] weights = new double[bonusEcpm.size()];
+                   int index = 0;
+                   //把Map转换成为两个数组
+                   for (Map.Entry<String, Integer> bonus : bonusEcpm.entrySet()) {
+                       keys[index] = bonus.getKey();
+                       weights[index] = bonus.getValue();
+                       index++;
+                   }
+           
+                   //计算最小附加值
+                   ZParams minParams = new ZParams().aggregate(ZParams.Aggregate.MIN).weights(weights);
+                   String minimum = zunion(trans, 30, minParams, keys);
+           
+                   //计算最大附加值
+                   ZParams maxParams = new ZParams().aggregate(ZParams.Aggregate.MAX).weights(weights);
+                   String maximum = zunion(trans, 30, maxParams, keys);
+           
+                   //计算来个附加值和基础eCPM的平均值，来个附加值各取0.25权重，基础eCPM取0.5
+                   //获取计算后的集合
+                   String result = zunion(trans, 30, new ZParams().weights(2, 1, 1), base, minimum, maximum);
+                   return new Pair<>(words, result);
+               }
+           
+               //如果次广告没有匹配的单词，则返回基础eCPM值
+               return new Pair<>(words, base);
+           }
+           ```
+     
+   - 从用户行为中学习
+   
+     - 记录的信息包括：
+   
+       - 被定向至给定广告的单词
+       - 给定广告被定向的总次数
+       - 广告中的某个单词被用于计算附加值的总次数
+   
+     - 实现：使用集合存储被定向的单词，为每个广告创建一个有序集合，用于存储广告的展示次数以及广告包含的各个单词的展示次数。
+   
+       ```java
+       //在广告定向操作完毕之后记录执行结果
+       public void recordTargetingResult(Jedis conn, long targetId, String adId, Set<String> words) {
+           //获得与广告匹配的那些单词
+           Set<String> terms = conn.smembers("terms:" + adId);
+           //获取广告的类型，如CPC, CPA, CPM
+           String type = conn.hget("type:", adId);
+       
+           Transaction trans = conn.multi();
+           terms.addAll(words);
+           if (terms.size() > 0) {
+               String matchedKey = "terms:matched:" + targetId;
+               //将当前广告的数组，添加到次广告定义的单词匹配集合中
+               for (String term : terms) {
+                   trans.sadd(matchedKey, term);
+               }
+               trans.expire(matchedKey, 900);
+           }
+       
+           //次类型的广告观看数+1
+           trans.incr("type:" + type + ":views:");
+           //此广告的观看数+1
+           for (String term : terms) {
+               trans.zincrby("views:" + adId, 1, term);
+           }
+           //广告的观看数+1
+           trans.zincrby("views:" + adId, 1, "");
+       
+           List<Object> response = trans.exec();
+       
+           //获取广告观看数
+           double views = (Double) response.get(response.size() - 1);
+           //每100观看数更新一次eCPM
+           if ((views % 100) == 0) {
+               updateCpms(conn, adId);
+           }
+       }
+       ```
+   
+     - 记录点击和动作
+   
+       ```java
+       //记录点击和动作
+       public void recordClick(Jedis conn, long targetId, String adId, boolean action) {
+           //获取广告的类型
+           String type = conn.hget("type:", adId);
+           Ecpm ecpm = Enum.valueOf(Ecpm.class, type.toUpperCase());
+       
+           //广告的点击数key
+           String clickKey = "clicks:" + adId;
+           //广告的匹配单词集合key
+           String matchKey = "terms:matched:" + targetId;
+           //获取匹配单词的集合
+           Set<String> matched = conn.smembers(matchKey);
+           matched.add("");
+       
+           Transaction trans = conn.multi();
+           //如果广告是一个按动作计费的广告
+           if (Ecpm.CPA.equals(ecpm)) {
+               //刷新被匹配单词的集合
+               trans.expire(matchKey, 900);
+               //如果是动作信息，则把clickKey替换成动作信息
+               if (action) {
+                   clickKey = "actions:" + adId;
+               }
+           }
+       
+           //根据广告的类型，维持一个全局的点击/动作计数器
+           if (action && Ecpm.CPA.equals(ecpm)) {
+               trans.incr("type:" + type + ":actions:");
+           }else{
+               trans.incr("type:" + type + ":clicks:");
+           }
+       
+           //为本次广告以及被定向至该广告的单词记录本次点击
+           for (String word : matched) {
+               trans.zincrby(clickKey, 1, word);
+           }
+           trans.exec();
+       
+           //更新eCPM（因为每次点击都大约展示了100次左右）
+           updateCpms(conn, adId);
+       }
+       ```
+   
+     - 更新eCPM
+   
+       - 计算出广告的点击通过率。
+   
+       - 计算出动作执行率。
+   
+       - 更新广告的eCPM。
+   
+       - 更新广告包含的每个单词的eCPM附加值。
+   
+       - ```java
+         //更新eCPM
+         @SuppressWarnings("unchecked")
+         public void updateCpms(Jedis conn, String adId) {
+             Transaction trans = conn.multi();
+             //获取广告类型
+             trans.hget("type:", adId);
+             //获取广告的基本价格
+             trans.zscore("ad:base_value:", adId);
+             //获取与广告匹配的那些单词
+             trans.smembers("terms:" + adId);
+             List<Object> response = trans.exec();
+             String type = (String) response.get(0);
+             Double baseValue = (Double) response.get(1);
+             Set<String> words = (Set<String>) response.get(2);
+         
+             //查看广告的eCPM是基于动作执行次数还是点击次数进行计算
+             String which = "clicks";
+             Ecpm ecpm = Enum.valueOf(Ecpm.class, type.toUpperCase());
+             if (Ecpm.CPA.equals(ecpm)) {
+                 which = "actions";
+             }
+         
+             trans = conn.multi();
+             //获取此类型广告的点技术
+             trans.get("type:" + type + ":views:");
+             //获取此类型广告的点击数或者操作数
+             trans.get("type:" + type + ':' + which);
+             response = trans.exec();
+             String typeViews = (String) response.get(0);
+             String typeClicks = (String) response.get(1);
+         
+             //将广告的点击率或动作执行率重新写入全局字典里
+             AVERAGE_PER_1K.put(ecpm, 1000. *
+                             Integer.valueOf(typeClicks != null ? typeClicks : "1") /
+                             Integer.valueOf(typeViews != null ? typeViews : "1"));
+         
+             //如果处理的是一个CPM广告，那么它的eCPM已经计算完毕，无需再做其他处理
+             if (Ecpm.CPM.equals(ecpm)) {
+                 return;
+             }
+         
+         
+             String viewKey = "views:" + adId;
+             String clickKey = which + ':' + adId;
+         
+             trans = conn.multi();
+             //获取广告的展示数
+             trans.zscore(viewKey, "");
+             //获取广告的执行数
+             trans.zscore(clickKey, "");
+             response = trans.exec();
+             Double adViews = (Double) response.get(0);
+             Double adClicks = (Double) response.get(1);
+         
+             double adEcpm;
+             //如果广告还没有被点击过
+             if (adClicks == null || adClicks < 1) {
+                 //使用已有的eCPM
+                 Double score = conn.zscore("idx:ad:value:", adId);
+                 adEcpm = score != null ? score : 0;
+             }
+             //计算广告的eCPM并更新它
+             else {
+                 adEcpm = toEcpm(
+                         ecpm,
+                         adViews != null ? adViews : 1,
+                         adClicks,
+                         baseValue);
+                 conn.zadd("idx:ad:value:", adEcpm, adId);
+             }
+             //获取单词的展示次数和点击次数（或动作执行次数）
+             for (String word : words) {
+                 trans = conn.multi();
+                 //获取单词的展示次数
+                 trans.zscore(viewKey, word);
+                 //获取单词的点击次数或动作的执行次数
+                 trans.zscore(clickKey, word);
+                 response = trans.exec();
+                 Double views = (Double) response.get(0);
+                 Double clicks = (Double) response.get(1);
+         
+                 //如果广告还没有被点击过，那么不对eCPM进行更新
+                 if (clicks == null || clicks < 1) {
+                     continue;
+                 }
+         
+                 //计算单词eCPM
+                 double wordEcpm = toEcpm(
+                         ecpm,
+                         views != null ? views : 1,
+                         clicks,
+                         baseValue);
+                 //计算单词的附加值
+                 double bonus = wordEcpm - adEcpm;
+                 //将单词的附加值重新写入为广告包含的每个单词分别记录附加值的有序集合里
+                 conn.zadd("idx:" + word, bonus, adId);
+             }
+         }
+         ```
+   
+   - 改进方案
+   
+     - 随着时间流逝，每个广告的总点击次数和总展示次数都会稳定在一个特定的比率附近，而之后发生的点击和展示都没办法显著地改变这个比率，但真正的广告点击通过率却总是每时每刻都处于变化当中。定期降低广告的展示次数和点击次数（或动作执行次数），并将这一概念应用到不同类型的广告而设置的全局预期点击通过率（global expected CTR）上面。
+     - 为了扩展系统的学习能力，让它可以对不止一个计数值进行学习，请考虑对前一天、前一个星期或者其他时间段发生的点击和动作进行技术，并基于时间段的寿命长度，为它们设置不同的权重。
+     - 所有大型的广告网络都使用第二价格拍卖（second-price auction）的方式来决定广告位的费用，也就是说，系统不是按照固定的价格对每次点击、每前次展示或者每次动作进行收费，而是按照被定向广告中，价格排名第二的广告的价格进行收费。
+     - 大多数广告网络都会为给定的一系列关键字设置多个广告，这些广告会在价格最高的位置上面交替出现，直到每个关键字的预算都被耗尽为止。这些交替出现的广告通常都有很高的价格和点击通过率，但这也意味着价格不够高的新广告将不会被展示。为此，系统可以在10~50%的时间里面，获取收益排名前100的广告。
+     - 一个广告刚开始被添加到系统里面的时候，可以用于计算它的eCPM的信息是非常少的。前面展示的程序通过使用同类型广告的平均点击通过率暂时解决这个问题。另外一种解决方法，就是在给定广告类型的平均点击通过率以及基于广告目前已展示次数计算出的已展示点击通过率之间，构建一种简单的反线性关系或者反S形关系，直到广告有足够的展示次数为止。（2000~5000个左右才能确定一个可靠的点击通过率）。
+     - 在广告展示次数达到2000~5000次之前，系统也可以通过人为地提高广告的点击通过率或eCPm来确保系统由足够多的流量来学习广告真正eCPM。
+     - 本节的单词附加值学习方法与贝叶斯统计有相似的地方，可以通过真正的贝叶斯统计、神经网络、关联规制学习、聚类计算或其他技术来计算附加值。
+     - 记录广告展示信息、点击信息以及动作信息的操作。这些操作会耗费一定时间，可以以外部任务的方式执行这些操作。
+   
+   - 处理无匹配内容
+   
+     - 处理targetAds函数。
+     - finishScoring函数。
+   
+   - 对点击或者动作进行计数可以使用匹配的单词数量进行计数。
+   
+   - 优化eCPM计算：减少其传输次数。
+   
+4. 职位搜索
+
+   - 逐个查找适合职位
+
+     - 通过把求职者拥有技能集合和职位所需技能集合求差集，可以得出求职者是否满足职位要求。
+
+     - 实现：
+
+       ```java
+       //添加一份工作
+       public void addJob(Jedis conn, String jobId, String[] requiredSkills) {
+           conn.sadd("job:" + jobId, requiredSkills);
+       }
+       
+       //判断求职者是否具备职位所需的全部技能
+       public  boolean isQualified(Jedis conn, String jobId, String[] candidateSkills) {
+           String temp = UUID.randomUUID().toString();
+           Transaction trans = conn.multi();
+           trans.sadd(temp, candidateSkills);
+           trans.expire(temp, 5);
+           trans.sdiff("job:" + jobId, temp);
+           List<Object> result = trans.exec();
+           return ((Set<String>)result.get(2)).size() <= 0;
+       }
+       ```
+
+   - 以搜索方式查找合适的职位
+
+     - ```java
+       //对工作进行索引
+       public void indexJob(Jedis conn, String jobId, String... skills) {
+           Transaction trans = conn.multi();
+           //将职位ID添加到相应的技能集合里面
+           for (String skill : skills) {
+               trans.sadd("idx:skill:" + skill, jobId);
+           }
+           //将职位所需技能数量添加到所需技能数量zset里
+           trans.zadd("idx:jobs:req", skills.length, jobId);
+           trans.exec();
+       }
+       
+       //查找适合的工作
+       public Set<String> findJobs(Jedis conn, String... candidateSkills) {
+           String[] keys = new String[candidateSkills.length];
+           double[] weights = new double[candidateSkills.length];
+           for (int i = 0; i < candidateSkills.length; i++) {
+               keys[i] = "skill:" + candidateSkills[i];
+               weights[i] = 1;
+           }
+       
+           Transaction trans = conn.multi();
+           String jobScores = zunion(trans, 30, new ZParams().weights(weights), keys);
+           String finalResult = zintersect(trans, 30, new ZParams().weights(-1, 1), jobScores, "jobs:req");
+           trans.exec();
+           return conn.zrangeByScore(finalResult, 0, 0);
+       }
+       ```
+
+   - 带熟练度的搜索
+
+     ```java
+     //对工作进行索引，带熟练度
+     public void indexJob(Jedis conn, String jobId, Set<Skill> skills) {
+         Transaction trans = conn.multi();
+         //将职位ID添加到相应的技能集合里面
+         int req = 0;
+         for (Skill skill : skills) {
+             trans.zadd("idx:skill:" + skill.getSkill(), skill.getProficiency(), jobId);
+             //工作所需的技能和熟练度列表
+             trans.zadd("idx:skills:" + jobId, skill.getProficiency(), skill.getSkill());
+             req = req + skill.getProficiency();
+         }
+         //将职位所需技能熟练度总和添加到所需技能熟练度总和的zset里
+         trans.zadd("idx:jobs:req", req, jobId);
+         trans.exec();
+     }
+     public class Skill {
+         private final String skill;
+         private final int proficiency;
+         public Skill(String skill, int proficiency) {
+             this.skill = skill;
+             this.proficiency = proficiency;
+         }
+         public String getSkill() {
+             return skill;
+         }
+         public int getProficiency() {
+             return proficiency;
+         }
+         @Override
+         public boolean equals(Object o) {
+             if (this == o) return true;
+             if (o == null || getClass() != o.getClass()) return false;
+     
+             Skill skill1 = (Skill) o;
+     
+             if (proficiency != skill1.proficiency) return false;
+             return skill != null ? skill.equals(skill1.skill) : skill1.skill == null;
+         }
+         @Override
+         public int hashCode() {
+             int result = skill != null ? skill.hashCode() : 0;
+             result = 31 * result + proficiency;
+             return result;
+         }
+     }
+     
+     //查找适合的工作，带熟练度
+     public Set<String> findJobs(Jedis conn, Set<Skill> candidateSkills) {
+         String[] keys = new String[candidateSkills.size()];
+         double[] weights = new double[candidateSkills.size()];
+         Iterator<Skill> skillIterator = candidateSkills.iterator();
+         String temp = UUID.randomUUID().toString();
+         Transaction trans = conn.multi();
+         for (int i = 0; skillIterator.hasNext(); i++) {
+             Skill skill  = skillIterator.next();
+             keys[i] = "skill:" + skill.getSkill();
+             weights[i] = 1;
+             //把此求职者的技能和熟练度添加到一个zset里
+             trans.zadd("idx:" + temp, skill.getProficiency(), skill.getSkill());
+         }
+     
+         //获得此用户所满足全部技能的工作
+         String jobScores = zunion(trans, 30, new ZParams().weights(weights), keys);
+         String finalResult = zintersect(trans, 30, new ZParams().weights(-1, 1), jobScores, "jobs:req");
+         trans.exec();
+         Set<String> jobs = conn.zrangeByScore("idx:" + finalResult, 0, 0);
+     
+         //获得用户满足熟练度的工作
+         Set<String> finishJobs = new HashSet<>();
+         for (String job : jobs) {
+             trans = conn.multi();
+             String result = zintersect(trans, 60, new ZParams().weights(1, -1), temp, "skills:" + job);
+             trans.zrangeWithScores("idx:" + result, 0, 0);
+             Set<Tuple> tuples = (Set<Tuple>) trans.exec().get(2);
+             Tuple tuple = tuples.iterator().next();
+             if (tuple.getScore() >= 0) {
+                 finishJobs.add(job);
+             }
+         }
+         return finishJobs;
+     }
+     ```
+
+   - 技能经验
+
+# 8、构建简单的社交网站
+
+1. 用户和状态
+
+   - 用户信息
+
+     ```java
+     /**
+      *
+      * @param conn
+      * @param login 用户名
+      * @param name 姓名
+      * @return
+      */
+     public Long createUser(Jedis conn, String login, String name) {
+         String llogin = login.toLowerCase();
+         //防止多个用户同时使用相同用户名来注册
+         String lock = Charter6.acquireLock(conn, "user:" + llogin, 1);
+         if (lock == null) {
+             return null;
+         }
+     
+         //users:存储用户名和用户ID的映射
+         if (conn.hget("users:", llogin) != null) {
+             Charter6.releaseLock(conn, "user:" + llogin, lock);
+             return null;
+         }
+     
+         Long id = conn.incr("user:id");
+         Transaction trans = conn.multi();
+         trans.hset("users:", llogin, id.toString());
+         Map<String, String> map = new HashMap<>();
+         map.put("login", login);
+         map.put("id", id.toString());
+         map.put("name", name);
+         map.put("followers", "0");
+         map.put("following", "0");
+         map.put("posts", "0");
+         map.put("signup", String.valueOf(System.currentTimeMillis() / 1000));
+         trans.hmset("user:" + id, map);
+         trans.exec();
+         Charter6.releaseLock(conn, "user:" + llogin, lock);
+         return id;
+     }
+     ```
+
+   - 状态消息
+
+     ```java
+     //发布状态消息
+     public Long createStatus(Jedis conn, Long uid, String message, Map<String, String> data) {
+         Transaction trans = conn.multi();
+         trans.hget("user:" + uid, "login");
+         trans.incr("status:id");
+         List<Object> results = trans.exec();
+         String login = (String) results.get(0);
+         Long id = (Long) results.get(1);
+     
+         //如果用户名不存在
+         if (login == null) {
+             return null;
+         }
+     
+         data.put("message", message);
+         data.put("posted", String.valueOf(System.currentTimeMillis() / 1000));
+         data.put("id", id.toString());
+         data.put("uid", uid.toString());
+         data.put("login", login);
+     
+         trans = conn.multi();
+         trans.hmset("status:" + id, data);
+         trans.hincrBy("user:" + uid, "posts", 1);
+         trans.exec();
+         return id;
+     }
+     ```
+
+2. 主页时间线
+
+   - 在用户登录情况下访问Twitter时，首先看到的是他们的主页时间线，时间线是一个列表，它由用户以及用户正在关注的忍所发布的状态消息组成。
+
+   - 可以用zset实现时间线，因为可以附带时间戳。
+
+   - 实现：timeline可以控制是获取主页时间线，还是用户个人时间线
+
+     ```java
+     //获取状态消息列表
+     public List<Map<String,String>> getStatusMessages(Jedis conn, Long uid, String timeline, int page, int count) {
+         //反向，也就是从最新的获取
+         Set<String> statusIds = conn.zrevrange(timeline + ":" + uid, (page - 1) * count, page * count - 1);
+         Transaction trans = conn.multi();
+         for (String id : statusIds) {
+             trans.hgetAll("status:" + id);
+         }
+     
+         //过滤掉不存在的状态消息
+         List<Map<String,String>> statuses = new ArrayList<>();
+         for (Object result : trans.exec()) {
+             Map<String,String> status = (Map<String,String>)result;
+             if (status != null && status.size() > 0){
+                 statuses.add(status);
+             }
+         }
+         return statuses;
+     }
+     ```
+
+3. 关注者列表和正在关注列表
+
+   - 存储结构
+
+     ```
+     粉丝
+     followers:uid zset
+     被关注者用户id 关注时间
+     uid	time
+     
+     关注的人
+     following:uid zset
+     关注者用户id 关注时间
+     uid	time
+     ```
+
+   - 关注用户：
+
+     ```java
+     //关注用户
+     private static int HOME_TIMELINE_SIZE = 1000;
+     public boolean followUser(Jedis conn, Long uid, Long otherUid) {
+         String fkey1 = "following:" + uid;
+         String fkey2 = "followers:" + otherUid;
+     
+         //如果用户已经关注过此otherUid的用户
+         if (conn.zscore(fkey1, otherUid.toString()) != null) {
+             return false;
+         }
+     
+         Long now = System.currentTimeMillis() / 1000;
+     
+         Transaction trans = conn.multi();
+         //把被关注者添加到用户的关注列表
+         trans.zadd(fkey1, now, otherUid.toString());
+         //把被关注者的粉丝列表添加用户的ID
+         trans.zadd(fkey2, now, uid.toString());
+         trans.zcard(fkey1);
+         trans.zcard(fkey2);
+         trans.zrevrangeWithScores("profile:" + otherUid, 0, HOME_TIMELINE_SIZE - 1);
+         List<Object> results = trans.exec();
+     
+         Long following = (Long) results.get(results.size() - 3);
+         Long followers = (Long) results.get(results.size() - 2);
+         Set<Tuple> statusAndScore = (Set<Tuple>) results.get(results.size() -1);
+     
+         trans = conn.multi();
+         trans.hset("user:" + uid, "following", following.toString());
+         trans.hset("user:" + otherUid, "followers", followers.toString());
+     
+         //对用户主页时间线进行更新，保留最新的1000条信息
+         if (statusAndScore.size() > 0) {
+             for (Tuple status : statusAndScore){
+                 trans.zadd("home:" + uid, status.getScore(), status.getElement());
+             }
+         }
+     
+         //用户主页时间线只保留最近的1000条信息
+         trans.zremrangeByRank("home:" + uid, 0, -HOME_TIMELINE_SIZE - 1);
+         trans.exec();
+         return true;
+     }
+     ```
+
+   - 取消关注
+
+     ```java
+     //取消关注
+     @SuppressWarnings("unchecked")
+     public boolean unfollowUser(Jedis conn, Long uid, Long otherUid) {
+         String fkey1 = "following:" + uid;
+         String fkey2 = "followers:" + otherUid;
+     
+         //如果用户未关注过此otherUid的用户
+         if (conn.zscore(fkey1, otherUid.toString()) == null) {
+             return false;
+         }
+     
+         Transaction trans = conn.multi();
+         trans.zrem(fkey1, otherUid.toString());
+         trans.zrem(fkey2, uid.toString());
+         //获取被关注者最近发布的状态消息
+         trans.zrevrange("profile:" + otherUid, 0, HOME_TIMELINE_SIZE - 1);
+         List<Object> results = trans.exec();
+     
+         Long following = (Long) results.get(results.size() - 3);
+         Long followers = (Long) results.get(results.size() - 2);
+         Set<String> statuses = (Set<String>) results.get(results.size() -1);
+     
+         trans = conn.multi();
+         trans.hset("user:" + uid, "following", String.valueOf(following));
+         trans.hset("user:" + otherUid, "followers", String.valueOf(followers));
+         //删除用户主页的被取消关注者的状态消息
+         if (statuses.size() > 0){
+             for (String status : statuses) {
+                 trans.zrem("home:" + uid, status);
+             }
+         }
+         trans.exec();
+         return true;
+     }
+     ```
+
+   - 重新填充时间线：在取消关注后，时间线的状态消息数会减少，这时候可以用正在关注的其他用户的状态消息来填充。
+
+     - 未想到如何获取这些数据。
+
+   - 用户列表：用户列表里包含指定的多个用户发布的状态消息，也就是类似于分组。
+
+     - 可以通过对followUser()和unfollowUser()函数更新，让它们能够通过可选的列表ID参数来支持用户列表特性，并添加相应的用户列表创建函数以及用户列表获取函数。
+     - 重新填充时间线也要填充此列表。
+
+4. 状态消息的发布与删除
+
+   - 把新状态消息的ID添加到每个关注者的主页时间线里。
+
+     - 如果用户的关注者数量较少，那么立即更新每个关注者的主页时间线。
+     - 如果用户的关注者数量较多，把添加到主页时间线的操作转移到任务队列里执行。
+
+   - 实现：对用户的个人时间线进行更新
+
+     ```java
+     //发布状态消息
+     public Long postStatus(Jedis conn, Long uid, String message, Map<String,String> data) {
+         Long id = createStatus(conn, uid, message, data);
+         if (id == null){
+             return null;
+         }
+     
+         //获取消息发布的时间
+         String postedString = conn.hget("status:" + id, "posted");
+         if (postedString == null) {
+             return null;
+         }
+     
+         //将消息添加到个人时间线里
+         long posted = Long.parseLong(postedString);
+         conn.zadd("profile:" + uid, posted, id.toString());
+     
+         //将消息添加到关注者的主页时间线里
+         syndicateStatus(conn, uid, id, posted, 0);
+         return id;
+     }
+     ```
+
+   - 实现：对关注者主页时间线进行更新
+
+     ```java
+     //对关注者的主页时间线进行更新
+     private static int POSTS_PER_PASS = 1000;
+     public void syndicateStatus(Jedis conn, long uid, long postId, long postTime, double start) {
+         //获取接下来的1000个关注者
+         Set<Tuple> followers = conn.zrangeByScoreWithScores("followers:" + uid, String.valueOf(start), "inf", 0, POSTS_PER_PASS);
+     
+         Transaction trans = conn.multi();
+         for (Tuple tuple : followers) {
+             String follower = tuple.getElement();
+             start = tuple.getScore();
+             trans.zadd("home:" + follower, postTime, String.valueOf(postId));
+             //将集合进行排序
+             trans.zrange("home:" + follower, 0, -1);
+             trans.zremrangeByRank("home:" + follower, 0, - HOME_TIMELINE_SIZE - 1);
+         }
+         trans.exec();
+     
+         //把剩下任务加入延迟队列中执行
+         if (followers.size() >= POSTS_PER_PASS) {
+             Gson gson = new Gson();
+             Map<String, String> map = new HashMap<>();
+             map.put("uid", String.valueOf(uid));
+             map.put("postId", String.valueOf(postId));
+             map.put("postTime", String.valueOf(postTime));
+             map.put("start", String.valueOf(start));
+             executeLater(conn, "default", "syndicateStatus", gson.toJson(map), 0);
+         }
+     }
+     ```
+
+   - 删除状态消息
+
+     ```java
+     //删除状态消息
+     public boolean deleteStatus(Jedis conn, Long uid, Long statusId) {
+         String key = "status:" + statusId;
+         //对指定的状态消息进行加锁，防止两个程序同时删除同一条状态消息
+         String lock = Charter6.acquireLock(conn, key, 1);
+         if (lock == null) {
+             return false;
+         }
+     
+         try {
+             if (!uid.toString().equals(conn.hget(key, "uid"))) {
+                 return false;
+             }
+     
+             Transaction trans = conn.multi();
+             trans.del(key);
+             trans.zrem("profile:" + uid, statusId.toString());
+             trans.zrem("home:" + uid, statusId.toString());
+             trans.hincrBy("user:" + uid, "posts", -1);
+             trans.exec();
+             //删除关注者主页时间线的这条状态消息
+             syndicateDeleteStatus(conn, uid, statusId, .0);
+             return true;
+         } finally {
+             Charter6.releaseLock(conn, key, lock);
+         }
+     }
+     ```
+
+     ```java
+     //删除关注者主页时间线的这条状态消息
+     public void syndicateDeleteStatus(Jedis conn, Long uid, Long statusId, Double start) {
+         //获取接下来的1000个关注者
+         Set<Tuple> followers = conn.zrangeByScoreWithScores("followers:" + uid, start.toString(), "inf", 0, POSTS_PER_PASS);
+     
+         Transaction trans = conn.multi();
+         for (Tuple tuple : followers) {
+             String follower = tuple.getElement();
+             start = tuple.getScore();
+             trans.zrem("home:" + follower, statusId.toString());
+         }
+         trans.exec();
+     
+         //把剩下任务加入延迟队列中执行
+         if (followers.size() >= POSTS_PER_PASS) {
+             Gson gson = new Gson();
+             Map<String, String> map = new HashMap<>();
+             map.put("uid", uid.toString());
+             map.put("statusId", statusId.toString());
+             map.put("start", start.toString());
+             executeLater(conn, "default", "syndicateDeleteStatus", gson.toJson(map), 0);
+         }
+     }
+     ```
+
+   - 还可以实现的特性
+
+     - 私人用户，关注这些用户需要经过主人批准。
+     - 收藏（注意状态消息的私密性）。
+     - 用户之间可以进行私聊。
+     - 对消息进行回复将产生一个会话流（conversation flow）。
+     - 转发消息。
+     - 使用@指明一个用户，或者使用#标记一个话题。
+     - 记录用户使用@指名了谁。
+     - 针对广告行为和滥用行为的投诉与管理机制。
+     - 对状态消息进行“赞”。
+     - 根据重要性对状态消息进行排序。
+     - 在预先设置的一群用户之间进行私聊。
+     - 对用户进行分组，只有组员能够关注组时间线（group timeline）并在里面发布状态消息。小组可以是公开的、私密的甚至是公告形式的。
+
+5. 流API
+
+   未看
+
+# 9、降低内存占用
+
+1. 短结构
+
+   - 压缩列表：每个结点由两个长度值和一个字符串组成，第一个长度值是前一个结点的长度，第二个长度值是当前结点的长度，第三个值是被存储的字符串值。
+
+     - 压缩列表配置
+
+       ```
+       list-max-ziplist-entries 512  //在被编码为压缩列表的情况下，允许包含的最大元素数量
+       list-max-ziplist-value 64  //压缩列表每个结点的最大体积是多少字节
+       
+       hash-max-ziplist-entries 512 
+       hash-max-ziplist-value 64
+       
+       zset-max-ziplist-entries 512
+       zset-max-ziplist-value 64
+       ```
+
+   - 快速列表：quickList 是 zipList 和 linkedList 的混合体，它将 linkedList 按段切分，每一段使用 zipList 来紧凑存储，多个 zipList 之间使用双向指针串接起来。（默认使用）
+
+     ![快速列表示意图](<https://images2018.cnblogs.com/blog/1294391/201808/1294391-20180827151851500-1561398239.png>)
+
+   - 整数集合（intset）：以有序整数数组的方式存储集合，可以降低内存消耗，提升所有标准集合操作的执行速度。
+
+     - 如果整数包含的所有成员都可以被解释为10进制整数，且这些整数春雨平台的有符号整数范围内，就使用整数集合。（也就是所有成员只能是整数）
+
+     ```
+     set-max-intset-entries 512
+     ```
+
+   - hashtable：当set的元素数量超过512后使用hashtable代替intset。
+
+   - 长压缩列表和大整数集合带来的性能问题
+
+2. 分片结构
+
+   - 不再将值X存储到键Y里，而是将值X存储到键Y:<shardid>里
+
+   - 对有序集合进行分片：因为zrange、zrangebyscore、zrank、zcount、zremrange、zremrangebyscore等命令的分片版本需要对有序集合的所有分片进行操作才能计算出命令的最终结果，所以速度比较慢。
+
+     - 如果需要将信息存储到一个体积较大的有序集合里面，但是只会对分值排名前N位和后N位的元素进行操作，那么可以使用最高分值有序集合和最低分值有序集合，然后zadd为这两个有序集合添加新元素，并通过zremrangebyrank命令确保元素数量不会超过限制。
+     - 搜索索引体积较大的情况下，使用分片是有序集合可以减少执行单个命令的延迟时间。但是查找分值最大和最小的元素需要调用很多次zunionstore和zremrangbyrank。
+
+   - 分布式散列
+
+     - 可以使用键计算出一个数字散列值，然后程序根据要存储键的总数量以及每个分片需要存储的键数，计算出所需的分片数量，用分片数量和键的散列值来决定应该把键存储到哪个分片里。
+
+     - 可以减低内存消耗，因为可以压缩数据，如把hash-max-ziplist-entires设置为1024等。（短结构）
+
+     - 实现：
+
+       ```java
+       /**
+        * 根据基础键以及散列包含的键计算出分片键
+        * @param base 基础键
+        * @param key 键（field）
+        * @param totalElements 预计元素总数量
+        * @param shardSize 每个分片的大小
+        * @return
+        */
+       public String shardKey(String base, String key, long totalElements, int shardSize) {
+           long shardId;
+           if (isDigit(key)) {
+               //如果是数字键值，用很简单的除法求出分区ID
+               shardId = Integer.parseInt(key, 10) / shardSize;
+           } else {
+               CRC32 crc = new CRC32();
+               crc.update(key.getBytes());
+               //分区数
+               long shards = 2 * totalElements / shardSize;
+               //用模求出分区ID
+               shardId = Math.abs(((int) crc.getValue()) % shards);
+           }
+           //基础键+分区ID
+           return base + ':' + shardId;
+       }
+       
+       //判断一个字符串是否是数字组成的
+       private boolean isDigit(String string) {
+           for (char c : string.toCharArray()) {
+               if (!Character.isDigit(c)) {
+                   return false;
+               }
+           }
+           return true;
+       }
+       ```
+
+     - 分布式hset和hget等操作：
+
+       ```java
+       //分区的hset操作
+       public Long shardHset(Jedis conn, String base, String key, String value, long totalElements, int shardSize) {
+           //获取分区键
+           String shard = shardKey(base, key, totalElements, shardSize);
+           return conn.hset(shard, key, value);
+       }
+       
+       //分区的hget操作
+       public String shardHget(Jedis conn, String base, String key, long totalElements, int shardSize) {
+           //获取分区键
+           String shard = shardKey(base, key, totalElements, shardSize);
+           return conn.hget(shard, key);
+       }
+       
+       //分区的hdel操作
+       public Long shardHdel(Jedis conn, String base, String key, long totalElements, int shardSize) {
+           //获取分区键
+           String shard = shardKey(base, key, totalElements, shardSize);
+           return conn.hdel(shard, key);
+       }
+       
+       //分区的hincrBy操作
+       public Long shardHincrBy(Jedis conn, String base, String key, long totalElements, int shardSize, Long value) {
+           //获取分区键
+           String shard = shardKey(base, key, totalElements, shardSize);
+           return conn.hincrBy(shard, key, value);
+       }
+       
+       //分区的hincrByFloat操作
+       public Double shardHincrByFloat(Jedis conn, String base, String key, long totalElements, int shardSize, double value) {
+           //获取分区键
+           String shard = shardKey(base, key, totalElements, shardSize);
+           return conn.hincrByFloat(shard, key, value);
+       }
+       ```
+
+   - 分片集合
+
+     - 使用UUID的前15个16进制数字作为被分片的键。（注，如果用16位会导致花费额外时间将64位无符号整数转换成有符号整数）
+
+     

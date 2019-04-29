@@ -338,3 +338,5 @@
 18. showlog：显示慢查询
     - 超时参数由slowlog-log-slower-than 10000 来指定（单位为微秒）
     - 服务器存储慢查询记录数由 slowlog-max-len 128 来决定　　　
+19. debug object key 调试命令
+
