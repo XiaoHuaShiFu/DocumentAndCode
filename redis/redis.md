@@ -3198,4 +3198,360 @@
 
      - 使用UUID的前15个16进制数字作为被分片的键。（注，如果用16位会导致花费额外时间将64位无符号整数转换成有符号整数）
 
+     - 实现：
+
+       ```java
+       private int SHARD_SIZE = 512;
+       //记录每一天唯一访客人数的函数
+       public Long countVisit(Jedis conn, String sessionId) {
+           Calendar today = Calendar.getInstance();
+           //用今天的日期作为key
+           String key = "unique:" + ISO_FORMAT.format(today.getTime());
+       
+           //获取或计算当天的预计唯一访客数量
+           long expected = getExpected(conn, key, today);
+           //取出uuid里的前15位，用16进制解析
+           long id = Long.valueOf(sessionId.replace("-", "").substring(0, 15), 16);
+       
+           //这里说明下，shardSadd里的key是key:shardId
+           //incr里的key就是key
+           //两个key在数据库里是不一样的，所以不会冲突
+           //把id通过分区的方式添加到今天的set里
+           if (shardSadd(conn, key, String.valueOf(id), expected, SHARD_SIZE) != 0) {
+               //如果ID在分片集合里不存在，那么对唯一访客计数器+1
+               conn.incr(key);
+           }
+           return Long.valueOf(conn.get(key));
+       }
+       
+       //基于昨天的唯一访客人数计算出明天的唯一访客人数
+       private long DAILY_EXPECTED = 1000000;
+       private Map<String,Long> EXPECTED = new HashMap<>(); //语句访客人数副本
+       public Long getExpected(Jedis conn, String key, Calendar today) {
+           //如果人数统计的人数已经存在，则返回
+           if (EXPECTED.containsKey(key)) {
+               return EXPECTED.get(key);
+           }
+       
+           String exkey = key + ":expected";
+           //查看预计人数是否已经存在，如其他服务器计算得出的
+           String expectedStr = conn.get(exkey);
+       
+           long expected;
+           if (expectedStr == null) {
+               Calendar yesterday = (Calendar)today.clone();
+               yesterday.add(Calendar.DATE, -1);
+               expectedStr = conn.get("unique:" + ISO_FORMAT.format(yesterday.getTime()));
+               expected = expectedStr != null ? Long.parseLong(expectedStr) : DAILY_EXPECTED;
+       
+               expected = (long)Math.pow(2, (long)(Math.ceil(Math.log(expected * 1.5) / Math.log(2))));
+               //如果不存在则设置值
+               //此条件表示设置时发现已经有此键存在了
+               if (conn.setnx(exkey, String.valueOf(expected)) == 0) {
+                   expectedStr = conn.get(exkey);
+                   expected = Long.valueOf(expectedStr);
+               }
+           } else {
+               expected = Long.valueOf(expectedStr);
+           }
+           EXPECTED.put(key, expected);
+           return EXPECTED.get(key);
+       }
+       ```
+
+     - 计算唯一访客数量的其他方法：如果访客的ID不说UUID而是数字ID，并且二这些ID的最大值相对比较小的化，那么程序出了可以将访客ID存储到分片集合里，还可以以位图（bitmap）的方式把ID存储起来。
+
+3. 打包存储二进制和字节
+
+   - 负责将给定国家（或地区）信息和州信息转换成编码的函数：
+
+     - 先在COUNTRIES列表里找到用户所在国家（或地区）的索引值。
+
+     - 再找到所在的州。
+
+     - ```java
+       private static final String[] COUNTRIES = (
+               "ABW AFG AGO AIA ALA ALB AND ARE ARG ARM ASM ATA ATF ATG AUS AUT AZE BDI " +
+                       "BEL BEN BES BFA BGD BGR BHR BHS BIH BLM BLR BLZ BMU BOL BRA BRB BRN BTN " +
+                       "BVT BWA CAF CAN CCK CHE CHL CHN CIV CMR COD COG COK COL COM CPV CRI CUB " +
+                       "CUW CXR CYM CYP CZE DEU DJI DMA DNK DOM DZA ECU EGY ERI ESH ESP EST ETH " +
+                       "FIN FJI FLK FRA FRO FSM GAB GBR GEO GGY GHA GIB GIN GLP GMB GNB GNQ GRC " +
+                       "GRD GRL GTM GUF GUM GUY HKG HMD HND HRV HTI HUN IDN IMN IND IOT IRL IRN " +
+                       "IRQ ISL ISR ITA JAM JEY JOR JPN KAZ KEN KGZ KHM KIR KNA KOR KWT LAO LBN " +
+                       "LBR LBY LCA LIE LKA LSO LTU LUX LVA MAC MAF MAR MCO MDA MDG MDV MEX MHL " +
+                       "MKD MLI MLT MMR MNE MNG MNP MOZ MRT MSR MTQ MUS MWI MYS MYT NAM NCL NER " +
+                       "NFK NGA NIC NIU NLD NOR NPL NRU NZL OMN PAK PAN PCN PER PHL PLW PNG POL " +
+                       "PRI PRK PRT PRY PSE PYF QAT REU ROU RUS RWA SAU SDN SEN SGP SGS SHN SJM " +
+                       "SLB SLE SLV SMR SOM SPM SRB SSD STP SUR SVK SVN SWE SWZ SXM SYC SYR TCA " +
+                       "TCD TGO THA TJK TKL TKM TLS TON TTO TUN TUR TUV TWN TZA UGA UKR UMI URY " +
+                       "USA UZB VAT VCT VEN VGB VIR VNM VUT WLF WSM YEM ZAF ZMB ZWE").split(" ");
+       
+       private static final Map<String,String[]> STATES = new HashMap<>();
+       static {
+           STATES.put("CAN", "AB BC MB NB NL NS NT NU ON PE QC SK YT".split(" "));
+           STATES.put("USA", (
+                   "AA AE AK AL AP AR AS AZ CA CO CT DC DE FL FM GA GU HI IA ID IL IN " +
+                           "KS KY LA MA MD ME MH MI MN MO MP MS MT NC ND NE NH NJ NM NV NY OH " +
+                           "OK OR PA PR PW RI SC SD TN TX UT VA VI VT WA WI WV WY").split(" "));
+       }
+       
+       //负责将给定国家（或地区）信息和州信息转换成编码
+       public String getCode(String country, String state) {
+           //寻找指定国家索引
+           int cindex = bisectLeft(COUNTRIES, country);
+           if (cindex > COUNTRIES.length || !COUNTRIES[cindex].equals(country)) {
+               cindex = -1;
+           }
+           //把所有索引都上浮1，也就是返回0表示未找到国家
+           cindex++;
+       
+           //寻找指定州的索引
+           int sindex = -1;
+           if (state != null && STATES.containsKey(country)) {
+               String[] states = STATES.get(country);
+               sindex = bisectLeft(states, state);
+               if (sindex > states.length || !states[sindex].equals(state)) {
+                   sindex = -1;
+               }
+           }
+           sindex++;
+           System.out.println(sindex + ":" + cindex);
+           return new String(new char[]{(char)cindex, (char)sindex});
+       }
+       
+       //字符串的二分查找下标，如果找不到则返回应该插入的位置
+       private int bisectLeft(String[] values, String key) {
+           int idx = Arrays.binarySearch(values, key);
+           return idx > 0 ? idx : Math.abs(idx) - 1;
+       }
+       ```
+
+   - 将位置数据存储到分片之后的字符串里
+
+     ```java
+     //每个分片的大小
+     private long USERS_PER_SHARD = (long)Math.pow(2, 20);
+     //将位置数据存储到分片之后的字符串里
+     public void setLocation(Jedis conn, Long userId, String country, String state) {
+         String code = getCode(country, state);
      
+         //分片ID
+         long shardId = userId / USERS_PER_SHARD;
+         //分片中的位置
+         int position = (int)(userId % USERS_PER_SHARD);
+         //数据的偏移量，因为每个位置是两个字符
+         int offset = position * 2;
+     
+         Transaction trans = conn.multi();
+         trans.setrange("location:" + shardId, offset, code);
+     
+         //记录目前已知的最大用户ID
+         String tkey = UUID.randomUUID().toString();
+         trans.zadd(tkey, userId, "max");
+         trans.zunionstore("location:max", new ZParams().aggregate(ZParams.Aggregate.MAX), tkey, "location:max");
+         trans.del(tkey);
+         trans.exec();
+     }
+     ```
+
+   - 对分片字符串进行聚合操作
+
+     ```java
+     //对分片字符串进行聚合操作
+     public Pair<Map<String, Long>, Map<String, Map<String, Long>>> aggregateLocation(Jedis conn) {
+         Map<String, Long> countries = new HashMap<>();
+         Map<String, Map<String, Long>> states = new HashMap<>();
+     
+         //获取最大用户ID
+         long maxId = conn.zscore("location:max", "max").longValue();
+         long maxBlock = maxId / USERS_PER_SHARD;
+     
+         byte[] buffer = new byte[(int) Math.pow(2, 17)];
+         //处理每个分片
+         for (int shardId = 0; shardId <= maxBlock; shardId++) {
+             InputStream in = new RedisInputStream(conn, "location:" + shardId);
+             try {
+                 int read;
+                 //读取分片中的每个块
+                 while ((read = in.read(buffer, 0, buffer.length)) != -1) {
+                     //从分片中提取每个code
+                     for (int offset = 0; offset < read - 1; offset += 2) {
+                         //获取一个code
+                         String code = new String(buffer, offset, 2);
+                         //对code进行解码
+                         updateAggregates(countries, states, code);
+                     }
+                 }
+             } catch (IOException ioe) {
+                 throw new RuntimeException(ioe);
+             } finally {
+                 try {
+                     in.close();
+                 } catch (Exception e) {
+                     // ignore
+                 }
+             }
+         }
+     
+         return new Pair<>(countries, states);
+     }
+     
+     //根据给定用户ID进行位置信息集合计算
+     public Pair<Map<String, Long>, Map<String, Map<String, Long>>> aggregateLocationList(Jedis conn, long[] userIds) {
+         Map<String, Long> countries = new HashMap<>();
+         Map<String, Map<String, Long>> states = new HashMap<>();
+     
+         Pipeline pipe = conn.pipelined();
+         for (int i = 0; i < userIds.length; i++) {
+             long userId = userIds[i];
+             long shardId = userId / USERS_PER_SHARD;
+             int position = (int) (userId % USERS_PER_SHARD);
+             int offset = position * 2;
+     
+             pipe.substr("location:" + shardId, offset, offset + 1);
+     
+             if ((i + 1) % 1000 == 0) {
+                 updateAggregates(countries, states, pipe.syncAndReturnAll());
+             }
+         }
+     
+         updateAggregates(countries, states, pipe.syncAndReturnAll());
+     
+         return new Pair<>(countries, states);
+     }
+     
+     public void updateAggregates(Map<String, Long> countries, Map<String, Map<String, Long>> states, List<Object> codes) {
+         for (Object code : codes) {
+             updateAggregates(countries, states, (String) code);
+         }
+     }
+     
+     //解码之后加入集合里
+     public void updateAggregates(Map<String, Long> countries, Map<String, Map<String, Long>> states, String code) {
+         //如果code长度不等于2，则说明code非法
+         if (code.length() != 2) {
+             return;
+         }
+     
+         //获取国家和州对应的编码
+         int countryIdx = (int) code.charAt(0) - 1;
+         int stateIdx = (int) code.charAt(1) - 1;
+     
+         //如果非法，则跳过
+         if (countryIdx < 0 || countryIdx >= COUNTRIES.length) {
+             return;
+         }
+     
+         //获取国家ISO3编码
+         String country = COUNTRIES[countryIdx];
+         //尝试再Map里获取此国家的计数
+         Long countryAgg = countries.get(country);
+         //如果此国家不存在，则把计数设为0
+         if (countryAgg == null) {
+             countryAgg = 0L;
+         }
+         //国家的计数+1
+         countries.put(country, countryAgg + 1);
+     
+         //如果不存在指定的国家，则返回
+         if (!STATES.containsKey(country)) {
+             return;
+         }
+         //如果非法，则跳过
+         if (stateIdx < 0 || stateIdx >= STATES.get(country).length) {
+             return;
+         }
+         //获取指定的州
+         String state = STATES.get(country)[stateIdx];
+         //尝试在Map里获取对应国家的州计数信息
+         Map<String, Long> stateAggs = states.get(country);
+         //如果此州不存在，则添加此州
+         //并把此国家的州计数信息添加到states映射里
+         if (stateAggs == null) {
+             stateAggs = new HashMap<>();
+             states.put(country, stateAggs);
+         }
+         //尝试获取州计数信息里的此州的计数
+         Long stateAgg = stateAggs.get(state);
+         //如果计数不存在，则把计数值设置为0
+         if (stateAgg == null) {
+             stateAgg = 0L;
+         }
+         //把对应州的计数值加1
+         stateAggs.put(state, stateAgg + 1);
+     }
+     
+     public class RedisInputStream
+             extends InputStream {
+         private Jedis conn;
+         private String key;
+         private int pos;
+     
+         public RedisInputStream(Jedis conn, String key) {
+             this.conn = conn;
+             this.key = key;
+         }
+     
+         @Override
+         public int available()
+                 throws IOException {
+             long len = conn.strlen(key);
+             return (int) (len - pos);
+         }
+     
+         @Override
+         public int read()
+                 throws IOException {
+             byte[] block = conn.substr(key.getBytes(), pos, pos);
+             if (block == null || block.length == 0) {
+                 return -1;
+             }
+             pos++;
+             return (int) (block[0] & 0xff);
+         }
+     
+         @Override
+         public int read(byte[] buf, int off, int len)
+                 throws IOException {
+             byte[] block = conn.substr(key.getBytes(), pos, pos + (len - off - 1));
+             if (block == null || block.length == 0) {
+                 return -1;
+             }
+             System.arraycopy(block, 0, buf, off, block.length);
+             pos += block.length;
+             return block.length;
+         }
+     
+         @Override
+         public void close() {
+             // no-op
+         }
+     }
+     ```
+
+# 10、扩展Redis
+
+1. 扩展读性能
+
+   - 提高性能的途径
+     - 使用短结构
+     - 使用合适的数据类型
+     - 对大体积对象进行压缩后再缓存到Redis里
+     - 使用流水线和连接池
+
+   - 余下的主从复制未看
+
+2. 扩展写性能和内存容量
+
+   - 写性能扩展途径
+     - 减少程序需要的数据量
+     - 将无关功能迁移至其他服务器
+     - 在写入redis之前，对数据进行聚合计算。适用于分析方法和统计计算方法。
+     - 用锁区替换watch、multi、exec事务，或者使用lua脚本
+     - aof持久化的情况下，较长的命令写入更快。
+
+3. todo：下面的涉及主从分布的太难，没继续看下去
+
+# 11、redis的lua脚本编程
+
+1. todo未看
