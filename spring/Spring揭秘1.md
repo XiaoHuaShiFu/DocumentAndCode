@@ -76,7 +76,7 @@
    - BeanFactory和ApplicationContext继承关系。
 
      <div align="center">
-     <img src="https://github.com/XiaoHuaShiFu/img/blob/master/BeanFactory%E5%92%8CApplicationContext%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB.jpg?raw=true" width="75%" height="75%" style="transform: rotate(180deg);">
+     <img src="https://github.com/XiaoHuaShiFu/img/blob/master/BeanFactory%E5%92%8CApplicationContext%E7%BB%A7%E6%89%BF%E5%85%B3%E7%B3%BB.jpg?raw=true" width="75%" height="75%" style="transform: rotate(0deg);">
       </div>
 
    - BeanFactory：公开获取一个组装完成的对象的方法接口，也包含查询方法。
