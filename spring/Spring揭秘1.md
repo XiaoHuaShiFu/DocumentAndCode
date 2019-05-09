@@ -578,4 +578,114 @@
              ```
      
      - 方法替换：实现方法拦截功能。
+     
+       - 实现MethodReplacer接口作为替换类：
+     
+         ```java
+         public class UserVoReplacer implements MethodReplacer {
+             private static final transient Logger logger = LoggerFactory.getLogger(UserVoReplacer.class);
+             @Override
+             public Object reimplement(Object o, Method method, Object[] objects) throws Throwable {
+                 logger.info("method" + method.getName());
+                 return "hahhahah test";
+             }
+         }
+         ```
+     
+       - 注入替换类并指明要替换的方法：
+     
+         ```xml
+         <bean id="userVo" class="com.springjiemi.vo.UserVo">
+             <property name="userid" value="3333"/>
+             <property name="name" value="wjx"/>
+             <property name="depid" value="322"/>
+             <property name="sex" value="男"/>
+             <property name="password" value="123456"/>
+             <property name="roleUser" value="VIP"/>
+             <property name="dep" ref="dep"/>
+         
+             <!-- 替换某个方法 -->
+             <replaced-method name="toString" replacer="userVoReplacer" />
+         </bean>
+         
+         <!-- 替换方法的替换类 -->
+         <bean id="userVoReplacer" class="com.springjiemi.pojo.UserVoReplacer"/>
+         ```
+     
+         - 可以用\<arg-type\>指明要替换方法的参数类型，如果有重载方法的话
+     
+           ```xml
+           <arg-type match="String"/>
+           ```
+   
+4. 容器
 
+   - Spring的IoC容器可以分为两个阶段：容器启动阶段和Bean实例化阶段。
+
+   - 容器启动阶段：
+
+     - 加载配置：加载Configuration MetaData。
+     - 分析配置信息。
+     - 装备到BeanDefinition。生成Bean定义。
+     - 方式
+       - 代码方式。
+       - 依赖工具类（BeanDefinitionReader）进行解析和分析，并将分析后的信息编组成为相应的BeanDefinition，然后把这些BeanDefinition注册到相应的BeanDefinitionRegistry。
+
+   - Bean实例化阶段
+
+     - 实例化对象。
+     - 装配依赖。
+     - 生命周期回调。
+     - 对象其他处理。
+     - 注册回调接口。
+
+     - 当请求通过容器的getBean方法请求某个对象时，就会根据BeanDefinition所提供的信息实例化被请求的对象，为其注入依赖。如果该对象实现了某些回调接口，也会根据回调接口的要求来装配它。当对象装配完毕后，容器会立即将对象返回给请求方法使用。
+
+   - 插手容器的启动
+
+     - Spring提供BeanFactoryPostProcessor的容器扩展机制。允许我们在容器实例化对象前，对注册到容器的BeanDefinition所保存的信息做相应的修改。相当于在容器实现的第一阶段最后加入一道工序，让我们对最终的BeanDefinition做一些额外的操作，比如修改bean定义的某些属性，为bean定义增加其他信息等等。
+
+     - 如果一个容器有用多个BeanFactoryPostProcessor，需要同时实现Spring的Ordered接口，以保证按预先顺序执行。
+
+     - Spring已经实现的BeanFactoryPostProcessor：
+
+       - PropertyPlaceholderConfigurer
+         - 实现用占位符（PlaceHolder）${jdbc.url}来指定properties里面的属性。
+         - 在BeanFactory第一阶段加载完成所有配置信息是，BeanFactory中保存的对象的属性信息还是以占位符的形式存在。当PropertyPlaceholderConfigurer作为BeanFactoryPostProcessor被应用时，它会使用properties配置文件中的配置信息来替换相应BeanDefinition中占位符所表示的属性值。这样当进入容器实现第二阶段实例化bean时，bean定义中的属性值就是最终替换完成的了。
+         - PropertyPlaceholderConfigurer不单会从配置的properties文件中加载配置项，还会检查Java的System类中的Properties。
+           - 可以通过setSystemPropertiesMode()或setSystemPropertiesModeName()来控制是否加载或覆盖System相应的Properties。
+           - PropertyPlaceholderConfigurer提供了SYSTEM_PROPERTIES_MODE_NEVER、SYSTEM_PROPERTIES_MODE_FALLBACK、SYSTEM_PROPERTIES_MODE_OVERRIDE三种模式。默认采用SYSTEM_PROPERTIES_MODE_FALLBACK（备选模式）。
+       - PropertyOverrideConfigurer
+         - 
+       - CustomEditorConfigurer：注册自定义的PropertyEditor。进行配置文件中的数据类型与真正的业务对象所定义的数据类型转换。
+
+     - BeanFactory应用BeanFactoryPostProcessor
+
+       - 示例：在Java里注册
+
+         ```java
+         //BeanFactory
+         ConfigurableListableBeanFactory beanFactory = new XmlBeanFactory(new ClassPathResource("benas.xml"));
+         //声明BeanFactoryPostProcessor
+         PropertyPlaceholderConfigurer propertyPlaceholderConfigurer = new PropertyPlaceholderConfigurer();
+         propertyPlaceholderConfigurer.setLocation(new ClassPathResource("datasource.properties"));
+         //注册到beanFactory
+         propertyPlaceholderConfigurer.postProcessBeanFactory(beanFactory);
+         ```
+
+     - ApplicationContext应用BeanFactoryPostProcessor
+
+       - 示例：XML注册
+
+         ```xml
+         <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+             <property name="locations">
+                 <list>
+                     <value>datasource.properties</value>
+                     <value>spring.properties</value>
+                 </list>
+             </property>
+         </bean>
+         ```
+
+         
