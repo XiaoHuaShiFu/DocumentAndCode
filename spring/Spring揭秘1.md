@@ -655,37 +655,138 @@
          - PropertyPlaceholderConfigurer不单会从配置的properties文件中加载配置项，还会检查Java的System类中的Properties。
            - 可以通过setSystemPropertiesMode()或setSystemPropertiesModeName()来控制是否加载或覆盖System相应的Properties。
            - PropertyPlaceholderConfigurer提供了SYSTEM_PROPERTIES_MODE_NEVER、SYSTEM_PROPERTIES_MODE_FALLBACK、SYSTEM_PROPERTIES_MODE_OVERRIDE三种模式。默认采用SYSTEM_PROPERTIES_MODE_FALLBACK（备选模式）。
+         
        - PropertyOverrideConfigurer
-         - 
-       - CustomEditorConfigurer：注册自定义的PropertyEditor。进行配置文件中的数据类型与真正的业务对象所定义的数据类型转换。
-
+         
+       - 用来覆盖bean定义中的property信息。
+     
+       - PropertyOverrideConfigurer的properties文件结构：
+     
+           ```properties
+        #将beanName的bean的propertyName属性的值替换成value
+           beanName.propertyName=value
+           userVo.userid=233
+           ```
+           
+         - ```xml
+           <bean class="org.springframework.beans.factory.config.PropertyOverrideConfigurer">
+               <property name="location" value="beans-override.properties"/>
+           </bean>
+      ```
+         
+       - PropertyOverrideConfigurer的父类PropertyResourceConfigurer提供一个protected类型的方法convertPropertyValue，允许子类覆盖这个方法对相应的配置项进行转换，如对加密后的字符串解密之后再覆盖到相应的bean定义中。当然，PropertyPlaceholderConfigurer也同样继承了PropertyResourceConfigurer，也有同样的功能。
+         
+     - CustomEditorConfigurer：注册自定义的PropertyEditor。进行配置文件中的数据类型与真正的业务对象所定义的数据类型转换。
+     
+         - 它可以将会用到的信息注册到容器，不会对BeanDefinition做任何改变。它帮助传达转换规则相关的信息。
+     
+         - Spring内部通过PropertyEditor来帮助String类型到其他类型的转换。可以对原始类型，String，Color，Font等类型进行转换。
+     
+         - Spring自身实现了一些PropertyEditor，大部分位于propertyeditors包下。
+     
+           - StringArrayPropertyEditor。将符合CSV格式的字符串转换成String[]数组形式，默认（,）分隔的字符串，可以指定自定义的字符串分隔符。
+           - ClassEditor。根据String类型的class名称，直接将其转换成相应的Class对象，相当于通过Class.forName(String)完成功能。还有ClassArrayEditor（接受String[]）。
+           - FileEditor。对应File类型的PropertyEditor。还有InputStreamEditor、URLEditor。
+           - LocaleEditor。针对Locale类型。
+           - PatternEditor。针对Pattern。
+           - 以上的PropertyEditor，容器会默认加载使用。
+     
+         - 自定义PropertyEditor：实现PropertyEditor接口，也可以继承PropertyEditorSupport类，然后实现setAsText(String)方法。
+     
+           - 如果只是支持从String到对应对象的转换，只需覆盖setAsText(String)方法，如果需从对象到String，需覆盖getAsText()方法。
+     
+           - **示例：**使用propertyEditorRegistrars属性来指定自定义的PropertyEditor，这样我们需要多给出一个PropertyEditorRegistrar的实现。
+     
+             ```java
+             public class DatePropertyEditor extends PropertyEditorSupport {
+                 private String datePattern;
+             
+                 @Override
+                 public void setAsText(String text) throws IllegalArgumentException {
+                     DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern(getDatePattern());
+                     Date dateValue = dateTimeFormatter.parseDateTime(text).toDate();
+                     setValue(dateValue);
+                 }
+             
+                 public String getDatePattern() {
+                     return datePattern;
+                 }
+             
+                 public void setDatePattern(String datePattern) {
+                     this.datePattern = datePattern;
+                 }
+             }
+             ```
+     
+             ```java
+             public class DatePropertyEditorRegistrar implements PropertyEditorRegistrar {
+             
+                 private PropertyEditor propertyEditor;
+             
+                 @Override
+                 public void registerCustomEditors(PropertyEditorRegistry propertyEditorRegistry) {
+                     propertyEditorRegistry.registerCustomEditor(Date.class, getPropertyEditor());
+                 }
+             
+                 public PropertyEditor getPropertyEditor() {
+                     return propertyEditor;
+                 }
+             
+                 public void setPropertyEditor(PropertyEditor propertyEditor) {
+                     this.propertyEditor = propertyEditor;
+                 }
+             }
+             ```
+     
+             ```xml
+             <!-- 注册Configurer -->
+             <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
+                 <property name="propertyEditorRegistrars">
+                     <list>
+                         <ref bean="datePropertyEditorRegistrar"/>
+                     </list>
+                 </property>
+             </bean>
+             
+             <!-- 注册Registrar -->
+             <bean id="datePropertyEditorRegistrar" class="com.springjiemi.pojo.DatePropertyEditorRegistrar">
+                 <property name="propertyEditor" ref="datePropertyEditor"/>
+             </bean>
+             
+             <!-- 注册Editor -->
+             <bean id="datePropertyEditor" class="com.springjiemi.pojo.DatePropertyEditor">
+                 <property name="datePattern" value="yyyy-MM-dd"/>
+             </bean>
+             ```
+     
      - BeanFactory应用BeanFactoryPostProcessor
-
-       - 示例：在Java里注册
-
+     
+       - **示例：**在Java里注册
+     
          ```java
-         //BeanFactory
+      //BeanFactory
          ConfigurableListableBeanFactory beanFactory = new XmlBeanFactory(new ClassPathResource("benas.xml"));
-         //声明BeanFactoryPostProcessor
+      //声明BeanFactoryPostProcessor
          PropertyPlaceholderConfigurer propertyPlaceholderConfigurer = new PropertyPlaceholderConfigurer();
          propertyPlaceholderConfigurer.setLocation(new ClassPathResource("datasource.properties"));
          //注册到beanFactory
          propertyPlaceholderConfigurer.postProcessBeanFactory(beanFactory);
          ```
-
+     
      - ApplicationContext应用BeanFactoryPostProcessor
-
-       - 示例：XML注册
-
+     
+       - **示例：**XML注册
+       
          ```xml
          <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-             <property name="locations">
-                 <list>
-                     <value>datasource.properties</value>
-                     <value>spring.properties</value>
-                 </list>
-             </property>
-         </bean>
+               <property name="locations">
+                   <list>
+                       <value>datasource.properties</value>
+                       <value>spring.properties</value>
+                   </list>
+               </property>
+           </bean>
          ```
+     
+   - 了解bean的一生
 
-         
