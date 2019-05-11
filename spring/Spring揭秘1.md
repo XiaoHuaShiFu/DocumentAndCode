@@ -672,6 +672,7 @@
            <bean class="org.springframework.beans.factory.config.PropertyOverrideConfigurer">
                <property name="location" value="beans-override.properties"/>
            </bean>
+           ```
       ```
          
        - PropertyOverrideConfigurer的父类PropertyResourceConfigurer提供一个protected类型的方法convertPropertyValue，允许子类覆盖这个方法对相应的配置项进行转换，如对加密后的字符串解密之后再覆盖到相应的bean定义中。当然，PropertyPlaceholderConfigurer也同样继承了PropertyResourceConfigurer，也有同样的功能。
@@ -716,7 +717,7 @@
                      this.datePattern = datePattern;
                  }
              }
-             ```
+      ```
      
              ```java
              public class DatePropertyEditorRegistrar implements PropertyEditorRegistrar {
@@ -737,7 +738,7 @@
                  }
              }
              ```
-     
+         
              ```xml
              <!-- 注册Configurer -->
              <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
@@ -789,4 +790,105 @@
          ```
      
    - 了解bean的一生
-
+   
+     - Bean的实例化过程：
+   
+       ![](https://github.com/XiaoHuaShiFu/img/blob/master/Bean%E5%AE%9E%E4%BE%8B%E5%8C%96%E8%BF%87%E7%A8%8B.png?raw=true)
+   
+     - 当getBean方法发现该bean定义没有被实例化之后，会通过createBean()方法来进行具体的对象实例化。
+   
+       - AbstractBeanFactory类有getBean()方法的实现逻辑。
+       - AbstractAutowireCapableBeanFactory有createBean()方法的全貌。
+   
+     - BeanWrapper：容器内部采用“策略模式”来决定采用那种方式初始化Bean实例。
+   
+       - 通常通过反射或CGLIB动态字节码生成来初始化相应的bean实例或者动态生成其子类。
+   
+         - InstantiationStrategy定义实例化策略的抽象接口，其直接子类SimpleInstantiationStrategy实现了简单的对象实例化功能，通过反射。
+         - CglibSubclassingInstantiationStrategy继承了SimpleInstantiationStrategy的反射实例化对象功能，并可以通过CGLIB动态字节码，实现方法注入的对象实例化功能。容器默认使用此类。
+   
+       - 容器构造完成的对象实例，还会用BeanWrapper对bean实例进行包裹，然后获取或设置bean的相应属性值。
+   
+         - BeanWrapper继承了PropertyAccessor接口，可以统一的对对象属性进行访问。也继承了PropertyEditorRegistry和TypeConverter接口。
+   
+         - 构造完成对象之后，spring会根据对象实例构造一个BeanWrapperImpl实例，然后将在CustomEditorConfigurer注册的PropertyEditor复制一份给BeanWrapperImpl实例。这样BeanWrapper就可以进行类型转换、设置对象属性值。
+   
+           - 示例：使用BeanWrapper对bean属性进行设置非常方便
+   
+             ```java
+             BeanWrapper beanWrapper = new BeanWrapperImpl(ctx.getBean("userVo"));
+             //使用BeanWrapper对bean的属性进行设置
+             beanWrapper.setPropertyValue("name", "xxxxxxxxxxxxxxxxxx");
+             ```
+   
+     - Aware接口：当对象实例化完成，并设置完相关属性及依赖后，spring容器会检查当前对象实例是否实现了一系列的以Aware命名结尾的接口定义。如果是，则将这些Aware接口定义中规定的依赖注入给当前对象实例。
+   
+       - Aware接口有：
+         - BeanNameAware：把beanName设置到当前实例。
+         - BeanClassLoaderAware：把当前bean的ClassLoader注入当前对象实例。默认使用ClassUtils类的Classloader。
+         - BeanFactoryAware：BeanFactory容器会将自身设置到当前对象实例。
+       - 对于ApplicationContext容器还有（使用BeanPostProcessor方式）：
+         - ResourceLoaderAware：会将ApplicationContext自身设置到对象实例。ApplicationContext实现了ResourceLoader接口。
+         - ApplicationEventPublisherAware：会将ApplicationContext自身设置到对象实例。ApplicationContext实现了ApplicationEventPublisher接口。
+         - MessageSourceAware：会将ApplicationContext自身设置到对象实例。ApplicationContext通过MessageSource接口提供国际化支持。
+         - ApplicationContextAware：会将ApplicationContext自身设置到对象实例。
+   
+     - BeanPostProcessor（bean的后置处理器）：处理容器内所有符合条件的实例化后的对象实例。
+   
+       - postProcessBeforeInitialization(bean, beanName)方法是BeanPostProcessor前置处理。
+   
+       - postProcessAfterInitialization(bean, beanName)方法是BeanPostProcessor后置处理。
+   
+       - 可以用于处理标记接口实现类，或者为当前对象提供代理实现。Application的Aware接口实际上就是通过BeanPostProcessor的方式进行处理的。
+   
+         - ApplicationContext容器会检测到之前注册到容器的ApplicationContextAwareProcessor（BeanPostprocessor）的实现类，然后会调用postProcessBeforeInitialization()方法，检查并设置Aware相关依赖。
+   
+       - 还可以用于对对象实例或字节码增强当前对象实例；Spring的AOP也使用BeanPostProcessor来为对象生成代理对象，如BeanNameAutoProxyCreator。
+   
+       - 自定义BeanPostProcessor
+   
+         - 标注需要进行解密的实现类：
+   
+           ```java
+           public interface PasswordDecodable {
+               String getEncodedPassword();
+               void setDecodedPassword(String password);
+           }
+           
+           public class UserVo implements BeanNameAware, PasswordDecodable {
+           }
+           ```
+   
+         - 实现相应的BeanPostProcessor对符合条件的Bean实例进行处理。
+   
+           ```java
+           public class PasswordDecodePostProcessor implements BeanPostProcessor {
+               @Override
+               public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+                   if (bean instanceof  PasswordDecodable) {
+                       String encoded = ((PasswordDecodable) bean).getEncodedPassword();
+                       String decoded = encoded + "decoded success";
+                       ((PasswordDecodable) bean).setDecodedPassword(decoded);
+                   }
+                   return bean;
+               }
+               @Override
+               public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+                   return bean;
+               }
+           }
+           ```
+   
+         - 将自定义的BeanPostProcessor注册到容器
+   
+           - 可以通过ConfigurableBeanFactory的addBeanPostProcessor()方法注册到容器。
+   
+           - 对于ApplicationContext容器，会自动识别并注册XML配置里的BeanPostProcessor。
+   
+             ```xml
+             <bean id="passwordDecodePostProcessor" class="com.springjiemi.pojo.PasswordDecodePostProcessor"/>
+             ```
+   
+         - InstantiationAwareBeanPostProcessor接口可以在对象实例化过程中导致短路的效果。也就是在实例化对象步骤之前，容器会检查是否有注册InstantiationAwareBeanPostProcessor接口，如果有会首先使用相应的InstantiationAwareBeanPostProcessor来构造对象实例。构造完成之后直接返回对象实例。
+   
+     - InitializingBean：对象生命周期标识接口。
