@@ -892,3 +892,109 @@
          - InstantiationAwareBeanPostProcessor接口可以在对象实例化过程中导致短路的效果。也就是在实例化对象步骤之前，容器会检查是否有注册InstantiationAwareBeanPostProcessor接口，如果有会首先使用相应的InstantiationAwareBeanPostProcessor来构造对象实例。构造完成之后直接返回对象实例。
    
      - InitializingBean：对象生命周期标识接口。
+     
+       - 在进行前置处理之后，会检查是否实现了InitializingBean接口，如果实现了会第哦啊用其afterPropertiesSet()方法进一步处理实例。
+     
+       - 可以使用\<bean\>的init-method属性对系统中业务对象的自定义初始化操作可以以任何方式命名。
+     
+       - 可以用\<beans\>的default-init-method指定全部bean的统一初始化方法名。
+     
+       - 一般只有在集成第三方库，或者其他特殊情况下，才会需要使用此特性。
+     
+       - 示例：
+     
+         ```java
+         private void init() {
+             System.out.println("this is init method!!!");
+         }
+         ```
+     
+         ```xml
+         <bean id="userVo" class="com.springjiemi.vo.UserVo" init-method="init">
+         	<property name="userid" value="${ftp.server.http.prefix}"/>
+             <property name="name" value="${db.driverClassName}"/>
+             <property name="depid" value="322"/>
+             <property name="sex" value="男"/>
+             <property name="password" value="123456"/>
+             <property name="roleUser" value="VIP"/>
+             <property name="dep" ref="dep"/>
+             <property name="date" value="2019-05-11"/>
+         </bean>
+         ```
+     
+       - 可以同时使用InitializingBean和init-method实现两个初始化方法。
+     
+     - DisposableBean与destroy-method：对象销毁方法。
+     
+       - 示例：
+     
+         ```java
+         private void destroy() {
+             System.out.println("this is destroy method!!!");
+         }
+         ```
+     
+         ```xml
+         <bean id="userVo" class="com.springjiemi.vo.UserVo" init-method="init" destroy-method="destroy">
+         ```
+     
+       - 销毁方法不会自动执行，需要手动设置。
+     
+         - BeanFactory容器需要调用：
+     
+           ```java
+           ((ConfigurableListableBeanFactory)container).destroySingletons();
+           ```
+     
+         - ApplicationContext容器需调用：
+     
+           ```java
+           ((AbstractApplicationContext) ctx).registerShutdownHook();
+           ```
+
+# 5、ApplicationContext容器
+
+1. 统一资源加载策略
+
+   - 使用Resource接口作为所有资源的抽象和访问接口。
+
+     - ByteArrayResource。将字节（byte）数组提供的数据作为一种资源进行封装。
+     - ClassPathResource。对ClassPath中加载具体资源进行封装，可以使用指定的类加载器（ClassLoader）或给定的类进行资源加载。
+     - FileSystemResource。对File类型进行封装。
+     - UrlResource。对URL的具体资源查找定位的实现类，内部委派URL进行具体的资源操作。
+     - InputStreamResource。将InputStream作为一种资源。
+     - 如果需自定义此接口，可以继承AbstractResoource抽象类。
+
+   - ResourceLoader：查找和定位资源的接口。
+
+     - 通过getResource(location)方法可以指定资源位置，定位到具体的资源实例。
+
+     - DefaultResourceLoader
+
+       - 先检查以classpath:前缀打头，如果是，尝试构造ClassPathResource类型资源并返回。
+
+       - 否则，尝试通过URL，如果没有抛出MalformedURLException则会构造UrlResource类型资源并返回。
+
+       - 否则，委派getResourceByPath(string)来定位，该方法默认构造ClassPathResource类型资源并返回。
+
+       - 该方法如果最终没有找到符合条件的资源，getResourceByPath()方法会构造一个实际上并不存在的资源并返回。
+
+       - 示例：
+
+         ```java
+         ResourceLoader resourceLoader = new DefaultResourceLoader();
+         Resource resource = resourceLoader.getResource("classpath:benas.xml");
+         File file = resource.getFile();
+         ```
+
+     - FileSystemResourceLoader：
+
+       - 继承自DefaultResourceLoader，并覆盖getResourceByPath(string)方法，使之以FileSystemResource类型返回。
+       - FileSystemXmlApplicationContext也覆盖了getResourceByPath(string)方法，使之以FileSystemResource类型返回。
+       
+     - ResourcePatternResolver：根据路径的匹配模式批量查找的ResourceLoader。扩展自ResourceLoader。
+     
+       - 引入了classpath*:前缀。
+       - PathMatchingResourcePatternResolver，支持单个查找资源，支持Ant风格的路径匹配模式（类似于**/*.suffix），支持classpath*:。
+         - 可以指定一个ResourceLoader，默认会构造一个DefaultResourceLoader。
+         - PathMatchingResourcePatternResolver内部会将匹配确定的资源路径委派给ResourceLoader来查找和定位资源。
