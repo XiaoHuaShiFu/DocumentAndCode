@@ -998,3 +998,164 @@
        - PathMatchingResourcePatternResolver，支持单个查找资源，支持Ant风格的路径匹配模式（类似于**/*.suffix），支持classpath*:。
          - 可以指定一个ResourceLoader，默认会构造一个DefaultResourceLoader。
          - PathMatchingResourcePatternResolver内部会将匹配确定的资源路径委派给ResourceLoader来查找和定位资源。
+     
+   - Resource和ResourceLoader类层次图
+   
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/Resource%E5%92%8CResourceLoader%E7%B1%BB%E5%B1%82%E6%AC%A1%E5%9B%BE.jpg?raw=true)
+   
+   - ApplicationContext与ResourceLoader
+   
+     - ApplicationContext继承了ResourcePatternResolver，也间接实现了ResourceLoader接口。可以把ApplicationContext看作一个ResourceLoader甚至ResourcePatternResolver。
+   
+     - AbstractApplicationContext继承了DefaultResourceLoader，它的getResource(String)方法直接调用DefaultResourceLoader的。还有ResourcePatternResolver的getResources(String)也调用此方法。AbstractApplicationContext内部的resourcePatternResolver就是PathMatchingResourcePatternResolver，它的ResourceLoader就是AbstractApplicationContext对象本身。
+   
+     - AbstractApplicationContext作为ResourceLoader和ResourcePatternResolver图
+   
+       ![](https://github.com/XiaoHuaShiFu/img/blob/master/AbstractApplicationContext%E4%BD%9C%E4%B8%BAResourceLoader%E5%92%8CResourcePatternResolver.jpg?raw=true)
+   
+     - 扮演ResourceLoader角色
+   
+       - ResourceLoader类型的注入
+   
+         - 使用构造方法注入或setter方法注入。（需要自己构造ResourceLoader实例）
+   
+         - 使用ResourceLoaderAware和ApplicationContextAware接口。（需要实现Aware接口）
+   
+         - 示例：
+   
+           ```java
+           private ResourceLoader resourceLoader;
+           @Override
+           public void setResourceLoader(ResourceLoader resourceLoader) {
+               this.resourceLoader = resourceLoader;	 	       System.out.println(this.resourceLoader.getResource("classpath:benas.xml"));
+           }
+           ```
+   
+     - Resource类型注入
+   
+       - 示例：
+   
+         ```java
+         private Resource resource;
+         public void setResource(Resource resource) {
+             this.resource = resource;
+         }
+         ```
+   
+         ```xml
+         <property name="resource" value="applicationContext.xml"/>
+         ```
+   
+       - ApplicationContext启动时，会通过ResourceEditorRegistrar来注册针对Resorce类型的PropertyEditor实现到容器中，这个PropertyEditor叫ResourceEditor。这样ApplicationContext就可以正确地识别Resource类型的依赖。
+   
+       - ResourceEditor是让ApplicationContext作为ResourceLoader去定位资源。
+   
+       - 如果对象依赖一组Resource，Spring提供了ResourceArrayPropertyEditor实现，只需要通过CustomEditorConfigurar告知容器即可。
+   
+2. 国际化信息支持（I18n MessageSource）
+
+   - Java SE的国际化支持
+
+     - Locate
+
+     - ResourceBundle：用来保存特定的某个Locale信息，管理一组信息序列，所有的信息序列有一个统一的一个basename，然后特定的Locale的信息，可以根据basename后追加的语言或者地区代码来区分。
+
+       - 示例：妻子红messages部分作ResourceBundle将加载资源的basename，其他语言或地区的资源在basename上追加Locale特定代码。
+
+         ```properties
+         messages.properties
+         messages_zh.properties
+         messages_zh_CN.properties
+         messages_en.properties
+         messages_en_US.properties
+         ```
+
+       - 每个资源文件中都有相同的键来标识具体资源条目，但每个资源相同键的内容根据Locale不同而不同。
+
+         ```properties
+         #messages_zh_CN.properties
+         menu.file=文件({0})
+         menu.edit=编辑
+         
+         #messages_en_US.properties
+         menu.file=File({0})
+         menu.edit=Edit
+         ```
+
+       - 可以通过ResourceBundle的getBundle(baseName, locale)方法获取不同Locale对象的ResourceBundle，然后根据资源的键获取相应的Locale的资源条目内容。
+
+         - 示例：可以指定多个同基名，不同Locate的properties文件，通过统一的方式访问。
+
+           ```java
+           ResourceBundle bundle = ResourceBundle.getBundle("spring", Locale.CHINA);
+           System.out.println(bundle.getString("ftp.user"));
+           ```
+
+   - MessageSource与ApplicationContext
+
+     - MessageSource：进一步抽象的国际化信息访问接口，传入Locate、资源的键和相应的参数就可以获取相应的信息。
+
+       - MessageSource接口：
+
+         ```java
+         public interface MessageSource {
+            //如果没有找到返回默认的defaultMessage
+            String getMessage(String code, Object[] args, String defaultMessage, Locale locale);
+         	//没有默认信息，没找到会抛出异常
+            String getMessage(String code, Object[] args, Locale locale) throws NoSuchMessageException;
+         	//使用MessageSourceResolvable对象对资源条目的键、信息参数等进行封装。
+            String getMessage(MessageSourceResolvable resolvable, Locale locale) throws NoSuchMessageException;
+         }
+         ```
+
+     - ApplicationContext实现了MessageSource接口，所以也是一个MessageSource。
+
+       - ApplicationContext默认委派容器里的名为messageSource的MessageSource接口实现来完成操作。如果找不到一个名字为MessageSource的实现，ApplicationContext内部会默认实例化一个不含任何内容的StaticMessageSource实例。
+
+       - 示例：
+
+         ```xml
+         <bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+             <property name="basenames">
+                 <list>
+                     <value>spring</value>
+                     <value>beans</value>
+                 </list>
+             </property>
+         </bean>
+         ```
+
+         ```java
+         MessageSource messageSource = (MessageSource) ctx.getBean("messageSource");
+         System.out.println(messageSource.getMessage("dep.name", new Object[] {"牛逼"}, null));
+         ```
+
+     - 可用的MessageSource实现
+
+       - StaticMessageSource：不用于生产。
+
+       - ResourceBundleMessageSource：基于标准的ResourceBundle实现，对AbstractMessageSource进行扩展，提供了对多个ResourceBundle的缓存以提高查询速度。对参数化和非参数化的信息处理进行了优化，对参数化的信息格式化的MessageFormat实例也进行了缓存。
+
+       - ReloadableResourceBundleMessageSource：基于标准的ResourceBundle实现。可通过cacheSeconds属性指定时间段，以定期刷新并检查底层properties资源文件是否有更变。可通过ResourceLoader来加载信息资源文件。使用ReloadableResourceBundleMessageSource要避免将信息资源文件放到classpath中，因为这样它就无法定期加载文件更变。
+
+       - 示例：
+
+         ```java
+         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+         messageSource.setBasename("beans");
+         System.out.println(messageSource.getMessage("dep.name", new Object[] {"牛逼"}, null));
+         ```
+
+       - 可以基础AbstractMessageSource自定义MessageSource。
+
+       - MessageSource类层次结构
+
+         ![](https://github.com/XiaoHuaShiFu/img/blob/master/MessageSource%E5%B1%82%E6%AC%A1%E7%BB%93%E6%9E%84.jpg?raw=true)
+
+     - MessageSourceAware和MessageSource注入
+
+       - setter或构造器。
+       - 实现MessageSourceAware，将ApplicationContext自身传递给此bean。
+
+3. 容器内部事件发布
+
