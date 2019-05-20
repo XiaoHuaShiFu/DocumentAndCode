@@ -1159,3 +1159,323 @@
 
 3. 容器内部事件发布
 
+   - 自定义事件发布类结构图：
+
+     - 主要是EventObject类（事件）和EventListener接口（监听器）。
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E8%87%AA%E5%AE%9A%E4%B9%89%E4%BA%8B%E4%BB%B6%E5%8F%91%E5%B8%83%E7%B1%BB%E7%BB%93%E6%9E%84%E5%9B%BE.jpg?raw=true)
+
+   - 自定义事件发布流程：
+
+     - 给出自定义事件类型：扩展EventObject类
+
+       ```java
+       public class LearningEvent extends EventObject {
+           private int time;
+           private String location;
+           private String msg;
+       
+           public LearningEvent(Object source) {
+               super(source);
+           }
+       
+           public LearningEvent(Object source, int time, String location, String msg) {
+               super(source);
+               this.time = time;
+               this.location = location;
+               this.msg = msg;
+           }
+       	//。。。getter setter方法
+       }
+       ```
+
+     - 定义针对自定义事件类的事件监听器接口：继承EventListner（此接口为标记接口）
+
+       ```java
+       public interface LearningEventListener extends EventListener {
+           void onLearning(LearningEvent event);
+       }
+       ```
+
+     - 实现针对自定义事件类的事件监听器接口：
+
+       ```java
+       public class SimpleLearningEventListener implements LearningEventListener{
+           @Override
+           public void onLearning(LearningEvent event) {
+               System.out.println(event.getSource());
+               System.out.println(event.getTime());
+               System.out.println(event.getLocation());
+               System.out.println(event.getMsg());
+               System.out.println(event.getClass());
+           }
+       }
+       ```
+
+     - 组合事件类和监听器，发布事件：
+
+       ```java
+       //接口
+       public interface EventPublisher {
+           void publishEvent(EventObject event);
+           void addEventListener(EventListener eventListener);
+           void removeEventListener(EventListener eventListener);
+           void removeAllListeners();
+       }
+       
+       //实现
+       public class LearningEventPublisher implements EventPublisher{
+           private List<LearningEventListener> listenerList = new ArrayList<>();
+       
+           @Override
+           public void publishEvent(EventObject event) {
+               List<LearningEventListener> copyListenerList = new ArrayList<>(listenerList);
+               for (LearningEventListener listener : copyListenerList) {
+                   listener.onLearning((LearningEvent) event);
+               }
+           }
+           @Override
+           public void addEventListener(EventListener eventListener) {
+               this.listenerList.add((LearningEventListener) eventListener);
+           }
+           @Override
+           public void removeEventListener(EventListener eventListener) {
+               if (listenerList.contains(eventListener)) {
+                   listenerList.remove(eventListener);
+               }
+           }
+           @Override
+           public void removeAllListeners() {
+               listenerList.clear();
+           }
+       }
+       ```
+
+     - 测试：
+
+       ```java
+       public class TestEvent {
+           public static void main(String[] args) {
+               EventPublisher publisher = new LearningEventPublisher();
+               publisher.addEventListener(new SimpleLearningEventListener());
+               publisher.addEventListener(new SimpleLearningEventListener());
+       
+               publisher.publishEvent(new LearningEvent("this", 30033, "主图书馆", "18号早上线性代数复习"));
+           }
+       }
+       ```
+
+     - 注意点：
+
+       - 具体时点上自定义事件的发布：为了避免事件处理期间事件监听器的注册或移除操作影响处理过程，需要对发布时点的监听器列表进行一个安全复制。
+       - 自定义事件监听器管理：Publisher类需要提供增加删除监听器的方法。
+
+   - Spring的容器内事件发布类结构分析
+
+     - 事件以ApplicationEvent形式发布，ApplicationListener类型的bean定义会被ApplicationContext容器自动识别，它们负责监听容器内发布的所有ApplicationEvent事件。
+   
+     - ApplicationEvent：继承自EventObject，是一个抽象类。
+     
+       - ContextCloseEvent：ApplicationContext容器再即将关闭时发布的事件类型。
+       - ContextRefreshedEvent：ApplicationContext容器在初始化或刷新的时候发布的事件类型。
+       - RequestHandleEvent：Web请求处理后发布的事件，有一子类ServletRequestHandledEvent提供特定于Java EE的Servlet事件。
+     
+     - ApplicationListener：继承自EventListener。ApplicationContext容器在启动时，会自动识别并加载EventListener类型的Bean定义，并一旦有事件发布，就会通知容器里的EventListener。
+     
+     - ApplicationContext：继承了ApplicationEventPublisher接口，提供了publishEvent(event)接口，充当事件发布的角色。
+     
+       - 把事件发布和监听器的注册转包给ApplicationEventMulticaster接口。此接口定义了具体事件监听器的注册管理及事件发布的方法。
+     
+       - AbstractApplicationEventMulticaster是一个ApplicationEventMulticaster的一个抽象实现，实现了事件监听器的管理功能。
+     
+       - SimpleApplicationEventMulticaster是AbstractApplicationEventMulticaster的一个实现，实现了事件发布的功能。默认使用SyncTaskExecutor进行事件的发布。
+     
+       - 容器启动时，会检查是否存在名字为applicationEventMulticaster的ApplicationEventMulticaster对象实例。有的化就使用提供的实现，没有则默认初始化一个SimpleApplicationEventMulticaster作为ApplicationEventMulticaster。
+     
+       - Spring容器内事件发布实现类图
+     
+         ![](https://github.com/XiaoHuaShiFu/img/blob/master/Spring%E5%AE%B9%E5%99%A8%E5%86%85%E4%BA%8B%E4%BB%B6%E5%8F%91%E5%B8%83%E5%AE%9E%E7%8E%B0%E7%B1%BB%E5%9B%BE.jpg?raw=true)
+     
+   - Spring容器内事件发布的使用流程：
+   
+     - Spring的ApplicationContext容器的事件发布机制，主要用于单一容器内的简单消息通知和处理，并不适合分布式、多进程、多容器之间的事件通知。
+   
+     - 为业务类注入ApplicationEventPublisher的事件发布支持：
+   
+       - ApplicationEventPublisherAware接口。
+       - 使用ApplicationContextAware接口。
+   
+     - 实现ApplicationEvent
+   
+       ```java
+       public class LearningEvent extends ApplicationEvent {
+       
+           private int time;
+           private String location;
+           private String msg;
+       
+           public LearningEvent(Object source) {
+               super(source);
+           }
+       
+           public LearningEvent(Object source, int time, String location, String msg) {
+               super(source);
+               this.time = time;
+               this.location = location;
+               this.msg = msg;
+           }
+       	//setter and getter
+       }
+       ```
+   
+     - 实现ApplicationListener
+   
+       ```java
+       public class SimpleLearningEventListener implements ApplicationListener<LearningEvent>{
+       
+           @Override
+           public void onApplicationEvent(LearningEvent event) {
+               System.out.println(event.getSource());
+               System.out.println(event.getTime());
+               System.out.println(event.getLocation());
+               System.out.println(event.getMsg());
+               System.out.println(event.getClass());
+           }
+       
+       }
+       ```
+   
+     - 实现ApplicationEventPublisherAware注入ApplicationEventPublisher：这样就不用自己实现事件发布逻辑了。
+   
+       ```java
+       public class LearningEventPublisher implements ApplicationEventPublisherAware {
+           private ApplicationEventPublisher eventPublisher;
+       
+           public void publishEvent(ApplicationEvent event) {
+               eventPublisher.publishEvent(event);
+           }
+       
+           @Override
+           public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+               this.eventPublisher = applicationEventPublisher;
+           }
+       }
+       ```
+   
+     - 注册到ApplicationContext容器：将Publisher和Listener注册到ApplicationContext容器。
+   
+       ```xml
+       <bean id="learningEventPublisher" class="com.springjiemi.event.LearningEventPublisher"/>
+       
+       <bean id="simpleLearningEventListener" class="com.springjiemi.event.SimpleLearningEventListener"/>
+       ```
+   
+4. 多配置模块加载的简化
+
+   - ApplicationContext加载多个配置文件
+   
+     - 以数组的方式
+   
+       ```java
+       ApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:benas.xml", "classpath:applicationContext.xml");
+       ```
+   
+     - 通配符
+   
+       ```java
+       ApplicationContext ctx = new ClassPathXmlApplicationContext("classpath*:*.xml");
+       ```
+   
+     - 使用MessengerService类指定配置文件所在路径
+   
+       ```java
+       ApplicationContext ctx = new ClassPathXmlApplicationContext("benas.xml", MessengerService.class);
+       ```
+
+# 6、Spring Ioc注入
+
+1. 注解的依赖注入
+
+   - 注入方式：
+
+     - 域
+     - 构造方法
+     - 方法定义
+
+   - 注入原理：遍历每个bean定义，通过反射检查每个bean定义对应的类上各种可能位置上的@Autowired，如果存在的话，就为其注入对象。
+
+     - 在BeanPostProcessor实例化并bean定义的过程中，通过AutowiredAnnotationBeanPostProcessor检查是否有@Autowired标注的依赖需要注入。
+
+   - @Qualifier实际上是byName自动绑定的注解版
+
+     - 示例：
+
+       ```java
+       @Autowired
+       @Qualifier("dep")
+       private Dep dep;
+       
+       @Autowired
+       public void setDep(@Qualifier("dep") Dep dep) {
+           this.dep = dep;
+       }
+       ```
+
+   - 使用JSR250标注依赖注入关系
+
+     - 需要有CommonAnnotationBeanPostProcessor实例才能发挥作用。
+
+     - @Resource：根据给定的名字寻找对应的bean实例。作用域同@Autowired。
+
+       ```java
+       @javax.annotation.Resource(name = "dep")
+       private Dep dep;
+       ```
+
+     - @PostConstruct和@PreDestroy：与InitializingBean和DisposableBean接口和init-method和destroy-method其类似作用。
+
+       - 示例：
+
+         ```java
+         @javax.annotation.PostConstruct
+         public void postConstruct() {
+             System.out.println("dasdasdasdasdasdasdsa");
+         }
+         
+         @javax.annotation.PreDestroy
+         public void preDestroy() {
+             System.out.println("111111111111111111111111111");
+         }
+         ```
+
+   - 自动注册基于注解注入的几个BeanPostProcessor：CommonAnnotationBeanPostProcessor、AutowiredAnnotationBeanPostProcessor、PersistenceAnnotationBeanPostProcessor和RequiredAnnotationBeanPostProcessor。
+
+     ```xml
+     <context:annotation-config/>
+     ```
+
+   - classpath-scanning：从base package开始扫描，提取对应的BeanDefinition，把构建完的BeanDefinition注册到容器。
+
+     - 配置：
+
+       ```xml
+       <context:component-scan base-package="com.springjiemi"/>
+       ```
+
+     - component-scan默认扫描带@Component的类。
+
+     - 改变beanName默认生成规则：自己自定义实现BeanNameGenerator，指定name-generator来改变beanName生成规则。
+
+       ```xml
+       <context:component-scan base-package="com.springjiemi" name-generator=""/>
+       ```
+
+     - 排除或包含某些bean：include-filter和exclude-filter，可以使用的type类型有annotation、assignable、regex、aspectj。
+
+       - 示例：排除带@Component的bean实例。
+
+         ```xml
+         <context:component-scan base-package="com.springjiemi.service">
+             <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Component"/>
+         </context:component-scan>
+         ```
