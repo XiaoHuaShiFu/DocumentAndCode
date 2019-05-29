@@ -111,4 +111,87 @@
    
    - 常见Pointcut
    
-     - 
+     - NameMatchMethodPointcut：根据方法名进行匹配，可以使用*作为通配符。
+     
+       ```java
+       NameMatchMethodPointcut pointcut = new NameMatchMethodPointcut();
+       pointcut.setMappedName("*Resource");
+       pointcut.setMappedName("setResource");
+       pointcut.matches(UserVo.class.getMethod("getResource", null), UserVo.class);
+       ```
+     
+     - JdkRegexpMethodPointcut和Perl5RegexpMethodPointcut：通过pattern指定正则表达式的匹配模式。
+     
+       - 使用正则表达式来匹配Joinpoint所处的方法时，正则表达式的匹配模式必须匹配整个方法签名（Method Signature），如com.springjiemi.dao.UserDao
+     
+       - 示例：
+     
+         ```java
+         JdkRegexpMethodPointcut pointcut = new JdkRegexpMethodPointcut();
+         pointcut.setPattern(".*Resource.*");
+         System.out.println(pointcut.matches(UserVo.class.getMethod("setResource", Resource.class), UserVo.class));
+         ```
+     
+     - AnnotationMatchingPointcut：通过指定注解进行类级和方法级别的限定。
+     
+       ```java
+       //只有同时标注了ClassLevelAnnotation和MethodLevelAnnotation的方法才会被匹配
+               AnnotationMatchingPointcut pointcut = new AnnotationMatchingPointcut(ClassLevelAnnotation.class, MethodLevelAnnotation.class);
+       
+       AnnotationMatchingPointcut pointcut = AnnotationMatchingPointcut.forMethodAnnotation(MethodLevelAnnotation.class);
+       MethodMatcher methodMatcher = pointcut.getMethodMatcher();
+       methodMatcher.matches(UserVo.class.getMethod("setResource", Resource.class), UserVo.class);
+       ```
+     
+     - CompossablePointcut：支持Point之间的并和交集运算。
+     
+       ```java
+       AnnotationMatchingPointcut pointcut1 = AnnotationMatchingPointcut.forClassAnnotation(ClassLevelAnnotation.class);
+       ClassFilter filter1 = pointcut1.getClassFilter();
+       AnnotationMatchingPointcut pointcut2 = AnnotationMatchingPointcut.forMethodAnnotation(MethodLevelAnnotation.class);
+       MethodMatcher filter2 = pointcut2.getMethodMatcher();
+       
+       //使用CompassablePointcut进行逻辑运算
+       ComposablePointcut pointcut3 = new ComposablePointcut(pointcut1);
+       ComposablePointcut pointcut4 = new ComposablePointcut(pointcut2);
+       ComposablePointcut union = pointcut3.intersection(pointcut4);
+       System.out.println(union.getMethodMatcher().matches(UserVo.class.getMethod("setResource", Resource.class), UserVo.class));
+       
+       //使用Pointcuts工具类进行逻辑运算
+       Pointcut pointcut = Pointcuts.intersection(pointcut1, pointcut2);
+       ```
+     
+     - ControlFloPointcut：匹配程序调用流程，如指定某个类调用某个方法时才对其方法进行拦截。需要在运行期间检查程序的调用栈，且每次方法调用都要检查，性能较差。
+     
+       ```java
+       //只匹配EarthVo里的getUserName方法
+       ControlFlowPointcut pointcut = new ControlFlowPointcut(EarthVo.class, "getUserName");
+       //匹配EarthVo里的所有方法
+       ControlFlowPointcut pointcut = new ControlFlowPointcut(EarthVo.class);
+       
+       Advice advice = ...;
+       UserVo userVo = ...;
+       UserVo userVoToUse = weaver.weave(advice).to(userVo).accordingto(pointcut);
+       
+       //不会触发advice
+       userVoToUse.getName();
+       
+       //会触发advice
+       EarthVo earthVo = ...;
+       earthVo.setUserVo(userVoToUse);
+       earthVo.getUserName();
+       ```
+     
+     - 扩展Pointcut
+     
+       - 自定义StaticMethodMatcherPointcut：通过实现两个参数的matchers方法即可。
+       - 自定义DynamicMethodMatcherPointcut：通过实现三个参数的matchers方法即可。
+     
+   - IoC容器中的Pointcut：通过Spring AOP的过程中，不会直接将某个Pointcut注册到容器，然后公开给容器中的对象使用。
+   
+3. Spring AOP中的Advice
+
+   - Advice分为per-class类型（Advice自身实例可共享）和per-instance类型（Advice自身实例不可共享）。
+
+     
+
