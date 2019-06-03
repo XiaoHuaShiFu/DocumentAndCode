@@ -893,7 +893,7 @@
    
      - InitializingBean：对象生命周期标识接口。
      
-       - 在进行前置处理之后，会检查是否实现了InitializingBean接口，如果实现了会第哦啊用其afterPropertiesSet()方法进一步处理实例。
+       - 在进行前置处理之后，会检查是否实现了InitializingBean接口，如果实现了会用其afterPropertiesSet()方法进一步处理实例。
      
        - 可以使用\<bean\>的init-method属性对系统中业务对象的自定义初始化操作可以以任何方式命名。
      

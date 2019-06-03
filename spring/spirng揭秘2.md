@@ -487,8 +487,614 @@
 
        - AopProxyFactory：根据传入的AdviseddSupport实例提供相关信息，来决定生成什么类型的AopProxy。默认是DefaultAopProxyFactory。
 
-         ```
-         
+         ```java
+         public interface AopProxyFactory {
+         	AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException;
+         }
          ```
 
+         ```java
+         public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
+            if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
+               //..
+               return new ObjenesisCglibAopProxy(config);
+            }
+            else {
+               return new JdkDynamicAopProxy(config);
+            }
+         }
+         ```
+
+       - AdvisedSupport是一个生成代理对象所需要的信息的载体：分为ProxyConfig记载生成代理对象的控制信息；和Advised生成代理对象所需的必要信息，如相关目标类、Advice、Advisor等。
+
+         ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/AdvisedSupport%E7%B1%BB%E5%B1%82%E6%AC%A1%E5%9B%BE.jpg?raw=true)
+
+         - ProxyConfig有5个信息：
+           - proxyTargetClass：true会使用CGLIB对目标对象进行代理。
+           - optimize：是否进一步优化。
+           - opaque：默认fasle，即代理对象可以强制转型成Advised。
+           - exposeProxy：将当前对象绑定到ThreadLocal，如果目标对象需要访问当前的代理对象，可以通过AopContexxt.currentProxy()获得。默认false。
+           - frozen：一旦对代理对象各项信息配置完成，则不允许修改。默认为false。
+
+     - ProxyFactory继承层次类图：集AopProxy和AdvisedSupport于一身，可以通过ProxyFactory设置生成代理对象所需要的相关信息（AdvisedSupport），也可以通过ProxyFactory取得最终生成的代理对象（AopProxy）。
+
+     - ProxyFactory的兄弟：
+
+       ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/ProxyFactory%E7%9A%84%E5%85%84%E5%BC%9F.jpg?raw=true)
+
+   - 容器中的织入器——ProxyFactoryBean
+
+     - PorxyFactoryBean的额外属性：
+     
+       - proxyInterfaces：代理的目标接口。ProxyFactoryBean有一个autodetectInterfaces属性，默认为true，即默认ProxyFactoryBean会自动检测目标对象所实现的接口类型并进行代理。
+       - interceptorNames：可以指定多个要织入到目标对象的Adcice、拦截器以及Advisor。可以使用通配符*让ProxyFactoryBean在容器中搜索符合条件的所以Advisor并应用到目标对象。
+       - singleton：指定getObject调用是否每次都返回同一个代理对象，还是返回一个新的。默认true。
+     
+     - 示例1：普通织入
+     
+       ```xml
+       <bean id="proxy" class="org.springframework.aop.framework.ProxyFactoryBean">
+           <property name="target" ref="earthVo"/>
+           <property name="interceptorNames">
+               <list>
+                   <value>introduction*</value>
+               </list>
+           </property>
+       </bean>
+       
+       <bean id="introductionAdviceAspect" class="com.springjiemi.aspect.IntroductionAdviceAspect"/>
+       ```
+     
+     - 示例2：Introduction织入，目标bean、ProxyFactoryBean的bean、IntroductionInterceptor的bean都要声明为prototype。并且使用name来指定目标对象。
+     
+       ```xml
+       <bean scope="prototype" id="interceptor" class="org.springframework.aop.support.DelegatingIntroductionInterceptor">
+           <constructor-arg>
+               <bean class="com.springjiemi.vo.Target"/>
+           </constructor-arg>
+       </bean>
+       
+       <bean id="proxy" class="org.springframework.aop.framework.ProxyFactoryBean" scope="prototype">
+           <property name="target" name="earthVo"/>
+           <property name="proxyInterfaces">
+               <list>
+                   <value>com.springjiemi.vo.IEarthVo</value>
+                   <value>com.springjiemi.vo.ITarget</value>
+               </list>
+           </property>
+           <property name="interceptorNames">
+               <list>
+                   <value>interceptor</value>
+               </list>
+           </property>
+       </bean>
+       ```
+     
+     - 示例3：使用DelegatePerTargetObjectIntroductionInterceptor就不用指定score为prototype了
+     
+       ```xml
+       <bean id="interceptor" class="org.springframework.aop.support.DelegatePerTargetObjectIntroductionInterceptor">
+           <constructor-arg index="0" value="com.springjiemi.vo.Target"/>
+           <constructor-arg index="1" value="com.springjiemi.vo.ITarget"/>
+       </bean>
+       
+       <bean id="proxy" class="org.springframework.aop.framework.ProxyFactoryBean" scope="prototype">
+           <property name="targetName" value="earthVo"/>
+           <property name="proxyInterfaces">
+               <list>
+                   <value>com.springjiemi.vo.IEarthVo</value>
+                   <value>com.springjiemi.vo.ITarget</value>
+               </list>
+           </property>
+           <property name="interceptorNames">
+               <list>
+                   <value>interceptor</value>
+               </list>
+           </property>
+       </bean>
+       ```
+     
+   - 自动代理
+   
+     - 通过BeanPostProcessor在遍历容器中所有bean的基础上，当符合拦截条件时，生成代理对象并返回。
+   
+     - BeanNameAutoProxyCreator：通过指定容器内的目标对象对应的beanName，将指定的一组拦截器应用到这些目标对象上。
+   
+       - 示例：通过beanNames指定目标对象，通过interceptorNames指定目标对象的拦截器、Advice和Advisor。beanNames可以使用*通配符。
+   
+         ```xml
+         <bean class="org.springframework.aop.framework.autoproxy.BeanNameAutoProxyCreator">
+             <property name="beanNames" value="earthVo"/>
+             <property name="interceptorNames" value="introductionAdviceAspect"/>
+         </bean>
          
+         <bean id="introductionAdviceAspect" class="com.springjiemi.aspect.IntroductionAdviceAspect"/>
+         ```
+   
+     - DefaultAdvisorAutoProxyCreator：更加自动化，需要在容器中配置DefaultAdvisorAutoProxyCreator Bean。
+   
+       - 只需要指定Advisor即可自动装配（因为Advisor含有Pointcut信息和Advice）。
+   
+     - 扩展AutoProxyCreator：可以扩展AbstractAutoProxyCreator或者AbstractAdvisorAutoProxyCreator。之类只需提供规则匹配一类的逻辑。
+   
+       - Spring AOP的所有AutoProxyCreator都是InstantiationAwareBeanPostProcessor，当Spring IoC容器检测到有InstantiationAwareBeanPostProcessor类型的BeanPostProcessor时，会直接通过InstantiationAwareBeanPostProcessor中的逻辑构造对象实例并返回，也就是造成‘"短路"。
+   
+     - AutoProxyCreator实现结构类图
+   
+       ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/AutoProxyCreator%E5%AE%9E%E7%8E%B0%E7%BB%93%E6%9E%84%E7%B1%BB%E5%9B%BE.jpg?raw=true)
+   
+6. TragetSource：Spring AOP通过调用TargetSource来获取具体的目标对象，然后再调用从TargetSource获取的目标对象上面的方法。
+
+   ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/TargetSource%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg?raw=true)
+
+   - 每次方法调用都会触发TargetSource的getTarget()方法，从而可以控制每次方法调用得到的具体目标对象实例。
+
+     - 提供目标对象池，每次都从池中获取目标对象。
+     - 按照某种规则返回目标对象实例。
+
+   - TargetSource实现类
+
+     - SingletonTargetSource：每次都会返回同一个目标对象实例的引用。
+
+     - PrototypeTargetSource：每次都会返回新的目标对象实例。
+
+       - 目标对象bean必须为prototype。
+       - 通过targetBeanName属性指定目标对象的bean定义名称。
+
+       - 示例：
+
+         ```xml
+         <bean id="earthVo" class="com.springjiemi.vo.EarthVo" scope="prototype"/>
+         
+         <bean id="earthVo0" class="org.springframework.aop.framework.ProxyFactoryBean">
+             <property name="targetSource" ref="prototypeTargetSource"/>
+             <property name="interceptorNames" value="beforeAdviceAspect"/>
+         </bean>
+         
+         <bean id="prototypeTargetSource" class="org.springframework.aop.target.PrototypeTargetSource">
+             <property name="targetBeanName" value="earthVo"/>
+         </bean>
+         ```
+
+     - HotSwappableTargetSource：可以在程序运行时，动态地替换目标对象类。通过HotSwappableTargetSource的swap方法。
+
+       - 示例：
+
+         ```java
+         IEarthVo earthVo = (IEarthVo) ctx.getBean("earthVo0");
+         System.out.println(earthVo); //com.springjiemi.vo.EarthVo@2df4dede
+         
+         HotSwappableTargetSource hotSwappableTargetSource =
+         (HotSwappableTargetSource) ctx.getBean("hotSwappableTargetSource");
+         hotSwappableTargetSource.swap(new EarthVo());
+         System.out.println(ctx.getBean("earthVo0")); //com.springjiemi.vo.EarthVo@2753d864
+         ```
+
+       - 可以使用ThrowsAdcice对数据库异常进行捕获，捕获到之后调用swap方法切换新的数据源。
+
+     - CommonsPoolTargetSource：类似连接池，从池中选择一个目标对象并返回。可以设置对象池的大小、初始化对象等。
+
+     - ThreadLocalTargetSource：为不同的线程调用提供不同的目标对象。内部是对ThreadLocal进行了封装。
+
+   - 自定义TargetSource
+
+     ```java
+     public interface TargetSource extends TargetClassAware {
+     	//返回目标对象类型
+        Class<?> getTargetClass();
+     	//是否返回同一个目标对象实例
+        boolean isStatic();
+     	//返回目标对象
+        Object getTarget() throws Exception;
+     	//如果isStatic返回fasle，会执行此方法释放目标对象
+        void releaseTarget(Object target) throws Exception;
+     }
+     ```
+
+# 10、Spring AOP二世
+
+1. 使用形式
+
+   - 示例：
+   
+     ```java
+     @Aspect
+     @Component
+     public class TestAspect {
+     
+         @Pointcut(value = "execution(* com.xuexi.pojo.IUser.login(..)) && args(username, password)")
+         public void pointcut(String username, String password) {}
+     
+         @Before(value = "pointcut(username, password))")
+         public void beforeAspect(String username, String password) throws Throwable {
+             System.out.println("before");
+             System.out.println(username);
+             System.out.println(password);
+         }
+     
+     }
+     ```
+   
+   - 配置：AnnotationAwareAspectJAutoProxyCreator会自动搜集IoC容器中注册的Aspect，并应用到Pointcut定义的各个目标对象上。
+   
+     ```xml
+     <!-- 简化版 -->
+     <!-- 和直接声明AnnotationAwareAspectJAutoProxyCreator一样 -->
+     <aop:aspectj-autoproxy/>
+     
+     <!-- 直接声明AnnotationAwareAspectJAutoProxyCreator -->
+     <bean class="org.springframework.aop.aspectj.annotation.AnnotationAwareAspectJAutoProxyCreator">
+     </bean>
+     ```
+   
+   - @AspectJ形式的Pointcut
+   
+     ```java
+     //pointcut_expression
+     @Pointcut(value = "execution(* com.xuexi.pojo.IUser.login(..)) && args(username, password)") 
+     //pointcut_signature
+     public void pointcut(String username, String password) {}
+     ```
+   
+     - @AspectJ形式Pointcut表达式的标识符
+   
+       - execution：匹配拥有指定方法前面的Joinpoint
+   
+         - 格式：其中方法的返回类型、方法名及参数部分的匹配模式是必须的
+   
+           ```java
+           execution(modifiiers-pattern? ret-type-pattern declaring-type-pattern? name-pattern(param-pattern) throws-pattern?)
+           ```
+   
+         - 可以使用*匹配任何部分，匹配相邻的多个字符。
+   
+         - ..可以在declaring-type-pattern和方法参数位置使用。
+   
+           ```java
+           //指定pojo包下的所有类型，参数部分指定由0-n个参数
+           @Pointcut(value = "execution(* com.xuexi.pojo.*.login(..)) && args(username, password)")
+           //指定pojo包下的所有类型，及下层包下的所有类型
+           @Pointcut(value = "execution(* com.xuexi.pojo..*.login(..)) && args(username, password)")
+           ```
+   
+       - within：只接收类型声明，会匹配指定类型下的所有Joinpoint。
+   
+         - 示例：
+   
+           ```java
+           //匹配pojo包下的所有类型的方法基本Joinpoint
+           @Pointcut("within(com.xuexi.pojo.*) && args(username, password)")
+           public void pointcut0(String username, String password) {}
+           ```
+   
+       - this和target：this指目标对象的代理对象，target指目标对象。
+   
+         - 示例：
+   
+           ```java
+           //匹配代理对象为IUser的
+           @Pointcut("this(com.xuexi.pojo.IUser) && args(username, password)")
+           public void pointcut1(String username, String password) {}
+           ```
+   
+         - 对于Introduction，代理对象所实现的接口数量通常比目标对象多，可以使用this和target进一步限定匹配规则。
+   
+           ```java
+           this(IntroductionInterface) && target(TargetObjectType)
+           ```
+   
+       - args：捕捉拥有指定参数类型、指定参数数量的方法级Joinpoint。
+   
+         - args标识符会在运行期间动态检查参数类型，也就是
+   
+           ```java
+           //只要传入的是User类型的实例，那么也可以匹配到
+           login(Object user);
+           
+           //而execution(* *(User))这样静态的Pointcut则无法匹配到
+           ```
+   
+       - @within：如果@within指定了某种类型的注解，那么对象标注了该类型的注解，使用了@within标识符的Pointcut表达式将匹配该对象内的所有Joinpoint。
+   
+         - 示例：
+   
+           ```java
+           @Pointcut("@within(com.xuexi.annotation.TestAnnotation) && args(username, password)")
+           public void pointcut2(String username, String password) {}
+           ```
+   
+           ```java
+           @Retention(RetentionPolicy.RUNTIME)
+           @Target({ElementType.METHOD, ElementType.TYPE})
+           public @interface TestAnnotation {
+           }
+           ```
+   
+           ```java
+           @Component
+           @TestAnnotation
+           public class Student {
+               public String login(String username, String password) {
+                   return "login success";
+               }
+           }
+           ```
+   
+       - @target：如果目标对象拥有@target标识符指定的注解类型，那么目标对象内部所有Joinpoint将被匹配。@within属于
+   
+       - @args：使用@args标识符的Pointcut会尝试检查当前方法级的Joinpoint的方法参数类型，如果该次传入的参数类型拥有@args所指定的注解，当前Joinpoint将被匹配。
+   
+         - 示例：
+   
+           ```java
+           @Component
+           public class Student {
+               public String login(User user) {
+                   return "login success";
+               }
+           }
+           ```
+   
+           ```java
+           @Pointcut("@args(com.xuexi.annotation.TestAnnotation)")
+           public void pointcut3() {}
+           ```
+   
+         - @args会对每次方法执行动态检查，只要参数类型标注有@args指定的注解类型，就会匹配。
+   
+       - @annotation：检查系统中所有对象的所有方法级别的Joinpoint，如果由@annotation标志符所指定的类型，那么将被匹配。
+   
+         - 示例：
+   
+           ```java
+           @Pointcut("@annotation(com.xuexi.annotation.TestAnnotation)")
+           public void pointcut4() {}
+           ```
+   
+           ```java
+           @TestAnnotation
+           public String login() {
+               return "login success";
+           }
+           ```
+   
+         - 可以用于事务控制等。
+   
+     - @AspectJ形式的Pointcut在Spring AOP中的真实面目：@AspectJ形式声明的所有Pointcut表达式，在Spring AOP内部都会解析转换成具体的Pointcut对象。
+   
+       ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/AspectJ%20Pointcut%20%E6%89%A9%E5%B1%95%E7%9A%84%E7%B1%BB%E5%9B%BE.jpg?raw=true)
+   
+       - AspectJExpressionPointcut代表Spring AOP中面向AspectJ的Pointcut具体实现。
+       - 通过AspectJProxyFactory或AnnotationAwareAspectJAutoProxyCreator通过反射获取一个Aspect中的@Pointcut定义的AspectJ形式的Pointcut定义之后，Spring AOP框架内会构造一个对于的AspectJExpressionPointcut对象实例。该实例持有Pointcut表达式。
+       - AspectJExpressionPointcut的解析工资会委托AspectJ类库中的PointcutParser来解析Pointcut表达式（返回一个PointcutExpression对象），然后AspectJExpressionPointcut这个对象进行处理。
+   
+   - @AspectJ形式的Advice
+   
+     - 用于Advice定义方法的注解包括：
+   
+       - @Before
+       - @AfterReturning
+       - @AfterThrowing
+       - @After：finally
+       - @Around
+       - @DeclareParents：用于标注Introduction类型的Advice，标注的对象是域。
+   
+     - 访问Joinpoint出的方法参数
+   
+       - 借助Joinpoint类型，将Advice方法中的第一个参数声明为Joinpoint类型。
+   
+         - 示例：
+   
+           ```java
+           @Before(value = "pointcut4())" )
+           public void beforeAspect1(JoinPoint joinPoint) throws Throwable {
+               System.out.println(Arrays.toString(joinPoint.getArgs()));
+               System.out.println(joinPoint.getThis());
+               System.out.println(joinPoint.getStaticPart());
+               System.out.println(joinPoint.getSignature());
+               System.out.println(joinPoint.getClass());
+               System.out.println(joinPoint.getKind());
+               System.out.println(joinPoint.getSourceLocation());
+               System.out.println(joinPoint.getTarget());
+           }
+           ```
+   
+       - 通过args标志符绑定：接受某个参数模名称，将这个参数名称对应的参数值绑定到Advice方法的调用。
+   
+         - 示例：
+   
+           ```java
+           @Before(value = "pointcut(username, password))" )
+           public void beforeAspect(String username, String password) throws Throwable {
+               System.out.println("before");
+               System.out.println(username);
+               System.out.println(password);
+           }
+           ```
+   
+           ```java
+           @Pointcut(value = "execution(* com.xuexi.pojo..*.login(..)) && args(username, password)")
+           public void pointcut(String username, String password) {}
+           ```
+   
+         - args指定的参数名称必须于Advice定义所在方法的参数名称相同。
+   
+         - 除了execution标识符不会直接指定对象类型外，其他的都会指定对象类型，如果它们指定的是参数名称，那么作用与args是一样的。
+   
+           ```java
+           @Before(value = "execution(* com.xuexi.pojo..*.login(..)) && args(username, password) && this(user)")
+           public void beforeAspect(String username, String password, IUser user) throws Throwable {
+               System.out.println(user);
+               System.out.println("before");
+               System.out.println(username);
+               System.out.println(password);
+           }
+           ```
+   
+       - After Throwing Advice
+   
+         - 示例：
+   
+           ```java
+           //throwing参数指定异常类型
+           @AfterThrowing(pointcut = "pointcut(username, password)", throwing = "e")
+           public void afterThrowing(String username, String password, RuntimeException e) throws Throwable {
+               System.out.println("afterThrowing");
+               e.printStackTrace();
+           }
+           ```
+   
+       - AfterReturning
+   
+         - 示例：
+   
+           ```java
+           //returning指定返回值
+           @AfterReturning(pointcut = "pointcut(username, password)", returning = "ret")
+           public void afterThrowing(String username, String password, String ret) throws Throwable {
+               System.out.println(ret + "this is reuslt");
+           }
+           ```
+   
+       - After (Finally) Advice：不管如何，都会触发After Advice，适合用于资源释放。
+   
+       - Around Advice：第一个参数类型必须是ProceedingJoinPoint类型
+   
+         - 示例：
+   
+           ```java
+           @Around(value = "pointcut(username, password)")
+           public Object around(ProceedingJoinPoint joinPoint, String username, String password) throws Throwable {
+               System.out.println("around" + "this is reuslt");
+               //调用目标方法函数
+               Object result = joinPoint.proceed(new Object[] {username, password});
+               System.out.println(result + " this is result");
+               //修改目标方法的返回值
+               return "login false";
+           }
+           ```
+   
+       - Introduction：在Aspect中声明一个示例变量，它的类型是新增加的接口类型， 然后通过@DeclareParents对其标注，指定新接口的实现类和要加到的目标对象。
+   
+         - 示例：
+   
+           ```java
+           @DeclareParents(
+                   value = "com.xuexi.pojo.*",
+                   defaultImpl = HomeWork.class
+           )
+           public IHomeWork homeWork;
+           ```
+   
+           ```java
+           IStudent student = (IStudent) ctx.getBean("student");
+           ((IHomeWork)student).doHomeWork();
+           ```
+   
+         - 可以使用*通配符。
+   
+   - @AspectJ的更多话题
+   
+     - Advice的执行顺序
+   
+       - 在同一个Aspect内默认按声明顺序。
+   
+       - 在不同Aspect内可以通过实现Ordered接口指定执行顺序，值越小优先级越高。
+   
+       - 示例：
+   
+         ```java
+         @Aspect
+         @Component
+         public class TestAspect implements Ordered{
+         	//。。。
+             @Override
+             public int getOrder() {
+                 return 1;
+             }
+         }
+         ```
+   
+     - Aspect的实例化模式：由三种模式singleton、perthis、pertarget
+   
+       - perthis：为每个代理对象实例化相应的Aspect实例。
+   
+       - pertarget：为每个目标对象实例化相应的Aspect实例。
+   
+       - 示例：其中User的@Scope要声明为prototype
+   
+         ```java
+         @Aspect("perthis(execution(* com.xuexi.pojo.User.login(..)))")
+         @Component
+         @Scope(value = "prototype")
+         public class UserAspect {
+         
+             @Pointcut(value = "execution(* com.xuexi.pojo.User.login(..))")
+             public void pointcut() {}
+         
+             @Before("pointcut()")
+             public void beforeAspect() throws Throwable {
+                 System.out.println("this is user aspect");
+             }
+         
+         }
+         ```
+   
+2. 基于Schema的AOP
+
+   - 略
+
+# 11、AOP应用案例
+
+1. 异常处理
+
+   - Java异常处理
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/Java%E5%BC%82%E5%B8%B8%E5%B1%82%E6%AC%A1%E4%BD%93%E7%B3%BB%E5%9B%BE.jpg?raw=true)
+
+     - unchecked exception称之为fault，checked exception称之为contingency。fault barrier处理的是fault的情况，也就是unchecked exception。
+     - Fault Barrier
+       - unchecked exception能做的事情很少，通常是记录日志、通知相应人员。
+       - 可以分析unchecked exception 信息，通过邮件通过在相关人员。
+
+2. 安全检查：可以通过添加拦截器（@Around）进行安全检查。
+
+   - 有Spring Security框架。
+
+3. 缓存：透明的添加缓存
+
+   - 有EhCache、JBossCache等。
+   - Spring Modules提供了现有Caching产品的集成，可以通过外部声明的方式为系统中的Joinpoint添加Caching。
+
+# 12、Spring AOP扩展
+
+1. 公开当前调用的代理对象
+
+   - 一旦目标对象中的原始方法直接调用自身方法时，就会出现无法为调用的自身方法织入切面的情况。
+
+     - 出现原因：Spring AOP的代理机制。
+
+   - 解决方法：为目标对象注入依赖对象的代理对象，来解决问题。
+
+     - Spring AOP提供了AopContext来公开当前目标对象的代理对象，只要在目标对象中使用AopContext.currentProxy()就可以获取到当前目标对象的代理对象。
+
+     - 示例：
+
+       ```java
+       public String login(String username, String password) {
+           IUser iUser = (IUser) AopContext.currentProxy();
+           iUser.getUsername();
+           return username + password;
+       }
+       ```
+
+     - 注入的方式还有：
+
+       - 在目标对象中声明一个实例变量，然后通过构造方法注入或setter方法将AopContext.currentProxy()注入。
+       - 在目标对象中声明一个getThis()方法，然后return AopContext.currentProxy()。
+       - 声明一个Wrapper类，在Wrapper类中声明getProxy()方法，然后return AopContext.currentProxy()。可以解耦目标对象和Spring API，也可以通过Wrapper的Utils类。
+       - 为目标对象声明统一接口定义，然后通过BeanPostProcessor处理这些接口的实现类，将实现类的某个获取当前对象的代理对象的方法逻辑覆盖掉。
+
+# 13、统一数据访问异常层次结构
+
+1. 
