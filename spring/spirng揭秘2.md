@@ -1097,4 +1097,154 @@
 
 # 13、统一数据访问异常层次结构
 
-1. 
+1. DAO模式的背景
+
+   - DAO（Data Access Object，数据访问对象）
+   - RDBMS（关系数据库）
+   - LDAP（Lightweight Directory Access Protocol，轻量级目录访问协议）
+
+2. 略
+
+3. 略
+
+4. Spring异常体系
+
+   - 以DataAccessException为顶层接口，再根据职能划分不同的异常子类型。
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/Spring%E5%BC%82%E5%B8%B8%E5%B1%82%E6%AC%A1%E4%BD%93%E7%B3%BB%E7%AE%80%E5%9B%BE.jpg?raw=true)
+
+   - CleanupFailureDataAccessException：当完成数据访问操作，对资源的清除却失败时，抛出该异常。如关闭数据库连接时出现SQLException。
+
+   - DataAccessResourceFailureException：在无法访问相应的数据资源时抛出。如数据库服务器挂了。
+
+   - DataSourceLookupFailureException：尝试对JNDI（Java Naming and Directory Interface，Java命名和目录接口）服务或其他位置上的DataSource进行查找，却查找失败时抛出。
+
+   - ConcurrencyFailureException：进行并发数据访问操作失败时抛出。如无法获得相应的数据库锁，或乐观锁更新冲突时。
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/ConcurrencyFailureException%E7%9B%B8%E5%85%B3%E5%B1%82%E6%AC%A1%E5%85%B3%E7%B3%BB%E5%9B%BE.jpg?raw=true)
+
+     - OptimisticLockingFailureException乐观锁冲突。
+     - PesimisticLockingFailureException悲观锁冲突。
+     - 等。。。
+
+   - InvalidDataAccessApiUsageException：以错误的方式，使用了特定的数据访问API。如应该返回单行结果，却返回多行结果。
+
+   - InvalidDataAccessResourceUsageException：以错误的方式访问数据资源。如错误的SQL。
+
+     - 基于JDBC的数据访问会抛出其子类BadSqlGrammarException。
+     - 基于Hibernate的数据访问会抛出HibernateQueryException。
+
+   - DataRetrievalFailureException：在要获取预期数据却失败时。
+
+   - PermissionDeniedDataAccessException：访问某些数据，却没有权限时。
+
+   - DataIntegrityViolationException：数据一致性冲突。
+
+     - 可以catch后再尝试新的更新操作。
+
+   - UncategorizedDataAccessException：其他类型的异常。可以扩展。
+
+# 14、JDBC API
+
+1. 基于Template的JDBC使用方式
+
+   - 以JdbcTemplate为顶层抽象。
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/JdbcTemplate%E7%BB%A7%E6%89%BF%E5%B1%82%E6%AC%A1.jpg?raw=true)
+
+     - 以统一格式和规范使用JDBC API。
+
+     - 对SQLException的异常进行统一转移，纳入Spring自身的异常体系。
+
+     - Callback与模板方法的关系可以看作是服务与被服务的关系，Callback做事，模板方法提供资源。
+
+     - JdbcTemplate继承层次
+
+       - JdbcOperations接口定义了JdbcTemplate可以使用的JDBC操作集合。
+
+       - JdbcTemplate的直接父类是JdbcAccessor，为JdbcTemplate提供一些公用的属性。
+
+         - DataSource
+         - SQLExceptionTranslator：JdbcTemplate委托其对SQLException进行转译。
+
+       - JdbcTemplate的各种模板方法的API根据自由度大小，可以分为：
+
+         - 面向Connection的模板方法：通过ConnectionCallback回调接口所公开的Connection进行数据访问。
+         - 面向Statement的模板方法：通过StatementCallback回调接口所公开的Statement进行数据访问。
+         - 面向PreparedStatement的模板方法：可以避免SQL注入攻击。使用PreparedStatement之前，需要根据传入的包含参数的SQL对其进行创建。通过PreparedStatementCreator回调接口公开Connection以运行PreparedStatment的创建。PreparedStatement创建之后，会公开给PreparedStatementCallback回调接口，以支持其PreparedStatement进行数据访问。
+         - 面向CallableStatement的模板方法：进行数据库存储过程的访问。通过CallableStatementCreator公开相应的Connection以便创建用于调用存储过程的CallableStatement，再通过CallableStatementCallback公开创建一个CallableStatment操作句柄，是西安基于存储过程的数据访问。
+
+       - 使用DataSourceUtils进行Connection管理：DataSourceUtils会将取得的Connection绑定到当前线程，以便再使用Spring提供的统一事务抽象层进行事务管理的时候使用。
+
+       - 使用NativeJdbcExtractor来获取数据库驱动所提供的原始API。
+
+         - 可以通过JdbcTemplate的setNativeJdbcExtractor来设置相应的NativeJdbcExtractor实现类。
+         - Spring默认提供Commons DBCP、C3P0、Weblogic、WebSphere等数据源的NativeJdbcExtractor实现类。
+
+       - 控制JdbcTemplate的行为：使用applyStatementSettings(stmt|ps|cs)
+
+         - 可以控制每次获得的最大结果集，超时时间等。
+
+         - 示例：
+
+           ```java
+           JdbcTemplate jdbcTemplate = new JdbcTemplate();
+           jdbcTemplate.setFetchSize(100);
+           ```
+
+       - SQLException到DataAccessException的转译
+
+         ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/SQLExceptionTranslator%E4%BD%93%E7%B3%BB.png?raw=true)
+
+         - SQLErrorCodeSQLExceptionTranslator会基于SQLException所返回的ErrorCode进行异常转译。JdbcTemplate默认情况下采用这方法。
+
+         - SQLStateSQLExceptionTranslator根据SQlException.getSQLState()所返回的信息进行异常转译。但个数据库厂商在执行上存在差异。
+
+         - SQLErrorCodeSQLExceptionTranslator的异常转译流程：
+
+           - 先检查customTranslate(task,sql,sqlEx)能否进行转译，如果返回null则进行下一步。
+
+           - 尝试让SQLExceptionSubclassTranslator对异常进行转译。
+
+           - SQLErrorCodeFactory所加载的SQLErrorCodes进行转译：
+
+             - 加载位于Spring发布jar包中org/springframework/jdbc/support/sql-error-codes.xml记载的各个数据库提供商ErrorCode的配置文件，提取相应的SQLErrorCodes。
+             - 加载Classpath根路径下的名称为sql-error-codes.xml配置文件，则加载该文件内容，并覆盖默认的ErrorCode定义。
+
+           - 求助于SQLStateSQLExceptionTranslator。
+
+           - 我们可以继承SQLErrorCodeSQLExceptionTranslator覆盖它的customTranslate方法，然后用这个子类代替SQLErrorCodeSQLExceptionTranslator。
+
+             ```java
+             DataSource dataSource = new DriverManagerDataSource();
+             JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+             
+             SQLErrorCodeSQLExceptionTranslator exTranslator = new ToySqlExceptionTranslator();
+             exTranslator.setDataSource(dataSource);
+             jdbcTemplate.setExceptionTranslator(exTranslator);
+             ```
+
+           - 我们也可以提供一个sql-error-codes.xml配置文件，格式与org/springframework/jdbc/support/sql-error-codes.xml相同。
+
+   - JdbcTemplate与它的兄弟们
+
+     - 使用JdbcTempate进行数据访问
+
+       - 初始化JdbcTemplate：只需传入DataSource，可以在配置文件中配置。
+
+         ```xml
+         <!-- 配置destroy-method使在应用退出后数据库连接可以关闭 -->
+         <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+             <property name="url" value="123.231.33.33"/>
+             <property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+             <property name="username" value="username"/>
+             <property name="password" value="password"/>
+         </bean>
+         
+         <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+             <property name="dataSource" ref="dataSource"/>
+         </bean>
+         ```
+
+       - 基于JdbcTemplate的数据访问：通过一组方法
+
