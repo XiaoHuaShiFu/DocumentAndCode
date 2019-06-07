@@ -309,6 +309,7 @@
      - 使用方法：在配置文件中配置MultipartResolver实现类bean。
      - DispatcherServlet将会调用MultipartHttpServletRequest的cleanupMultipart()方法，释放处理文件上传过程中所占用的系统资源。
      - Spring MVC提供了ByteArrayMultipartFileEditor负责将MultipartFile转换成byte[]数组，StringMultipartFileEditor，负责将MultipartFile转换成String。
+   
 2. Handler与HandlerAdaptor：HandlerAdaptor可以执行Handler的方法。
    - 流程：DIspatcherSerlvet通过HandlerMapping获得一个Handler之后，询问HandlerAdaptor的supports()方法，如果返回true，DispatcherServlet则调用HandlerAdaptor的handle()方法，将Handler作为参数，方法执行后返回ModelAndView。
    - 可用的Handler类型
@@ -318,10 +319,264 @@
      - supports()方法决定是否认识这个Handler。
      - handler()：执行Controller的方法
    - 告知Handler与HandlerAdpator的存在
-     - Spring MVC将根据类型检测容器内可用的HandlerAdaptor。
+     - Spring MVC将根据类型检测容器内可用的HandlerAdaptor。只要把HandlerAdaptor实现类添加到WebApplicationContext容器。
      - 默认使用以下的HandlerAdaptor：
        - HttpRequestHandlerAdapter。
        - SimpleControllerHandlerAdapter。
        - ThrowawayControllerhandlerAdapter。
        - AnnotationMethodHandlerAdapter。
-3.  
+   
+3. 框架内的处理流程拦截与HandlerInterceptor：存在于HandlerExecutionChain里面（Handler和HandlerInterceptor），可以用于再Handler执行前后对处理流程进行拦截。
+
+   ```java
+   public interface HandlerInterceptor {
+       //再HandlerAdaptor调用Handler处理Web请求之前执行。通过boolean返回值表示是否继续之后后续处理流程。
+       //如果true，则继续处理下一个HandlerInterceptor的preHandle(..)方法或者执行Handler。
+       //如果false，则不再执行后续流程，即认为preHandle(..)里已经处理完Web请求。也可以通过抛出相应异常的方式来达到这个效果。
+      boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+          throws Exception;
+   	//再HandlerAdaptor调用具体的Handler处理完Web请求后，且视图的解析和渲染之前。即对ModelAndView做进一步处理。不阻断后续流程。
+      void postHandle(
+            HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView)
+            throws Exception;
+   	//整个处理流程结束之后，不管如何，都会执行次方法。可以用于捕获异常，清理资源。不阻断后续流程。
+      void afterCompletion(
+            HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
+            throws Exception;
+   }
+   ```
+
+   1. 可用的HandlerInterceptor实现
+
+      - UserRoleAuthorizationInterceptor：通过HttpServletRequest的isUserInRole()方法，使用一组指定的用户对当前请求进行验证。如果验证不通过会返回403状态码。可用通过覆写handleNotAuthrized(..)方法改变默认行为。
+
+      - WebContentInterceptor
+
+        - 检查请求方法类型是否在支持方法之列：可用通过设置supportMethods属性，如果超出范围则抛出HttpRequestMethodNotSupportedException阻断后续处理流程。
+        - 检查必要的Session实例：如果requireSession属性为true，则当前请求的session需要已经存在。否则抛出HttpSessionRequiredException阻断后续处理流程。
+        - 检查缓存时间并通过设置相应的HTTP头(Header)的方式控制缓存行为：cacheSeconds设置请求内容的缓存时间。
+          - 可以进一步通过useCacheControlHader或者useExpiresHeader属性，进一步明确是使用HTTP1.1的CacheControl指令还是HTTP1.0的Expires指令。
+          - 可以通过cacheMappings进一步指定不同请求与其缓存时间之间的细粒度的映射关系。
+
+      - 自定义HandlerInterceptor：继承HandlerInterceptorAdapter。
+
+        - 示例：配置Interceptor也可以通过HandlerMapping上的interceptors属性设置。
+
+          ```java
+          @Component
+          public class TestInterceptor extends HandlerInterceptorAdapter {
+              @Override
+              public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+                  System.out.println("preHandle is be call");
+                  return super.preHandle(request, response, handler);
+              }
+          }
+          ```
+
+          ```xml
+          <mvc:interceptors>
+              <mvc:interceptor>
+                  <mvc:mapping path="/user/**"/>
+                  <ref bean="testInterceptor"/>
+              </mvc:interceptor>
+              <mvc:interceptor>
+                  <mvc:mapping path="/user/**"/>
+                  <ref bean="userRoleAuthorizationInterceptor"/>
+              </mvc:interceptor>
+          </mvc:interceptors>
+          ```
+
+   2. HandlerInterceptor原理：每个HandlerMapping都有一个interceptors属性用于设置interceptor，可以为每个特定的HandlerMapping指定interceptors从而细粒化的使用interceptors。
+
+   3. HandlerInterceptor之外的选择：使用Servlet的标准组件Filter。
+
+      ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/Servlet%20Filter%20%E5%92%8C%20HandlerInterceptor%E7%9A%84%E5%85%B3%E7%B3%BB%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg?raw=true)
+
+      - Filter在DispatcherServlet之前。
+
+      - Filter通常被映射到Java Web程序中的某个servletr，或者一组符合某种URL匹配模式的访问资源上。
+
+      - Filter的需要在web.xml中配置，生命周期由Web容器管理。
+
+      - DelegatingFilterProxy承担web.xml中的FIlter的使命，可以通过它把具体工作委托给Filter对象，这些Filter存在WebApplicationContext中。
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/DelegatingFilterProxy%E4%B8%8E%E5%85%B6Filter%E5%A7%94%E6%B4%BE%E5%AF%B9%E8%B1%A1%E4%B9%8B%E9%97%B4%E7%9A%84%E5%85%B3%E7%B3%BB.jpg?raw=true)
+
+        - 示例：
+
+          ```java
+          @Component
+          public class TestFilter implements Filter {
+              @Override
+              public void init(FilterConfig filterConfig) throws ServletException {
+          
+              }
+          
+              @Override
+              public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+                  System.out.println("this is doFilter");
+                  chain.doFilter(request, response);
+              }
+          
+              @Override
+              public void destroy() {
+          
+              }
+          }
+          ```
+
+          ```xml
+          <filter>
+              <filter-name>testFilter</filter-name>
+              <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+          </filter>
+          <filter-mapping>
+              <filter-name>testFilter</filter-name>
+              <url-pattern>/*</url-pattern>
+          </filter-mapping>
+          ```
+
+        - 配置：通过\<filter-name\>与bean-name进行匹配
+
+        - Filter的生命周期：通过设置DelegatingFilterProxy的targetFilterLifecycle属性为true使Filter的生命周期由WebApplicationContext管理转向原始的Web容器管理。也就是DelegatingFilterProxy会调用Filter的初始化和摧毁方法。
+
+          ```xml
+          <filter>
+              <filter-name>testFilter</filter-name>
+              <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+              <init-param>
+                  <param-name>targetFilterLifecycle</param-name>
+                  <param-value>true</param-value>
+              </init-param>
+          </filter>
+          ```
+
+4. 异常处理与HandlerExceptionResolver：Handler执行过程中出现异常，那么HandlerExceptionResolver将接手处理并返回ModelAndView形式返回（异常信息）。
+
+   ```java
+   public interface HandlerExceptionResolver {
+      ModelAndView resolveException(
+            HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex);
+   }
+   ```
+
+   - SimpleMappingExceptionResolver：使用properties类型的exceptionMappings属性指定具体映射关系。会寻找与当前异常类型最接近的映射（使用indexOf()），所以推荐使用全限定类名。
+
+     - 示例：
+
+       ```xml
+       <bean id="simpleMappingExceptionResolver" class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+           <property name="exceptionMappings">
+               <props>
+                   <!-- 在WEB-INF/jsp/**.jsp -->
+                   <prop key="java.lang.Exception">/error</prop>
+               </props>
+           </property>
+       </bean>
+       ```
+
+     - defaultErrorView：指定一个默认错误信息页面。
+
+     - defaultStatusCode：异常情况下默认返回给客户端的HTTP状态码。
+
+     - exceptionAttribute：可以设置异常实例并在页面中显示。如果不想公开可以设置为null。
+
+     - mappedHandlers和mappedHandlerClasses：可以指定捕获哪些handler抛出的异常。
+
+     - order：通过mappedHandlers和mappedHandlerClasses查看是否有处理的权力，如果没有转交给下一个，通过order属性设置谁先进行检查。
+
+5. LocalResolver：略
+
+# 26、基于注解的Controller
+
+1. 实质上也是一个handler，通过反射获取注解来与相应的请求路径匹配。
+
+2. Controller原型分析
+
+   - 获取流程
+     - 通过扫描Classpath，获取所有标注了@Controller的对象。扫描Classpath获取@Controller的对象的工作由\<context:component-scan/\>来完成。
+   - controller与HandlerAdaptor：可以确定具体由哪个方法来处理Web请求。
+     - HandlerAdaptor作用：将请求信息绑定到Controller实例，然后调用相应的处理方法，并将结果以ModelAndView的形式返回给DispatcherServlet使用。
+
+3. @Controller详解
+
+   - @Controller作用
+
+     - 作为bean可以用于Ioc容器的注入和被注入。
+     - 可以被HandleMapping发现并用于Web请求的处理。
+
+   - @RequestMapping作用：映射请求路径和被HandlerAdaptor处理。
+
+     - 属性
+
+       - params：与请求参数匹配
+
+         ```java
+         @RequestMapping(value = "login.do",params = "locale=en")
+         //则请求应该包含参数locale且等于en
+         //如
+         //http://localhost:8080/user/login.do?username=xhsf&locale=en
+         ```
+
+         ```java
+         //通过是否由某个参数名来决定由哪个请求处理
+         @RequestMapping(value = "login.do",params = "delete")
+         public Map list(String username) {
+             System.out.println(username);
+             System.out.println("delete");
+             return null;
+         }
+         
+         @RequestMapping(value = "login.do",params = "update")
+         public Map list1(String username) {
+             System.out.println(username);
+             System.out.println("update");
+             return null;
+         }
+         ```
+
+   - 请求方法签名
+
+     - HttpServletRequest/response/session等。
+     - WebRequest/response/session等。
+     - Reader/Writer等。
+     - ModelMap/Map等。
+     - @RequestParam或者@ModelAttribute所标注的方法参数
+       - @RequestParam可以指定required属性，表示是否一定要这个参数。
+     - BindingResult/Errors：用于绑定错误信息，需要紧跟在command对象ReportSettings之后。
+     - SessionStatus：用于管理请求之后的Session状态，比如清除Session中的数据。
+
+   - 方法返回值
+
+     - ModelAndView
+     - String
+     - ModelMap
+     - void
+
+   - @InitBinder标注的方法：在数据绑定之前先调用绑定了@InitBinder的方法。一定有WebDataBinder参数。返回值为void。也就是对每个请求参数调用这个init方法。
+   
+     - 示例：
+   
+       ```java
+       @InitBinder
+       public void init(WebDataBinder dataBinder) {
+           System.out.println("init");
+           System.out.println(dataBinder.getBindingResult().getModel());
+       }
+       ```
+   
+     - 自定义WebBindingInitializer：为HandlerAdapter指定一个WebBindingInitializer可以避免为每个Controller指定@InitBinder的方法。
+   
+       - 绑定在RequestMappingHandlerAdapter上。
+       - 实现类要实现WebBindingInitializer接口，并配置到RequestMappingHandlerAdapter上。
+   
+   - @ModelAttribute
+   
+     - 用于方法上：返回的数据会被加到模型数据里。
+     - 用于参数上：获取数据绑定的结果。
+   
+   - @SessionAttribute管理Session数据：标注什么数据需要通过session进行管理
+
+# 27、Spring MVC扩展
+
+1. 略

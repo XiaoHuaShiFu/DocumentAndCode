@@ -407,3 +407,46 @@
            }
        }
        ```
+
+# 15、
+
+# 16、模板方法及Callback
+
+1. FTPClientTemplate
+
+   - FTP流程：登录FTP服务器，传输文件，退出服务。
+
+2. HttpClientTemplate
+
+   - 流程：获取资源、操作、释放资源、处理异常。
+
+3. 多数据源访问
+
+   1. “主权独立“的多数据源
+
+      ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/%E4%B8%BB%E6%9D%83%E7%8B%AC%E7%AB%8B%E7%9A%84%E5%A4%9A%E6%95%B0%E6%8D%AE%E6%BA%90.jpg?raw=true)
+
+      - 应用场景：
+        - 每个库的数据性质不同：如A存储重要的信息，B存储次要的信息。这样访问的时候就可以分成数据源A和数据源B。
+        - 每个数据库承担不同访问形式：如A只允许更新，B只允许查询。
+
+   2. ”合纵连横“的多数据源
+
+      ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/%E5%90%88%E7%BA%B5%E8%BF%9E%E6%A8%AA%E7%9A%84%E5%A4%9A%E6%95%B0%E6%8D%AE%E6%BA%90.jpg?raw=true)
+
+      - 主DataSource负责协调和管理其他的datasource。
+      - 应用场景：
+        - 系统中设置多台地位相同的数据库以实现多机热备，从而保证数据库的高可用性。
+        - 系统中设置多台地位相同的数据库以实现负载均衡。也可以接触数据访问类与具体的DataSource的耦合。
+        - 系统中设置多台地位相同，也可能不同的数据库，数据访问类无法明确到底使用哪个数据源来进行数据访问，需要在运行期间进行判断使用哪个数据源。可以通过此方式来解除数据访问类与数据源的耦合。
+      - 可以使用AbstractRountingDataSource来实现这个需求：只要覆盖determineCurrentLookupKey()方法即可。配合MapDataSourceLookup（把此bean和dataSources注入AbstractRountingDataSource的实现类称为dataSource）
+
+   3. 合纵连横争夺独立主权数据源
+
+      ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/%E5%90%88%E7%BA%B5%E8%BF%9E%E6%A8%AA%E4%BA%89%E5%A4%BA%E4%B8%BB%E6%9D%83%E7%8B%AC%E7%AB%8B.jpg?raw=true)
+
+   4. 主权独立并入合纵连横
+
+      ![](https://github.com/XiaoHuaShiFu/img/blob/master/spring%E6%8F%AD%E7%A7%98/%E4%B8%BB%E6%9D%83%E7%8B%AC%E7%AB%8B%E5%B9%B6%E5%85%A5%E5%90%88%E7%BA%B5%E8%BF%9E%E6%A8%AA.jpg?raw=true)
+
+# 17、
