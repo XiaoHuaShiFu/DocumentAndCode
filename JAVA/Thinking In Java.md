@@ -2134,6 +2134,8 @@
 
      - 此方法可以被中段。调用interrupt()方法，join()将抛出InterruptedException。在另外一个线程调用interrupt()时，将给此线程设置一个标志，表示这个线程已经被中断。然后异常被捕获时将清除这个标志，所以在catc子句中，isInterrupted()总是false。
 
+   - Thread.interrupted()静态方法：查看当前线程是否被中断。
+
 2. Executor
 
    - 它是用来管理Thread对象的，简化并发编程。它在客户端和任务执行之间提供了一个简介层。Executor还允许管理异步任务的执行，而无需显式地管理线程的生命周期。
@@ -2184,6 +2186,38 @@
            exec.shutdown();
        }
        ```
+
+   - 在调用shutdown()方法后，可以调用awaitTermination()方法，等待任务完成，如果任务在超时时间前完成，则返回true，否则返回false。
+
+   - shutdownNow()则会发送interrupt()给所有它启动的线程。
+
+   - 使用Future可以灵活的中断某个线程。
+
+     - 示例：
+
+       ```java
+       public void test4() throws InterruptedException {
+           ExecutorService executorService = Executors.newCachedThreadPool();
+           ArrayList<Future<?>> futures = new ArrayList<>(8);
+           for (int i = 0; i < 5; i++) {
+               int k = i;
+               //保存任务
+               futures.add(executorService.submit(() -> {
+                   try {
+                       TimeUnit.SECONDS.sleep(2);
+                       System.out.println(k);
+                   } catch (InterruptedException e) {
+                       e.printStackTrace();
+                   }
+               }));
+           }
+           //关闭任务所在的线程
+           futures.get(2).cancel(true);
+           executorService.shutdown();
+       }
+       ```
+
+   - 被阻塞的nio通道会自动地响应中断。
 
 3. ThreadFactory：用来产生Thread，可以把它给ExecutorService
 
@@ -2272,4 +2306,456 @@
    - 在其他对象上同步。可以使用private Object syncObject = new Object(); 如果锁不够的话。这样可以保证不同的方法都有独立的锁。
 
    - synchronized关键字不属于方法特征签名的组成部分，可以在覆盖方法的时候加上去。
+
+   - RentratLock上阻塞的任务具备可以被中断的能力。通过调用ReentrantLock.lockInterruptibly()方法。
+
+     - 示例：本来此类的f()方法无法获取锁，所以f()方法无法退出和被中断。但是通过lockInterruptibly()使该线程可以被interrupt()中断。
+
+       ```java
+       public class BlockedMutex {
+           private Lock lock = new ReentrantLock();
+           public BlockedMutex() {
+               lock.lock();
+           }
+       
+           public void f() throws InterruptedException {
+               lock.lockInterruptibly();
+               System.out.println("ddddddddddddzzzzzzzzzzz");
+           }
+       
+       }
+       
+       public void test6() throws InterruptedException, FileNotFoundException {
+           BlockedMutex blockedMutex = new BlockedMutex();
+           Thread t = new Thread(() -> {
+               try {
+                   blockedMutex.f();
+               } catch (InterruptedException e) {
+                   e.printStackTrace();
+               }
+           });
+           t.start();
+           t.interrupt();
+       }
+       ```
+
+6. 协作
+
+   - 示例：涂蜡和打磨，交替进行。通过车进行同步。
+
+     ```java
+     public class Car {
+     
+         public static void main(String[] args) throws InterruptedException {
+             Car car = new Car();
+             ExecutorService executorService = Executors.newCachedThreadPool();
+             executorService.execute(new WaxOn(car));
+             executorService.execute(new WaxOff(car));
+             TimeUnit.SECONDS.sleep(5);
+             executorService.shutdownNow();
+         }
+     
+         private boolean waxOn = false;
+         public synchronized void waxed() {
+             waxOn = true;
+             notifyAll();
+         }
+     
+         public synchronized void buffed() {
+             waxOn = false;
+             notifyAll();
+         }
+     
+         public synchronized void waitForWaxing() throws InterruptedException {
+             while (!waxOn) {
+                 wait();
+             }
+         }
+     
+         public synchronized void waitForBuffing() throws InterruptedException {
+             while (waxOn) {
+                 wait();
+             }
+         }
+     
+     }
+     
+     class WaxOn implements Runnable {
+     
+         private Car car;
+         public WaxOn(Car car) {
+             this.car = car;
+         }
+     
+         @Override
+         public void run() {
+             try {
+                 while (!Thread.interrupted()) {
+                     System.out.println("Wax On!");
+                     TimeUnit.MILLISECONDS.sleep(200);
+                     car.waxed();
+                     car.waitForBuffing();
+                 }
+             } catch (InterruptedException e) {
+                 System.out.println("Wax On interrupt");
+             }
+             System.out.println("Ending Wax On task");
+         }
+     }
+     
+     class WaxOff implements Runnable {
+     
+         private Car car;
+         public WaxOff(Car car) {
+             this.car = car;
+         }
+     
+         @Override
+         public void run() {
+             try {
+                 while (!Thread.interrupted()) {
+                     car.waitForWaxing();
+                     System.out.println("Wax Off!");
+                     TimeUnit.MILLISECONDS.sleep(200);
+                     car.buffed();
+                 }
+             } catch (InterruptedException e) {
+                 System.out.println("Wax Off interrupt");
+             }
+             System.out.println("Ending Wax Off task");
+         }
+     }
+     ```
+
+   - 使用Lock和Condition进行协作：在复杂的多线程问题中才是必须的。
+
+     - 示例：代码比不使用Lock和Condition更加复杂。
+
+       ```java
+       public class Car {
+       
+           public static void main(String[] args) throws InterruptedException {
+               Car car = new Car();
+               ExecutorService executorService = Executors.newCachedThreadPool();
+               executorService.execute(new WaxOn(car));
+               executorService.execute(new WaxOff(car));
+               TimeUnit.SECONDS.sleep(5);
+               executorService.shutdownNow();
+           }
+       
+           private Lock lock = new ReentrantLock();
+           private Condition condition = lock.newCondition();
+           private boolean waxOn = false;
+       
+           public void waxed() {
+               lock.lock();
+               try {
+                   waxOn = true;
+                   condition.signalAll();
+               } finally {
+                   lock.unlock();
+               }
+           }
+       
+           public void buffed() {
+               lock.lock();
+               try {
+                   waxOn = false;
+                   condition.signalAll();
+               } finally {
+                   lock.unlock();
+               }
+           }
+       
+           public synchronized void waitForWaxing() throws InterruptedException {
+               lock.lock();
+               try {
+                   while (!waxOn) {
+                       condition.await();
+                   }
+               } finally {
+                   lock.unlock();
+               }
+           }
+       
+           public synchronized void waitForBuffing() throws InterruptedException {
+               lock.lock();
+               try {
+                   while (waxOn) {
+                       condition.await();
+                   }
+               } finally {
+                   lock.unlock();
+               }
+           }
+       
+       }
+       
+       class WaxOn implements Runnable {
+       
+           private Car car;
+           public WaxOn(Car car) {
+               this.car = car;
+           }
+       
+           @Override
+           public void run() {
+               try {
+                   while (!Thread.interrupted()) {
+                       System.out.println("Wax On!");
+                       TimeUnit.MILLISECONDS.sleep(200);
+                       car.waxed();
+                       car.waitForBuffing();
+                   }
+               } catch (InterruptedException e) {
+                   System.out.println("Wax On interrupt");
+               }
+               System.out.println("Ending Wax On task");
+           }
+       }
+       
+       class WaxOff implements Runnable {
+       
+           private Car car;
+           public WaxOff(Car car) {
+               this.car = car;
+           }
+       
+           @Override
+           public void run() {
+               try {
+                   while (!Thread.interrupted()) {
+                       car.waitForWaxing();
+                       System.out.println("Wax Off!");
+                       TimeUnit.MILLISECONDS.sleep(200);
+                       car.buffed();
+                   }
+               } catch (InterruptedException e) {
+                   System.out.println("Wax Off interrupt");
+               }
+               System.out.println("Ending Wax Off task");
+           }
+       }
+       ```
+
+   - 使用生产者消费者队列。
+
+   - 任务间使用管道进行输入/输出。基本上就是一个阻塞队列。
+
+7. CountDownLatch：它被用来同步一个或多个任务，强制它们等待由其他任务执行的一组操作完成。
+
+   - CountDownLatch可以设置一个初始计数值，其他任务在这个对象上调用wait()方法都阻塞，直到这个计数值为0。其他任务在结束工作时，可以在该对象上调用countDown()来减小这个计数值。
+
+   - 调用countDown()并不会产生阻塞，只有调用await()才会阻塞，直到计数值为0。
+
+   - CountDownLatch只能触发一次，计数值不能重置。如需重置，可用CyclicBarrier。
+
+   - 示例：
+
+     ```java
+     //任务
+     class TaskPortion implements Runnable {
+     
+         private static int counter = 0;
+         private final int id = counter++;
+         private static Random random = new Random(47);
+         private final CountDownLatch latch;
+     
+         TaskPortion(CountDownLatch latch) {
+             this.latch = latch;
+         }
+     
+         @Override
+         public void run() {
+          try {
+              TimeUnit.MILLISECONDS.sleep(random.nextInt(200));
+              System.out.println(this + "completed");
+              latch.countDown();
+          } catch (InterruptedException e) {
+              e.printStackTrace();
+          }
+         }
+     
+         @Override
+         public String toString() {
+             return "TaskPortion{" +
+                     "id=" + id +
+                     ", latch=" + latch +
+                     '}';
+         }
+     }
+     
+     //需要等待第一个任务满足此任务的条件
+     class WaitingTask implements Runnable {
+     
+         private static int counter = 0;
+         private final int id = counter++;
+         private final CountDownLatch latch;
+     
+         WaitingTask(CountDownLatch latch) {
+             this.latch = latch;
+         }
+     
+         @Override
+         public void run() {
+             try {
+                 latch.await();
+                 System.out.println("Latch barrier passed for " + this);
+             } catch (InterruptedException e) {
+                 System.out.println(this + " interrupted");
+             }
+         }
+     
+         @Override
+         public String toString() {
+             return "TaskPortion{" +
+                     "id=" + id +
+                     ", latch=" + latch +
+                     '}';
+         }
+     }
+     
+     public class CountDowLatchTest {
+         public static void main(String[] args) {
+             ExecutorService executorService = Executors.newCachedThreadPool();
+             CountDownLatch latch = new CountDownLatch(100);
+             for (int i = 0; i < 10; i++) {
+                 executorService.execute(new WaitingTask(latch));
+             }
+             for (int i = 0; i < 100; i++) {
+                 executorService.execute(new TaskPortion(latch));
+             }
+             System.out.println("all tasks");
+             executorService.shutdown();
+         }
+     }
+     ```
+
+8. CyclicBarrier：适用于希望创建一组任务，它们并行地执行，然后进行下一个步骤之前等待，直到所有任务完成。也就是使得所有并行任务都在栅栏处列队。
+
+   - 可以为CyclicBarrier设置一个栅栏动作，会在计数值为0时自动执行。
+
+   - 示例：赛马
+
+     ```java
+     class Horse implements Runnable {
+     
+         private static int counter = 0;
+         private final int id = counter++;
+         private int strides = 0;
+         private static Random random = new Random(47);
+         private static CyclicBarrier barrier;
+     
+         public Horse(CyclicBarrier barrier) {
+             Horse.barrier = barrier;
+         }
+     
+         @Override
+         public void run() {
+             try {
+                 while (!Thread.interrupted()) {
+                     synchronized (this) {
+                         strides += random.nextInt(3);
+                     }
+                     barrier.await();
+                 }
+             } catch (InterruptedException e) {
+                 e.printStackTrace();
+             } catch (BrokenBarrierException e) {
+                 e.printStackTrace();
+                 throw new RuntimeException(e);
+             }
+         }
+     
+         public synchronized int getStrides() {
+             return this.strides;
+         }
+     
+         @Override
+         public String toString() {
+             return "Horse " + id + " ";
+         }
+     
+         public String tracks() {
+             StringBuilder s = new StringBuilder();
+             for (int i = 0; i < getStrides(); i++) {
+                 s.append("*");
+             }
+             s.append(id);
+             return s.toString();
+         }
+     
+     }
+     
+     public class HorseRace {
+     
+         static final int FINISH_LINE = 75;
+         private List<Horse> horses = new ArrayList<>();
+         private ExecutorService exec = Executors.newCachedThreadPool();
+         private CyclicBarrier barrier;
+     
+         public HorseRace(int nHorses, final int pause) {
+             barrier = new CyclicBarrier(nHorses, () -> {
+                 StringBuilder s = new StringBuilder();
+                 for (int i = 0; i < FINISH_LINE; i++) {
+                     s.append("=");
+                 }
+                 System.out.println(s);
+                 for (Horse horse : horses) {
+                     System.out.println(horse.tracks());
+                 }
+                 for (Horse horse : horses) {
+                     if (horse.getStrides() >= FINISH_LINE) {
+                         System.out.println(horse + "won!");
+                         exec.shutdownNow();
+                         return;
+                     }
+                 }
+                 try {
+                     TimeUnit.MILLISECONDS.sleep(pause);
+                 } catch (InterruptedException e) {
+                     e.printStackTrace();
+                 }
+             });
+             for (int i = 0; i < nHorses; i++) {
+                 Horse horse = new Horse(barrier);
+                 horses.add(horse);
+                 exec.execute(horse);
+             }
+         }
+     
+         public static void main(String[] args) {
+             int nHorses = 7;
+             int pause = 200;
+             new HorseRace(nHorses, pause);
+         }
+     
+     }
+     ```
+
+9. DelayQueue：
+
+   - 无界的BlockingQueue，用于放置实现了Delayed接口的对象，对象只有在到期时才能被取走。
+   - 对头对象的延迟到期的时间最长。如果没有任何延迟到期，就不会由任何头元素，poll()将返回null。
+   - Delayed对象自身就是任务，所以一般会实现Runnable。
+     - getDelay()返回延迟到期还有多少时间，或者延迟在多长时间前已经到期。这个方法需要用到TimeUnit类。
+     - 此接口还继承了Comparable接口，因此必须实现compareTo()，使其产生合理的比较。
+
+10. PriorityBlockingQueue：基础的优先级队列，具有可阻塞的读取操作。
+
+    - 任务需要实现Runnable和Comparable接口。
+
+11. ScheduledThreadPoolExecutor：定时或者是延迟一段时间后执行任务。
+
+    - 示例：
+
+      ```java
+      public static void main(String[] args) {
+          ScheduledThreadPoolExecutor scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(10);
+          scheduledThreadPoolExecutor.schedule(
+                  () -> System.out.println(Math.random()), 1000, TimeUnit.MILLISECONDS);
+          scheduledThreadPoolExecutor.scheduleAtFixedRate(
+                  () -> System.out.println(Math.random()), 1000, 1000, TimeUnit.MILLISECONDS);
+      }
+      ```
 
