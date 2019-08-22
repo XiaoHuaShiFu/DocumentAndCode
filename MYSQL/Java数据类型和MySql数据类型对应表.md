@@ -79,3 +79,38 @@ decimal列的声明语法是decimal(m,d)。
 | LONGTEXT                     | VARCHAR                               | `java.lang.String`                                           |
 | ENUM('value1','value2',...)  | CHAR                                  | `java.lang.String`                                           |
 | SET('value1','value2',...)   | CHAR                                  | `java.lang.String`                                           |
+
+
+
+# MySQL 与 JDBC 类型映射
+
+
+
+| MySQL数据类型 | JAVA数据类型             | JDBC TYPE     | 普通变量类型 | 主键类型 |
+| ------------- | ------------------------ | ------------- | ------------ | -------- |
+| BIGINT        | Long                     | BIGINT        | 支持         | 支持     |
+| TINYINT       | Byte                     | TINYINT       | 支持         | 不支持   |
+| SMALLINT      | Short                    | SMALLINT      | 支持         | 不支持   |
+| MEDIUMINT     | Integer                  | INTEGER       | 支持         | 支持     |
+| INTEGER       | Integer                  | INTEGER       | 支持         | 支持     |
+| INT           | Integer                  | INTEGER       | 支持         | 支持     |
+| FLOAT         | Float                    | REAL          | 支持         | 不支持   |
+| DOUBLE        | Double                   | DOUBLE        | 支持         | 不支持   |
+| DECIMAL       | BigDecimal               | DECIMAL       | 支持         | 不支持   |
+| NUMERIC       | BigDecimal               | DECIMAL       | 支持         | 不支持   |
+| CHAR          | String                   | CHAR          | 支持         | 不支持   |
+| VARCHAR       | String                   | VARCHAR       | 支持         | 不支持   |
+| TINYBLOB      | DataTypeWithBLOBs.byte[] | BINARY        | 不支持       | 不支持   |
+| TINYTEXT      | String                   | VARCHAR       | 支持         | 不支持   |
+| BLOB          | DataTypeWithBLOBs.byte[] | BINARY        | 不支持       | 不支持   |
+| TEXT          | DataTypeWithBLOBs.String | LONGVARCHAR   | 不支持       | 不支持   |
+| MEDIUMBLOB    | DataTypeWithBLOBs.byte[] | LONGVARBINARY | 不支持       | 不支持   |
+| MEDIUMTEXT    | DataTypeWithBLOBs.String | LONGVARCHAR   | 不支持       | 不支持   |
+| LONGBLOB      | DataTypeWithBLOBs.byte[] | LONGVARBINARY | 不支持       | 不支持   |
+| LONGTEXT      | DataTypeWithBLOBs.String | LONGVARCHAR   | 不支持       | 不支持   |
+| DATE          | Date                     | DATE          | 支持         | 不支持   |
+| TIME          | Date                     | TIME          | 支持         | 不支持   |
+| YEAR          | Date                     | DATE          | 不支持       | 不支持   |
+| DATETIME      | Date                     | TIMESTAMP     | 支持         | 不支持   |
+| TIMESTAMP     | Date                     | TIMESTAMP     | 支持         | 不支持   |
+

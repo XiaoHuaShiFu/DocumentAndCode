@@ -134,7 +134,22 @@
      );
      ```
 
+   - 另外一种临时表
+
+     ```mysql
+     INSERT INTO table (f1 ,f2 ,f3)
+     SELECT 1 ,'a',3 FROM DUAL WHERE NOT EXISTS
+         (SELECT 1 FROM table2 where a = b)
+     DUAL 为临时表 ，也可以查找真实表字段插入。
      
+     需要插入多条数据时，可使用 UNION ：
+     INSERT INTO table (f1 ,f2 ,f3)
+     SELECT 1 ,'a',3 FROM DUAL WHERE NOT EXISTS
+         (SELECT 1 FROM table2 where a = b)
+     UNION
+     SELECT 10 ,'ab',30 FROM DUAL WHERE NOT EXISTS
+         (SELECT 1 FROM table2 where a = b)
+     ```
 
 2. 向数据表插入n条数据
 
