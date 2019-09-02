@@ -46,7 +46,8 @@
    3.  
    4.  
    5.  回收方法区
-      - -Xnoclassgc: 是否堆类进行回收
+      - -Xnoclassgc: 是否堆类进行回收。
+      - -verbose:gc：查看垃圾收集过程。
       - -verbose:class、-XX:+TraceClassLoading、-XX:+TraceClassUnLoading查看类加载和卸载信息，其中-verbose:class和-XX:+TraceClassLoading可以在Product版的虚拟机种使用，-XX:+TraceClassUnLoading参数需要FastDebug版的虚拟机支持。 
 3.  
 4.  
@@ -78,3 +79,17 @@
 # 5、
 
 # 6、类文件结构
+
+# 7、
+
+# 8、虚拟机字节码执行引擎
+
+1. 
+2.  运行时栈帧结构
+   1. 局部变量表
+      - long和double数据类型的读写分割成两次的做法，在局部变量表中不会出现数据安全问题，因为局部变量表是线程私有的。
+3. 方法调用
+   1.  
+   2.  分派
+      - 虚拟机（准确来说是编译器）在重载时是通过参数的静态类型二不是实际类型作为判定依据。
+      - 重载方法中参数的自动转型可以连续发生多次，按照char->int->long->float->double->....->Object->arg...的顺序进行匹配。
