@@ -93,3 +93,13 @@
    2.  分派
       - 虚拟机（准确来说是编译器）在重载时是通过参数的静态类型二不是实际类型作为判定依据。
       - 重载方法中参数的自动转型可以连续发生多次，按照char->int->long->float->double->....->Object->arg...的顺序进行匹配。
+
+# 9、类加载及执行子系统的案例与实战
+
+1.  
+2.  案例分析
+   1.  
+   2.  
+   3.  字节码生成技术与动态代理的实现
+      - 可以使用System.getProperties().put("sun.misc.ProxyGenerator.saveGeneratedFiles", "true");查看动态代理产生的代理类Class文件。
+
