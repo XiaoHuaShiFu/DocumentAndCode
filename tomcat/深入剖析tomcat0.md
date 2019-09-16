@@ -659,4 +659,453 @@
 
 # 12、StandardContext类
 
-1. 
+1. StandardContext的配置
+
+   - 创建StandardContext实例后，调用start()启动来为每个HTTP请求提供服务。如果StandardContext对象启动失败。这时候会设置available属性为false，available属性表明StandardContext对象是否可用。
+   - Tomcat的实际部署中，配置StandardContext对象需要一系列操作。正确设置后，StandardContext对象才能读取并解析默认的web.xml文件。
+   - StandardContext类的configured属性是一个布尔变量，表明StandardContext实例是否被正确设置。StandardContext类使用一个事件监听器作为配置器，当调用StandardContext实例的start()方法时，其中一件要做的事情就是触发生命周期事件。该事件对StandardContext容器进行配置。若配置成功，会把configured设置为true。否则StandardContext实例将拒绝启动，无法提供HTTP请求的服务。
+
+   1. StandardContext类的构造函数
+
+      ```java
+          public StandardContext() {
+              super();
+              //为对象设置基础阀，此基础阀会处理从连接器中接收到对的每个HTTP请求。
+              pipeline.setBasic(new StandardContextValve());
+              namingResources.setContainer(this);
+          }
+      ```
+
+   2. 启动StandardContext实例
+
+      - start()如果生命监听器成功执行了其配置StandardContext实例的任务，它就会把StandardContext的configured属性设置为true。在start()方法的结尾，会检查configured的值，如果为false，则会调用stop()方法关闭在start()方法已经启动的所有组件。
+      - start()方法需要完成的工作：
+        1. 触发BEFORE_START事件；
+        2. 将availability属性设置为false；
+        3. 将configured属性设置为false；
+        4. 配置资源；
+        5. 设置载入器；
+        6. 设置Session管理器；
+        7. 初始化字符集映射器；
+        8. 启动与该Context容器相关联的组件；
+        9. 启动子容器；
+        10. 启动管道对象；
+        11. 启动Session管理器；
+        12. 触发START事件，在这里监听器ContextConfig实例会执行一些配置操作；并设置configured的值。
+        13. 检查configured的值，若为true，则调用postWelcomePages()方法，载入那些需要在启动时就载入的子容器，即Wrapper实例，将availability属性设置为true。若configured变量为false，则调用stop()方法；
+        14. 触发AFTER_START事件。
+
+   3. invoke()方法：在Tomcat4中，由相关联的连接器调用，或者由相关联的Host容器调用，invoke()方法会检查应用程序是否正在重载过程中，若是，将等待应用程序重载完成。然后调用其父类ComntainerBase的invoke()方法。
+
+      - 在Tomcat5中，会直接调用ContainerBase的invoke()方法。检查应用程序是否正在重载的工作移动到了StandardContextValve类的invoke()方法中。
+
+2. StandardContextMapper类：在Tomcat4中，StandardContextValve实例在它包含的StandardContext中查找Wrapper实例。StandardContextValve会在StandardContext实例的映射器找到一个Wrapper实例。获得Wrapper实例后，会调用Wrapper实例的invoke()方法。
+
+   - ContainerBase类通过addDefaultMapper()方法来添加一个默认的映射器。
+
+   - StandardContextMapper类必须调用setContainer()方法与一个Context级的容器相关联。
+
+   - map()方法会返回用来处理HTTP请求的子容器，需要一个Request和一个Boolean update作为参数。
+
+   - 对于每个HTTP请求，StandardContextValve实例会调用Context容器的map()方法，传入一个Request对象。map()方法会根据特定的协议调用findMapper()方法返回一个映射器对象，然后调用映射器对象的map()方法获取Wrapper实例；
+
+     ```java
+         public Container map(Request request, boolean update) {
+             // Select the Mapper we will use
+             Mapper mapper = findMapper(request.getRequest().getProtocol());
+             if (mapper == null)
+                 return (null);
+             // Use this Mapper to perform this mapping
+             return (mapper.map(request, update));
+         }
+     ```
+
+   - 其容器通过配置信息去映射请求和servlet实例。
+
+   - 在Tomcat5中，Mapper接口以及不存在了。StandardContextValve类的invoke()方法会从request对象中获取适合的Wrapper实例；
+
+3. 对重载的支持
+
+   - 通过StandardContext类的reloadable属性来指明应用程序是否启动了重载功能。当重载功能启动之后，当web.xml文件发生变化或者WEB-INF/classes目录下的其中一个文件被重新编译后，应用程序会重载。
+   - StandardContext类是通过其载入器实现应用程序的重载的。在Tomcat4中，StandardContext对象中的WebappLoader类实现了Loader接口，并使用另外一个线程检查WEB-INF目录中的所有类和JAR文件的时间戳。只需要调用其setContainer()方法将WebappLoader对象与StandardContext对象相关联就可以启动该检查线程。
+   - 在Tomcat5中，支持重载功能的工作改为由backgroundProcess()方法执行。
+
+4. backgroundProcess()方法
+
+   - 在Tomcat5中，所有的后台处理共享一个线程。若某个组件或servlet容器需要周期性地执行一个操作，只需要将代码写道其backgroundProcess()方法中即可。
+   - 这个共享线程在ContainerBase对象中创建。ContainerBase类在其start()方法中调用其threadStart()方法启动该后台线程。
+   - threadStart()方法通过传入一个实现了java.lang.Runnable接口的ContainerBackgroundProcessor类的实例构造一个新线程。
+   - ContainerBackgroundProcessor类实际上是ContainerBase类的内部类。在其run()方法中周期性的调用其proccessChildren()方法。而processChildren()方法会调用自身对象的backgroundProcess()方法和其每个子容器的processChildren()方法。通过实现backgroundProcess()方法，ContainerBase类的子类可以使用一个专用线程来执行周期性任务，例如检查类的时间戳或检查session对象的超时时间。
+
+# 13、Host和Engine
+
+- 如果想在同一个Tomcat上部署多个Context容器的化，就需要Host容器。实际部署中，总会使用一个Host容器，并且使用Context作为子容器。
+- Engine容器表示Catalina的整个servlet引擎。默认情况下，Tomcat会使用Engine容器，并且会使用Host作为子容器。
+
+1. Host接口：继承自Container接口。
+
+   - 主要方法是map()方法，返回一用来处理引入的HTTP请求的Context容器的实例。
+
+2. StandardHost类：Host接口的标准实现。该类继承自org.apache.catalina.core.ContainerBase类，实现了Host和Deployer接口。
+
+   - 其构造器会将一个基础阀添加到其管道对象中。
+
+     ```java
+         public StandardHost() {
+             super();
+             pipeline.setBasic(new StandardHostValve());
+         }
+     ```
+
+   - start()方法会添加两个阀，分别是ErrorReportValve类和ErrorDispatcherValve类的实例。
+
+     ```java
+         public synchronized void start() throws LifecycleException {
+             // Set error report valve
+             if ((errorReportValveClass != null)
+                 && (!errorReportValveClass.equals(""))) {
+                 try {
+                     Valve valve = (Valve) Class.forName(errorReportValveClass)
+                         .newInstance();
+                     addValve(valve);
+                 } catch (Throwable t) {
+                     log(sm.getString
+                         ("standardHost.invalidErrorReportValveClass",
+                          errorReportValveClass));
+                 }
+             }
+     
+             // Set dispatcher valve
+             addValve(new ErrorDispatcherValve());
+     
+             super.start();
+     
+         }
+     ```
+
+   - 对于每个HTTP请求，都会调用Host实例的invoke方法。StandardHost类没有invoke()方法的实现，因此会调用ContainerBase类的invoke()方法。而ContainerBase的invoke()方法调用StandardHost实例的基础阀StandardHostValve的invoke()方法。StandardHostValve类的invoke()方法调用StandardHost类的map()方法来获取相应的Context实例来处理HTTP请求。
+   
+   - 在Tomcat4中，会调用ContainerBase的map()方法，而它又调用StandardHost的map()方法。在Tomcat5中，映射器组件已经移除，Context实例是通过request对象获取的。
+   
+3. StandardHostMapper类：ContainerBase类会调用其addDefaultMapper方法创建一个默认映射器。默认映射器的类型由mapperClass属性的值决定。
+
+   - StandardHost类的start()方法会在方法末尾调用父类的start()方法，确保默认映射器的创建完成。
+   - StandardHostMapper类的map()方法只是简单的调用Host实例的map()方法。
+
+4. StandardHostValve类：StandardHost的基础阀。当有HTTP请求时，会调用invoke()方法进行处理。
+
+   - invoke()方法会调用StandardHost实例的map()方法来获取一个相应的Context实例。
+
+   - invoke()方法会获取与该request对象相关联的session对象，并调用其access()方法。access()方法会修改session对象的最后访问时间。
+
+     ```java
+         public void invoke(Request request, Response response,
+                            ValveContext valveContext)
+             throws IOException, ServletException {
+     
+             // Validate the request and response object types
+             if (!(request.getRequest() instanceof HttpServletRequest) ||
+                 !(response.getResponse() instanceof HttpServletResponse)) {
+                 return;     // NOTE - Not much else we can do generically
+             }
+     
+             // Select the Context to be used for this Request
+             StandardHost host = (StandardHost) getContainer();
+             Context context = (Context) host.map(request, true);
+             if (context == null) {
+                 ((HttpServletResponse) response.getResponse()).sendError
+                     (HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                      sm.getString("standardHost.noContext"));
+                 return;
+             }
+     
+             // Bind the context CL to the current thread
+             Thread.currentThread().setContextClassLoader
+                 (context.getLoader().getClassLoader());
+     
+             // Update the session last access time for our session (if any)
+             HttpServletRequest hreq = (HttpServletRequest) request.getRequest();
+             String sessionId = hreq.getRequestedSessionId();
+             if (sessionId != null) {
+                 Manager manager = context.getManager();
+                 if (manager != null) {
+                     Session session = manager.findSession(sessionId);
+                     if ((session != null) && session.isValid())
+                         session.access();
+                 }
+             }
+     
+             // Ask this Context to process this request
+             context.invoke(request, response);
+     
+         }
+     ```
+
+     
+
+   - 然后调用context实例的invoke()方法来处理请求。
+
+5. 为什么必须有一个Host容器
+
+   - 若一个Context实例使用ContextConfig对象进行设置，就必须使用一个Host对象。原因如下：
+
+   - ContextConfig对象需要知道应用程序的web.xml文件的位置。在其applicationConfig()方法中它试图打开web.xml文件。
+
+     - applicationConfig()方法：
+
+       ```java
+               synchronized (webDigester) {
+                   try {
+                       URL url = servletContext.getResource(Constants.ApplicationWebXml);
+       
+                       InputSource is = new InputSource(url.toExternalForm());
+                       is.setByteStream(stream);
+                       webDigester.setDebug(getDebug());
+                       if (context instanceof StandardContext) {
+                           ((StandardContext) context).setReplaceWelcomeFiles(true);
+                       }
+                       webDigester.clear();
+                       webDigester.push(context);
+                       webDigester.parse(is);
+       ```
+
+   - ApplicationContext类的getResource()方法的部分实现代码：
+
+     ```java
+         public URL getResource(String path)
+             throws MalformedURLException {
+     
+             DirContext resources = context.getResources();
+             if (resources != null) {
+                 String fullPath = context.getName() + path;
+                 // this is the problem. Host must not be null
+                 //如果要实现ContextConfig实例进行配置的化，Context实例必须有一个Host实例作为其父容器。
+                 String hostName = context.getParent().getName();
+     ```
+
+6.  
+
+7.  Engine接口：Engine容器也就是Tomcat的servlet引擎。当部署Tomcat时需要支持多个虚拟机的话，就需要使用Engine容器。一般部署Tomcat都会使用一个Engine容器。
+
+   - Engine容器可以与Host容器或Context容器相关联，也可以与一个服务实例相关联。
+
+8. StandardEngine类：Engine接口的标准实现。
+
+   - 构造时会添加一个StandardEngineValve基础阀。
+   - 不能有父容器，只能有Host类型的子容器。
+
+9. StandardEngineValve类：是StandardEngine的基础阀。
+
+   - invoke()方法会从StandardEngine的map()方法获取Host实例，然后调用Host实例的invoke()方法。
+
+# 14、
+
+# 15、Digester库
+
+- Bootstrap类用来实例化连接器、servlet容器、Wrapper实例和其他组件，然后调用各个对象的set方法将它们关联起来。
+- Tomcat使用一个名为server.xml的XML文档来进行应用程序的配置。server.xml的每个元素都会转换为一个Java对象，元素的属性会用于设置Java对象的属性。这样，就可以通过简单地编辑servlet.xml文件来修改Tomcat的配置。
+- Tomcat使用开源库Digester来将XML文档中的元素转换成Java对象。
+- 配置Web应用程序是通过对已经实例化的Context实例进行配置完成的。用来配置Web应用程序的XML文件的名称是web.xml，该文件位于Web应用程序的WEB-INF目录下。
+
+1. Digester库
+
+   1. Digester类：是Digester库的主类，用于解析XML文档。对于每个XML文档中的元素，Digester对象都会检查它是否要做事先预定义的事件。在调用DIgester对象的parse()方法前，程序员要先定义好Digester对象执行哪些动作。
+
+      - 要先定义好模式，然后将每个模式与一条或多条规则相关联。XML文档中根元素的模式与元素的名字相同。
+
+      - 子元素的模式是由该元素的父元素的模式再加上“/”符号，以及该元素名字拼接而成的。
+
+      - 规则是org.apache.commons.digester.Rule类的实例。Digester类可以包含0个或多个Rule对象。再Digester实例中，这些规则和其相关联的模式都存储再由org.apache.commons.digester.Rules接口表示的一类存储器中。每当把一条规则添加到Digester实例中时，Rule对象都会被添加到Rules对象中。
+
+      - Rule类由begin()和end()方法。在解析XML文档时，当Digester实例遇到匹配某个模式的元素的开始标签时，它会调用相应的Rule对象的begin()方法。当Digester实例遇到相应元素的结束标签时，它会调用Rule对象的end()方法。
+
+      - 一些预定于的规则：
+
+        1. 创建对象：可以调用Digester对象的addObjectCreate()方法
+
+           - 相关方法1：
+
+             ```java
+             //需要指定一个模式和一个Class对象或类名来调用方法
+             public void addObjectCreate(String pattern, String className) {
+                     this.addRule(pattern, new ObjectCreateRule(className));
+                 }
+                 public void addObjectCreate(String pattern, Class clazz) {
+                     this.addRule(pattern, new ObjectCreateRule(clazz));
+                 }
+             ```
+
+           - 相关方法2：
+
+             ```java
+             //可以在XML文档中指定类的名字，无需将其作为参数传入。这使得类名可以在运行时决定。
+             //其中attributeName参数指明了XML元素的属性的名字，该属性的值是将要实例化的类的名字。
+             //className可以为null，也可以设置默认值。如果attributeName属性对应的值为空，则使用默认值。
+             public void addObjectCreate(String pattern, String className, String attributeName) {
+                     this.addRule(pattern, new ObjectCreateRule(className, attributeName));
+                 }
+             
+                 public void addObjectCreate(String pattern, String attributeName, Class clazz) {
+                     this.addRule(pattern, new ObjectCreateRule(attributeName, clazz));
+                 }
+             ```
+
+           - addObjectCreate()方法创建的对象会被压入到一个内部栈中。Digester提供了一些其他的方法来对新创建的对象执行查看、入栈、出栈等操作。
+
+        2. 设置属性：addSetProperties()方法，为Digester对象设置属性。
+
+           - 相关方法：
+
+             ```java
+             //需要指定一个模式，会把该模式相应的属性通过setter方法设置。
+             public void addSetProperties(String pattern) {
+                     this.addRule(pattern, new SetPropertiesRule());
+                 }
+             ```
+
+        3. 方法调用：可以遇到某个规则的时候，调用内部栈最顶端对象的某个方法。通过addCallMethod()方法。
+
+           - 相关方法：
+
+             ```java
+             //指定模式和方法名
+             public void addCallMethod(String pattern, String methodName) {
+                     this.addRule(pattern, new CallMethodRule(methodName));
+                 }
+             ```
+
+        4. 创建对象之间的关系：通过addSetNext()方法会把栈顶的倒数第一个元素作为参数设置到倒数第二个元素里。
+
+           - 相关方法：
+
+             ```java
+             //触发的模式（栈顶倒数第一个元素），调用的方法（栈顶倒数第二个元素的方法）   
+             public void addSetNext(String pattern, String methodName) {
+                     this.addRule(pattern, new SetNextRule(methodName));
+                 }
+             ```
+
+        5. 验证XML文档：可以通过某个模式进行XML文档有效性验证。Digester类的validating属性指明了是否要对XML文档进行有效性验证。默认情况下为false。可以通过setValidating()方法来设置。
+
+   2.  
+
+   3.  
+
+   4.  Rule类
+
+      - Digester对象的addXXX()方法都会简介的调用Digester类的addRule()方法。该方法会将一个Rule对象和它所匹配的模式添加到Digester对象的Rules集合中。
+
+      - addRule()方法：
+
+        ```java
+        public void addRule(String pattern, Rule rule) {
+                rule.setDigester(this);
+                this.getRules().add(pattern, rule);
+            }
+        ```
+
+      - ObjectCreateRule类的begin()和end()方法：
+
+        ```java
+        public void begin(Attributes attributes) throws Exception {
+            // 关键    
+            String realClassName = this.className;
+                if (this.attributeName != null) {
+                    // 关键  
+                    String value = attributes.getValue(this.attributeName);
+                    if (value != null) {
+                        realClassName = value;
+                    }
+                }
+        
+                if (this.digester.log.isDebugEnabled()) {
+                    this.digester.log.debug("[ObjectCreateRule]{" + this.digester.match + "}New " + realClassName);
+                }
+        
+            // 关键  
+                Class clazz = this.digester.getClassLoader().loadClass(realClassName);
+            // 关键  
+                Object instance = clazz.newInstance();
+            // 关键  
+                this.digester.push(instance);
+            }
+        
+            public void end() throws Exception {
+                // 关键  
+                Object top = this.digester.pop();
+                if (this.digester.log.isDebugEnabled()) {
+                    this.digester.log.debug("[ObjectCreateRule]{" + this.digester.match + "} Pop " + top.getClass().getName());
+                }
+        
+            }
+        ```
+
+   5. RuleSet：可以通过Digester实例中的addRuleSet()方法给Digester实例添加Rule对象。
+
+      - RuleSet对象集合是org.apache.commons.digester.RuleSet接口的实例，此接口比较重要的方法是addRuleInstances(Digester)。由基础实现类RuleSetBase，此类是一个抽象类，只需要实现它的addRuleInstances()方法即可。
+      - 其getNamespaceURI()方法返回将要应用在RuleSet中所有Rule对象的命名空间的URI。
+
+2. ContextConfig类：是StandarContext实例必须要要的监听器实例，这个监听器负责配置StandardContext实例，设置成功后会将StandarContext实例的变量configured设置为true。
+
+   - ContextConfig类会安装一个验证器阀到StandardContext实例的管道对象中。还会添加一个许可阀（org.apache.catalina.valves.CertificateValve类的实例）到管道对象中。
+   - ContextConfig类还会读取和解析默认的web.xml文件和应用程序自定义的web.xml文件，将XML元素转换为Java对象。默认的web.xml文件位于CATALINA_HOME目录下的conf目录中。其中定义并映射了很多默认的servlet，设置了很多MIME类型文件的映射，定义了默认Session超时事件，以及定义了欢迎文件的列表。
+   - 应用程序的web.xml文件是应用程序自定义的配置文件，位于应用程序目录下的WEB-INF目录中。这两个文件都不是必须的，即使两个文件都没有找到，ContextConfig实例仍然会继续执行。
+   - ContextConfig实例会为每个servlet元素创建一个StandardWrapper类。因此，不再需要自己实例化Wrapper实例了。
+   - StandardContext实例启动和停止时，分别会触发START_EVENTSTART_EVENT、BEFORE_START_EVENT、AFTER_START_EVENT、STOP_EVENT、BEFORE_STOP_EVENT、AFTER_STOP_EVENT事件。
+     - ContextConfig实例会对这两种事件做出响应，分别是START_EVENT和STOP_EVENT，每次触发时，都会调用ContextConfig的lifecycleEvent()方法：
+       - 其中START_EVENT会调用ContextConfig的start()方法：
+         - 该方法会为StandardContext实例的父容器（Host或Engine）设置默认Context实例。
+         - 调用defaultConfig()和applicationConfig()方法。
+
+   1. defaultConfig()方法：读取位于%CATALINA_HOME%/conf目录下的默认web.xml文件
+      - 读取此File文件
+      - 然后用webDigester处理此web.xml文件。webDigester包含处理此web.xml所需要的规则。
+   2. applicationConfig()方法：读取应用程序目录下的WEB-INF下的web.xml文件，解析过程同defaultConfig()方法。
+   3. 创建WebDigester：在ContextConfig类中，使用成员变量webDigester来应用Digester类型的对象，此对象通过createWebDigester()方法创建。
+      - createWebDigester()方法：会为webDigester变量设置一个WebRuleSet实例，WebRuleSet包含了解析web.xml文件所需的规则。
+
+# 16、关闭钩子
+
+- 在Tomcat的部署应用中，通过实例化一个Server对象来启动servlet容器，调用其start()方法，然后逐个调用组件的start()方法。
+- 在Java中，虚拟机会对两类事件进行响应，并执行关闭操作：
+  - 当调用System.exit()方法或程序的最后一个非守护线程退出时，应用程序正常退出；
+  - 用户突然强制虚拟机中断运行，如用户按下CTRL+C快捷键或在未关闭Java程序的情况下下，从系统中退出。
+- 虚拟机在执行关闭操作时，会经过以下两个阶段：
+  1. 虚拟机启动所有已经注册的关闭钩子，如果有的化。关闭钩子是先前已经通过Runtime类注册的线程，所有的关闭够子会并发执行，直到完成任务；
+  2. 虚拟机根据情况调用所有没有被调用过的终结器（finalizer）。
+- 创建关闭钩子，关闭钩子是java.lang.Thread类的一个子类实例：
+  1. 创建Thread类的一个子类；
+  2. 实现run()方法，当应用程序关闭时，会调用此方法；
+  3. 在应用程序中，实例化关闭钩子类；
+  4. 使用当前的Runtime类的addShutdownHook()方法注册关闭钩子；
+
+1.  
+
+2.  Tomcat中的关闭钩子：在Catalina类有一个CatalinaShutdownHook的内部类继承自Thread类，提供了run()方法的实现，它会调用Server对象的stop()方法，执行关闭操作。Catalina实例启动时，会实例化关闭钩子，并在一个阶段将其添加到Runtime类中。
+
+   - 实现源码：
+
+     ```java
+         protected class CatalinaShutdownHook extends Thread {
+     
+             public void run() {
+     
+                 if (server != null) {
+                     try {
+                         ((Lifecycle) server).stop();
+                     } catch (LifecycleException e) {
+                         System.out.println("Catalina.stop: " + e);
+                         e.printStackTrace(System.out);
+                         if (e.getThrowable() != null) {
+                             System.out.println("----- Root Cause -----");
+                             e.getThrowable().printStackTrace(System.out);
+                         }
+                     }
+                 }
+     
+             }
+         }
+     ```
+
+# 17、启动Tomcat
+
