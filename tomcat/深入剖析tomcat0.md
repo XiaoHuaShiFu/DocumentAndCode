@@ -898,7 +898,66 @@
 
    - invoke()方法会从StandardEngine的map()方法获取Host实例，然后调用Host实例的invoke()方法。
 
-# 14、
+# 14、服务器组件和服务组件
+
+1. 服务器组件
+
+   - org.apache.catalina.Server接口的实例表示Catalina的整个servlet引擎，囊括了所有的组件。服务器组件使用一种优雅的方法来启动/关闭整个系统，不需要再对连接器和容器分别启动/关闭。
+   - 启动服务器组件时，它会启动其中所有的组件，然后它就无限期地等待关闭命令。如果要关闭系统，可以向指定端口发送一条关闭命令。然后服务器组件就会关闭所有组件。
+   - 服务器组件使用另外一个组件（服务组件）来包含其他组件，如一个容器组件和一个/多个连接器组件。
+   - shutdown属性保存了必须发送给Server实例用来关闭整个系统的关闭命令。port属性表明监听关闭命令的端口。addService()方法可以添加服务组件。initialize()方法进行系统启动前的初始化工作。
+
+2. StandardServer类：Server接口的标准实现。此类许多方法都与server.xml文件中的服务器配置的存储相关。
+
+   - 一个服务器组件可以有0个或多个服务组件。可以通过addService()方法添加。
+   - StandardServer有4个与生命周期相关的方法，分别是initialize()方法、start()方法、stop()方法和await()方法。可以初始化并启动服务器组件（initialize()方法和start()方法）。调用await()方法会一直阻塞，知道从8085端口上接收到关闭命令。await()方法返回时，会运行stop()方法来关闭其下的所有子组件。
+
+   1. initialize()方法：用于初始化添加到其中的服务组件。
+      - 其中使用一个initialized的布尔变量来防止服务器组件初始化两次。stop()方法并不会重置initialized的值，因此服务器组件关闭重启，是不会再次进行初始化的。
+   2. start()方法：启动服务器组件。会启动所有的服务组件，如连接器组件和servlet容器。
+      - 使用started布尔变量来防止服务器组件重复启动。stop()方法会重置这个值。
+   3. stop()方法：关闭服务器组件。会关闭所有服务器组件，并重置布尔变量started。
+   4. await()方法：负责等待关闭整个Tomcat部署的命令。它会创建一个ServerSocket对象，监听8085端口，并在while循环中调用它的accept()方法。当在指定端口上接收到信息时，才会从accept()方法中返回。然后与关闭命令的字符串相比较，如果相同则跳出while循环，关闭SocketServer。
+
+3. Service接口：服务组件的接口。一个服务组件可以有一个servlet容器和多个连接器实例。可以自由的把连接器添加到服务组件中，这样所有连接器都会与这个servlet容器相关联。
+
+4. StandardService类：是Service接口的标准实现。initialize()方法用于初始化添加到其中的所有连接器。还实现了Lifecyle接口，因此它的start()方法可以启动连接器和所有servlet()容器。
+
+   1. connector和container
+      - StandardService实例的两种组件，连接器和servlet容器。servlet容器只有一个，连接器可以有多个。多个连接器使Tomcat可以为多种不同的请求协议提供服务。例如一个处理HTTP请求和另一个处理HTTPS请求。
+      - 通过成员变量container和connectors来保存容器和连接器的引用。setContainer()方法将servlet容器与服务组件相关联。然后会将每个连接器与servlet容器相关联。
+      - addConnector()方法将连接器添加到服务组件中，会初始化并启动添加到其中的连接器。
+   2. 与生命周期相关的方法：initialize()方法、start()方法、stop()方法和await()方法。
+      - initialize()方法：初始化连接器；
+      - start()方法：启动servlet容器和连接器；
+      - stop()方法：关闭servlet容器和连接器。
+
+5. 应用程序
+
+   1.  
+
+   2.  Stopper类：提供更优雅的方式来关闭Catalina服务器，也保证了所有的生命周期组件的stop()方法都能够调用。
+
+      - Stopper类的main()方法会创建一个Socket对象，然后将正确的关闭命令”SHUTDOWN“发送给端口8005。Catalina服务器收到关闭命令后，就会执行相应的关闭操作。
+
+      - 源码：直接发送关闭命令
+
+        ```java
+        public class Stopper {
+            public static void main(String[] args) throws IOException {
+                int port = 8005;
+                Socket socket = new Socket("127.0.0.1", port);
+                OutputStream stream = socket.getOutputStream();
+                String shutdown = "SHUTDOWN";
+                for (int i = 0; i < shutdown.length(); i++) {
+                    stream.write(shutdown.charAt(i));
+                }
+                stream.flush();
+                stream.close();
+                socket.close();
+            }
+        }
+        ```
 
 # 15、Digester库
 
@@ -1109,3 +1168,103 @@
 
 # 17、启动Tomcat
 
+- Catalina类用于启动或关闭Server对象，并负责解析Tomcat配置文件：server.xml文件。Bootstrao类是一个入口点，负责创建Catalina实例，并调用其process()方法。两个类分开是为了支持Tomcat的多种运行模式，如BootstrapService可以使Tomcat作为一个Windows NT服务来运行。
+- 也可以使用批处理文件和Shell脚本来启动或关闭servlet容器。
+
+1. Catalina类：启动类。它包含一个Digester镀锡，用于解析位于%CATALINA_HOME%/conf目录下的server.xml文件。
+
+   - Catalina类封装了一个Server对象，该对象有一个Service对象。Service对象包含一个servlet容器和一个或多个连接器。可以使用Catalina类来启动/关闭Server对象。
+
+   - 可以通过实例化Catalina类，并调用其process()方法来运行Tomcat，第一个参数是start或stop。还有其他可选的参数，包括-help、-config、-debug和-nonaming。
+
+   - Catalina类提供main()方法作为程序的入口点。当一般使用Bootstrap的main作为入口。
+
+   - process()方法会设置两个系统属性，分别是catalina.home和catalina.base.catalina.home，默认值均为user.dir属性的值。user.dir属性值指明了用户的工作目录，即会从哪个目录下调用Java命令。
+
+     - process()方法：会调用arguments()方法处理命令行参数，如果Catalina对象能够继续处理的话，arguments()方法返回true。
+
+       ```java
+           public void process(String args[]) {
+       
+               setCatalinaHome();
+               setCatalinaBase();
+               try {
+                   if (arguments(args))
+                       execute();
+               } catch (Exception e) {
+                   e.printStackTrace(System.out);
+               }
+           }
+       ```
+
+     - arguments()方法：
+
+       ```java
+           protected boolean arguments(String args[]) {
+       
+               boolean isConfig = false;
+       
+               if (args.length < 1) {
+                   usage();
+                   return (false);
+               }
+       
+               for (int i = 0; i < args.length; i++) {
+                   if (isConfig) {
+                       configFile = args[i];
+                       isConfig = false;
+                   } else if (args[i].equals("-config")) {
+                       isConfig = true;
+                   } else if (args[i].equals("-debug")) {
+                       debug = true;
+                   } else if (args[i].equals("-nonaming")) {
+                       useNaming = false;
+                   } else if (args[i].equals("-help")) {
+                       usage();
+                       return (false);
+                   } else if (args[i].equals("start")) {
+                       starting = true;
+                   } else if (args[i].equals("stop")) {
+                       stopping = true;
+                   } else {
+                       usage();
+                       return (false);
+                   }
+               }
+       
+               return (true);
+       
+           }
+       ```
+
+     - execute()方法会调用start()或stop()方法来启动或关闭Tomcat
+
+       ```java
+           protected void execute() throws Exception {
+               if (starting)
+                   start();
+               else if (stopping)
+                   stop();
+           }
+       ```
+
+   1. start()方法：会创建一个Digester实例来解析server.xml文件。在解析文件之前，会先调用Digester对象的push()方法传入当前的Catalina对象作为参数。这样Catalina对象就成为了Digester对象的内部栈中的第一个对象。解析server.xml文件之后，会使成员变量server引用一个Server对象，默认是StandardServer类型的对象。然后，start()方法调用Server对象的initialize()和start()方法。接着，Catalina的start()方法会调用Server对象的await()方法，Server对象会使用一个专门的线程来等待关闭命令。await()方法会循环等待，知道接收到正确的关闭命令。当await()方法返回时，Catalina对象的start()方法会调用Server对象的stop()方法，从而关闭Server对象和其他的组件。此外，start()方法还会利用关闭钩子，确保用户突然退出应用程序时会执行Server对象的stop()方法。
+   2. stop()方法：用来关闭Catalina和Server对象。
+   3. 启动Digester对象：Catalina类的createStartDigester方法用于解析server.xml文件。server.xml用来配置Tomcat，位于%CATALINA_HOME%/conf目录下。
+      - 会添加Server、GlobalNamingResources、Listener、Service、Connector、DefaultServerSocketFactory、NamingRuleSet、EngineRuleSet、HostRuleSet、ContextRuleSet、SetParentClassLoaderRule。
+   4. 关闭Digester对象：只对XML文档的根元素感兴趣。也就是Server元素。
+
+2. Bootstrap类：启动Tomcat的入口点。当运行startup.bat文件或startup.sh文件时，实际上是调用了该类的main()方法。main()方法会创建3个类载入器，实例化Catalina类并调用其process()方法。
+
+   - 使用多个类载入器的目的是为了防止应用程序中的类使用WEB-INF/classes目录和WEB-INF/lib目录之外的类。部署到%CATALINA_HOME%/common/lib目录下的JAR文件的类文件是可以使用的。
+   - 三个类载入器：
+     - commonLoader可以载入%CATALINA_HOME%/common/classes目录、%CATALINA_HOME%/common/endorsed目录、%CATALINA_HOME%/common/lib目录下的Java类。
+     - catalinaLoader负责载入运行Catalina servlet容器所需要的类。可以载入%CATALINA_HOME%/server/classes目录、%CATALINA_HOME%/server/lib目录以及commonLoader类载入器可以访问的所有目录中的Java类。
+     - sharedLoader类可以载入%CATALINA_HOME%/shared/classes目录和%CATALINA_HOME%/shared/lib目录以及commonLoader类载入器可以访问的所有目录中的Java类。在Tomcat中，每个Web应用程序中与Context容器相关联的每个类载入器的父类载入器都是sharedLoader类载入器。
+       - sharedLoader类载入器并不能访问Catalina的内部类，或CLASSPATH环境变量指定的类路径中的类。
+   - main()方法会载入Catalina类并创建它的一个实例，然后它调用Catalina实例的setParentClassLoader()方法，将sharedLoader类载入器作为参数传入；
+   - 最后main()方法调用Catalina实例的process()方法。
+
+# 18、部署器
+
+1. 
