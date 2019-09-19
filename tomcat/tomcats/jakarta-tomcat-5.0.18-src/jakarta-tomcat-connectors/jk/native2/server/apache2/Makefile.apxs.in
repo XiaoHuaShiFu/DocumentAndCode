@@ -1,0 +1,32 @@
+## configure should make the Makefile out of this file.
+
+APXS=@APXS2@
+OS=@OS@
+JAVA_HOME=@JAVA_HOME@
+JK_DIR := ../..
+APXS_LDFLAGS=@APXS2_LDFLAGS@
+APXS_CFLAGS=@APXS2_CFLAGS@
+COMMON_C_FILES := $(wildcard ${JK_DIR}/common/*.c )
+
+
+JK=${JK_DIR}/common/
+JKINC=${JK_DIR}/include/
+JK_INCL=-DUSE_APACHE_MD5 -I ${JK} -I ${JKINC} -DHAS_APR @HAVE_JNI@ @HAS_PCRE@
+JAVA_INCL=-I ${JAVA_HOME}/include -I ${JAVA_HOME}/include/${OS}
+JAVA_LIB=-L ${JAVA_HOME}/jre/lib/${ARCH} -L ${JAVA_HOME}/lib/${ARCH}/native_threads
+
+APACHE2_OBJECTS=jk_logger_apache2.c jk_map_aprtable.c jk_service_apache2.c
+
+## Must include the jni stuff 
+
+all: mod_jk2.la
+
+mod_jk2.la: 
+	$(APXS) -c -o $@ -Wc,"${JK_INCL}" "${JAVA_INCL}" mod_jk2.c ${APACHE2_OBJECTS} ${COMMON_C_FILES}
+
+install: mod_jk2.la
+	$(APXS) -i mod_jk2.la
+ 
+clean:
+	rm -f *.o *.so *.lo *.la *.slo
+	rm -rf .libs

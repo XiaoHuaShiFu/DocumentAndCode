@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<document>
+	<properties>
+		<title>Configuration options</title>
+		<author email="jfrederic.clere@fujitsu-siemens.com">Jean-Frederic Clere</author>
+		<date>$Date: 2003/03/16 00:56:34 $</date>
+	</properties>
+	<section name="Intro">
+		<p>
+  This document describes the configuration file used by mod_jk2 on the
+  Tomcat site. Its default name is ${jkHome}/conf/jk2.properties,
+  where ${jkHome} is the well known ${catalina.base} property.
+</p>
+	</section>
+	<section name="Config File Format">
+	<p> settings are specified in the following format:
+	<source>
+	handler.propertie=value
+	</source>
+	</p></section>
+	<section name="Generic properties">
+		<p>
+			<table>
+				<tr>
+					<th>Property name</th>
+					<th>Default</th>
+					<th>Description</th>
+				</tr>
+				<tr>
+					<td>handler.list</td>
+					<td>request,container,channelSocket</td>
+					<td>Handlers to load.</td>
+				</tr>
+				<tr>
+					<td>class.myhandler</td>
+					<td>No default value</td>
+					<td>Define the class of the handler myhandler.</td>
+				</tr>
+			</table>
+		</p>
+	</section>
+</document>

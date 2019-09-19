@@ -1,0 +1,173 @@
+
+
+                    Proposal for Apache Tomcat 5.0
+                    ==============================
+
+
+
+Introduction:
+------------
+
+This document is a proposal for the next major release of Apache Tomcat, 
+Apache Tomcat 5.0.
+
+Apache Tomcat 5.0 will improve on the Apache Tomcat 3.3 and Apache
+Tomcat 4.1 architectures, by making them simpler, more flexible and more 
+modular, while at the same time adding support for the new Servlet API 2.4 and
+JSP 2.0 specifications, currently under development by the Java Community 
+Process.
+
+The major goals for Apache Tomcat 5.0 are to:
+- improve scalability, reliability and performance over previous versions
+- have simpler/cleaner code, so more people can get involved
+- merge of the various ideas in 3.x and 4.x
+- get the community togheter
+- provide maximum modularity and compliance to the standards
+- make it easy to continue to maintain the existing codebases
+
+Testing will occur to make sure the stated robustness and performance goals
+are met by Tomcat 5.0.
+
+This proposal also tries to take advantage of the lessons learned while 
+optimizing and maintaining Tomcat.
+
+Note: The development of Apache Tomcat 4.1.x will continue in parallel to the 
+implementation of this proposal.
+
+
+
+General architecture:
+--------------------
+
+
+An improved version of Coyote 1.0, called Coyote 2.0, will be used as 
+the Apache Tomcat 5.0 core.
+
+Coyote is currently considered a connector for Tomcat 3.3 and 4.x, and is under
+development in the jakarta-tomcat-connectors repository.
+
+Coyote 1.0 includes:
+- Protocol handlers for AJP 1.3, HTTP/1.1 and JNI
+- Adapter for Tomcat 3.3
+- Adapter for Tomcat 4.x
+
+Extensibility capabilities will be added to Coyote, as well as JMX management
+features, and if possible, addional protocol handlers (like WARP 1.0).
+
+The Servlet API 2.4 specification will be implemented in a new version of 
+Catalina, called Catalina 2.0. A new version of the Coyote adapter will be
+written for it if mandated by API changes. Components which duplicate 
+functionality provided by Coyote will be removed, including the old connectors.
+
+On the JSP side, Jasper 2 will be updated to support JSP 2.0, will be renamed 
+to Jasper 3, and is the proposed Jasper codebase. It provides many 
+improvements over Jasper 1 included in Tomcat 3.x and Tomcat 4.0.x, including 
+good tag library handling, and near zero overhead when compared to 
+an equivalent hand coded servlet. Jasper 2 will also undergo additional 
+optimizations.
+
+Apache Tomcat 5.0 will be made by default of the following components:
+- Coyote 2.0 - core
+- Catalina 2.0 - Servlet API 2.4 implementation
+- Jasper 2 - JSP 2.0 implementation
+
+Many other configurations are also possible, and it is expected that advanced
+users take advantage of it to make Tomcat better suit their needs. It is also
+possible that new special purpose components, like a bare bones Servlet API 
+implementation, be developed to address the embedded market.
+
+Due to the scope of this work, this initial Proposal only plans 
+the implementation and support of the default configuration described above.
+
+
+
+Changes over Apache Tomcat 4.1.x:
+--------------------------------
+
+
+A lot of the Apache Tomcat 5.0 code will be based on the Apache Tomcat 4.1.x 
+codebase. Tomcat 5.0 will also be able to use the Tomcat 3.3.x code.
+
+The following major changes and additions are proposed to the current Apche
+Tomcat code, and related dependencies:
+
+A) Removal of the org.apache.catalina.connector.*
+
+This package is currently deprecated in Tomcat 4.1 because of 
+its implementation inefficiencies, and general bad design. It is thus proposed
+that it is removed in Tomcat 5.0.
+
+B) Addition of new loader code for the commons-daemon subproject
+
+It is proposed that, in an attempt to solve the problems with using startup 
+scripts, as well as adding additional features oriented towards reliability
+(including the capability to restart Tomcat automatically should the JVM
+crashes or experience memory management related problems), the launcher code
+which will be developed as part of commons-daemon be adopted.
+This code will be based in part on the launcher code used for the Sun Web
+Services Pack, and in part on the Wrapper project code (available at SF.net),
+if we manage to come to an agreement with the Wrapper developers.
+
+C) Extensions to Coyote
+
+It is proposed that Coyote 2.0 include the following changes over Coyote 1.0:
+- The current hook mechanism used in Coyote 1.0 will be extended to be 
+more generic and powerful.
+- It is also envisioned that JMX management capabilities could be added 
+to Coyote.
+- Deprecated interfaces will be removed (two interfaces, at the moment).
+- An additional protocol handler for the WARP 1.0 protocol will be added 
+provided there is user interest and developers willing to dedicate time.
+
+D) Implementation of the Servlet 2.4 Specification
+
+Catalina 2.0 is proposed to be identical to Catalina 1.1 (included 
+in Tomcat 4.1.x), with the exception of adding support for the new Servlet
+Specification. The changes introduced in this new revision are relatively
+limited, and shouldn't cause any major architectural changes in Catalina.
+Catalina 2.0 will also inherit from all the refactorings done in Catalina 1.1.
+
+Servlet 2.4 Specification Draft:
+http://jcp.org/aboutJava/communityprocess/review/jsr154/index.html
+
+E) Implementation of the JSP 2.0 Specification
+
+Jasper 2 will be modified to support the new JSP Specification. More important
+changes will be required than for supporting the new Servlet Specification.
+
+JSP 2.0 Specification Draft:
+http://jcp.org/aboutJava/communityprocess/review/jsr152/index.html 
+
+Resources needed:
+----------------
+
+* New jakarta-servletapi-5 repository
+
+This new repository will hold the default implementation of the Servlet 
+API 2.4 and the JSP 2.0 specifications. Alternately, the new API can be put
+in the 'jakarta-servletapi' repository after a branch is created to hold the
+current version of the code.
+
+* New jakarta-tomcat-5.0 repository
+
+This repository will contain the version of Catalina which will be updated to
+support the Servlet API 2.4. Alternately, this code can be put in the 
+'jakarta-tomcat-4.0' or 'jakarta-tomcat' repository after a branch is created
+to hold the old code present.
+
+* New branch in jakarta-tomcat-jasper
+
+The implementation of JSP 2.0 will occur in the HEAD branch of the 
+jakarta-tomcat-jasper repository. A branch will be created to contain 
+the Jasper 2 code which is used in Tomcat 4.1.x.
+
+
+
+Release managers (proposed):
+---------------------------
+
+It is proposed that the release management duties be split for this release, 
+due to the amount of modules which will be part of Tomcat 5.0.
+
+Larry Isaacs
+Remy Maucherat

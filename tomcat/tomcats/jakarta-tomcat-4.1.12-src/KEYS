@@ -1,0 +1,182 @@
+This file contains the PGP&GPG keys of various Apache developers.
+Please don't use them for email unless you have to. Their main
+purpose is code signing.
+
+Apache users: pgp < KEYS
+Apache developers: 
+        (pgpk -ll <your name> && pgpk -xa <your name>) >> this file.
+      or
+        (gpg --fingerprint --list-sigs <your name>
+             && gpg --armor --export <your name>) >> this file.
+
+Apache developers: please ensure that your key is also available via the
+PGP keyservers (such as pgpkeys.mit.edu).
+
+
+Type Bits/KeyID    Date       User ID
+pub  1024/697ECEDD 2000/04/06 Henri Gomez <hgomez@slib.fr>
+                              *** RPM SIGNING KEY ***
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.3i
+
+mQCNAzjsydwAAAEEAMpwFU/ci3/wR3ryCGp9Exr+Rx/hTQ7hWAJcVw8ejlBXlT4T
+yITlRUs0HGfRWxME2J55PuXXsIEPZzjfozNtvOyq8WlLlJ7iaiyWxVRoPJ25sSEj
+C9etm6wjj4E66ZgzuElZkm1m69uEsCHPPNuz1oQ/g1O+SmIVxIYirlxpfs7dAAUR
+tBxIZW5yaSBHb21leiA8aGdvbWV6QHNsaWIuZnI+iQCVAwUQOOzJ3IYirlxpfs7d
+AQFQyQQAj0D9G0hEL7SQGaSCkkoXwvamQw42N8+tNm+jfWHWdE4HAiVlhJmI2GyD
+sdcXVAcR8R7ILIRB5AY7a3bF+qMk0r+vO6oR878RKKn9AvtaAIOnrh6tr0tiPwf5
+XDUMySxIWJEF3SmJAy9Lq3bAl5GMzZCFHiS0NW2gtWgmr/u1RuM=
+=6l+I
+-----END PGP PUBLIC KEY BLOCK-----
+
+Type Bits/KeyID    Date       User ID
+pub  2048/F22C4FED 2001/07/02 Andy Armstrong <andy@tagish.com>
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: PGPfreeware 7.0.3 for non-commercial use <http://www.pgp.com>
+
+mQGiBDtAWuURBADZ0KUEyUkSUiTA09e7tvEbX25STsjxrR+DNTainCls+XlkVOij
+gBv216lqge9tIsS0L6hCP4OQbFf/64qVtJssX4QXdyiZGb5wpmcj0Mz602Ew8r+N
+I0S5NvmogoYWW7BlP4r61jNxO5zrr03KaijM5r4ipJdLUxyOmM6P2jRPUwCg/5gm
+bpqiYl7pXX5FgDeB36tmD+UD/06iLqOnoiKO0vMbOk7URclhCObMNrHqxTxozMTS
+B9soYURbIeArei+plYo2n+1qB12ayybjhVu3uksXRdT9bEkyxMfslvLbIpDAG8Cz
+gNftTbKx/MVS7cQU0II8BKo2Akr+1FZah+sD4ovK8SfkMXUQUbTeefTntsAQKyyU
+9M9tA/9on9tBiHFl0qVJht6N4GiJ2G689v7rS2giLgKjetjiCduxBXEgvUSuyQID
+nF9ATrpXjITwsRlGKFmpZiFm5oCeCXihIVH0u6q066xNW2AXkLVoJ1l1Rs2Z0lsb
+0cq3xEAcwAmYLKQvCtgDV8CYgWKVmPi+49rSuQn7Lo9l02OUbLQgQW5keSBBcm1z
+dHJvbmcgPGFuZHlAdGFnaXNoLmNvbT6JAFgEEBECABgFAjtAWuUICwMJCAcCAQoC
+GQEFGwMAAAAACgkQajrT9PIsT+1plgCfXAovWnVL3MjrTfcGlFSKw7GHCSYAoJkz
+x+r2ANe8/0e+u5ZcYtSaSry+uQINBDtAWuUQCAD2Qle3CH8IF3KiutapQvMF6PlT
+ETlPtvFuuUs4INoBp1ajFOmPQFXz0AfGy0OplK33TGSGSfgMg71l6RfUodNQ+PVZ
+X9x2Uk89PY3bzpnhV5JZzf24rnRPxfx2vIPFRzBhznzJZv8V+bv9kV7HAarTW56N
+oKVyOtQa8L9GAFgr5fSI/VhOSdvNILSd5JEHNmszbDgNRR0PfIizHHxbLY7288kj
+wEPwpVsYjY67VYy4XTjTNP18F1dDox0YbN4zISy1Kv884bEpQBgRjXyEpwpy1obE
+AxnIByl6ypUM2Zafq9AKUJsCRtMIPWakXUGfnHy9iUsiGSa6q6Jew1XpMgs7AAIC
+B/0eHkYQ0Rv6s21TgpOzRBon+rQAv9ka0PlC7bj2eYWsCOBib8K7qO8hND0sW59p
+0uFQ01X7kC7L/4Ls1HTk0chEZMV0UrGAOKXHY1QFlxrNtFi5U3pTPITXDDfy+g/G
+6FTX3PLnGGvwXbtaiAq5UjQ6iXm03lh0BW6Q+kPtm8swPPfqfjYv0rrT+I8Ic3p2
+HplWKR2bpi3wqCSKB/AaTQJwTbh2x2+2cPVONPodgjZSJ9eQkErejkNSvqbumlTx
+dB81eoGa0Lo2xE7N+DNlCnILGE0X4hPMdj+N5fmyEbyx0WOB8crvCuODGGEQnXs/
+zbVO7FP+rj7YWjRh5pVD3bGiiQBMBBgRAgAMBQI7QFrlBRsMAAAAAAoJEGo60/Ty
+LE/tj/QAoOFNFa7rbAy+eT6mRNb7XztfcAbWAKD6Gd6S/7lEJU0k2TS5tozt4jMl
+vw==
+=/91Q
+-----END PGP PUBLIC KEY BLOCK-----
+
+Type Bits/KeyID    Date       User ID
+pub  1024D/86867BA6 2001-11-22 Jean-Frederic Clere (jfclere) <JFrederic.Clere@fjitsu-siemens.com>
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1.0.5 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
+
+mQGiBDv9Gx8RBADclmKwDLcibNVipQnhYW+bFIpuQjQnRrqRwn3gXM+/luzzJYJ4
+bbWpw13zjX0EkrAJ8qH2A/d0EIU1eZ0zHrLgRvMUfLGFUX7FFFw18JKFLTVGhG4/
+8sSl3ydHSA2Kd1PF6xjBP7iM7sg5dJfEkyMzvK5H4F0ZpTqy3087wsg1wwCgitRy
+Zg4x3lWZSkOwBj472qaO9GkD/2q6kyWfAK6XFe3GuB5AAs3poMfN1eqW+duM4TA8
+zUiWK0Wxx4JXJbL7n0i4d+JdXJsrjSjF++KKfelcxsrSxoUIBegez25MUSvHe09D
+R3nqkY8CVO+viEtzRBqkSgCMbUjAtfkQ+vp2jDnWSmmkNfY0OYAzt+KRyJKcjUSJ
+gvOOA/45+DN9wuTELoFTvsXh1JgOL/QvW1fmQ2HrcQk94BkzIsfVGWClCiig5gNw
+LCxTbfgA5htpI8U7vPR9/5gH7U8Wy3HR6xQUZxcbttMeYit2VbDEJzF5r5S0pJvD
+vyk3n1kiKU7r49sjhxGgE8J/VvDpO6YcIsDs8LoULwuJTg0DTrRDSmVhbi1GcmVk
+ZXJpYyBDbGVyZSAoamZjbGVyZSkgPEpGcmVkZXJpYy5DbGVyZUBmdWppdHN1LXNp
+ZW1lbnMuY29tPohXBBMRAgAXBQI7/RsfBQsHCgMEAxUDAgMWAgECF4AACgkQ0+/m
+toaGe6amGQCeJU5VZ8QCi8+PY0QJHPA63e5uPyoAmgOWIwFm8A/xmW8qjEvVAWtb
+TjZxuQENBDv9GyMQBACCbFlSF+udW/Qz2oknDen8Hoql4Q1Q7CUQTbPjoQAcYgZg
+LrsR6hc9aCIf3Kt4qZBgQ1Oe9M/AemOFhU04UNp3dgHk91EYRvx80Rua992p/8V7
+QOhwIBVb2XE8as5nL2j8w6Jz7eSs/bivxm9yD0AH/I5H01RAJivRbOTsUgSkDwAD
+BQP5ARlW2Nqc0U17asQsmMYvT1UMiOiyBwUD/DIEG2Xy1hlEvdljg8WU26jcjpGq
+MrT69T4Z+eZ2oVyiRQTW4qMUBKc0Nbz89hL0qv9K41ExxxH+JgE1csRVvmwAT8Iy
+lnhof7TJLRBtvan3+p21Kxl1uQ7MbmLT875u+vc+J098fIiIRgQYEQIABgUCO/0b
+IwAKCRDT7+a2hoZ7pn9UAJ9f0TK0QQOtjQBvxAissopYhDKHGACePZg0k9sj69yw
+nVWrBS9fvFC9jcA=
+=BTiM
+-----END PGP PUBLIC KEY BLOCK-----
+
+Type Bits/KeyID    Date       User ID
+pub  1024D/E86E29AC 2002-02-13 kevin seguin <seguin@apache.org>
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1.0.6 (MingW32)
+Comment: For info see http://www.gnupg.org
+
+mQGiBDxqtR8RBACbySxGrtf+flbowryS1Hj4z3zzEXD4CAEq6RjSGMtIraCDRJfp
+6Gexs+lQ6IhpdC4GfX70SUMjXXvT5suhXYeGOM4iJHqUsksgzEKjUqcfj1l3qmOs
+/doE8lcGGHcYbMplBcfuop+shZYiv9GEJ3gutwn/dNnhs/QA9bCdIj03lwCgvAcy
+QpT5JdTym2p2icd5e91mGIUEAJMw6JHTTcCiyoTRy7k8Cf65d8S7bTDLr6pqJVE2
+XU41CvW/pgL31akYAxpeZJJnsBaLaUiqh6K0qgfEMlDwDeC6gVogHBxWkEXdK1dr
+tGL4GIUcxQ1+ZvQhGg7dtjanmfMlylVgS+C48awJySkinRmaQDbQ0MKdFchLc/y1
+OR3IA/0VkIvlidehMPbZCalqhS9AEsDiFq5/u5AsQzDEp2nmTGlmBqjhc39kEnu4
+qKq08az1Gt6Q7sxXbjH/jYtDgd49FW5Yg4k5B3hpTgnbyRE6SGlKksu8qTmYkDve
+4rej6pvJRHwp6hDKxDG8qQoLWIgOfVC8960nurqx56QdV9YMsLQga2V2aW4gc2Vn
+dWluIDxzZWd1aW5AYXBhY2hlLm9yZz6IVwQTEQIAFwUCPGq1HwULBwoDBAMVAwID
+FgIBAheAAAoJEKy3f8Lobims3E0An0x3rrUMIijUMFoqnoT7muNGwmAzAJ990TWj
+dZO4ayh1M+cWhjaw9W+44bkBDQQ8arUkEAQApaMm5HUB1Yk2x5MavAs/O4zfWnOx
+YFOeXIPfGvhlhF2/Lrjs9icaa/tOM/CTCes19nDWP5Fc+pQxmgSPrgt3fsShwZJe
+p3iYodLbM76uXEgSvI4Wh6kwViHbN4V1GxJAd2ZPVb1v+lauGUCOgPFGw99UV9sO
+tTRXSbFS6AgqQzMAAwUD/jq6boxlnab/GUmKrILeLkv1X0G2/AEXEGRmG0nkhVdj
+OShoqtPr4y/UhMzJUOequs2CdvRlTIyAyZqN7A0Qp4mFfmsvp0dYYssTtE4bCzZe
+WxSKgjtBWBHXnH+Qzjb5R2Tz28kAxNY+dt7yxC+CkXWDZq/rsPgsXNbWXT49FnF8
+iEYEGBECAAYFAjxqtSQACgkQrLd/wuhuKazl7QCfQkz5t/3T6EtXZCcXz/hlswyI
+z30AoLr/7hwXgedEepBk/Gm9HUsbMnM8
+=S1mb
+-----END PGP PUBLIC KEY BLOCK-----
+
+
+Type bits      keyID      Date       User ID
+pub  1024D/307A10A5 2002-07-18 Henri Gomez <hgomez@users.sourceforge.net>
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1.0.6 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
+
+mQGiBD02vbERBAC1v8fR6gjERpaz4UMfdy0hRVWCPSbOdF+Swm/IenjVzErco6zb
+MTa13umUNrDPBy/tTWiCCZrOnqi7fgDzWqPEqrXJjKAFVLEWE6MmKylPPEPG1/bm
+idkNGERSAZduvhKv777PzvEJJ/8eGe3wy/O8NbgIjCPtr4UklwCZS8cFuwCg8oMO
+UdT8qZRtzdxdAyu1m5fUb+MD/3IKJYWXsdtb6iBphCU4f/BoyjVC9EZJ1ywLuiVM
+siKbuaDUaXU9nWcbNKv+fx8uZ1NaadpfLokqqhnWcpnSiqw8HNR7SwsF1D33rkXK
+O4FSuVss/tIoqGdWFcJyPkP4yP5shxqR335narVw2vDa0+BiWkALbA2qVsSIdZDB
+LeFZA/47AMBS0U2BRk2rQT8LmMuFl7mR+wNBM4n7FUGdxsGn3TcYd4pXTNrEQPrV
+YNdooKlikgGk4hgFnIFX09Spmimqgq0goFue81rttVdZZ4uep8dTghY6gwmvcOxX
+jATbhWStBhdu9B35kzfHc+1QihD5Z94u4uyWIVBIzikcdiY8LbQqSGVucmkgR29t
+ZXogPGhnb21lekB1c2Vycy5zb3VyY2Vmb3JnZS5uZXQ+iFcEExECABcFAj02vbEF
+CwcKAwQDFQMCAxYCAQIXgAAKCRAZMdaEMHoQpYijAKCCP68ndU/kTXR9XAKLvibC
+3S8+1QCfUFQYte3Jo+MHKaWjsu9JGptRzo+5Ag0EPTa93RAIAKlsRJ5gOGTFsmaR
+W9k6MIh4c/MCy7J7HUxT5xTdHROa+3zUh+FAE/JaOx9ZtZtH863DFHA8cP4L+tpi
+PjBT6g2E94dwGcuH/OiSSCT4JSBukbGbOuLLdmFXqUl8+4gsL90Xal67FtNLwyLG
+1n7geLir0byD+OT7VLA5w+6G0NOpJEveV/FIa2qLgdRZ8vz73ybgMh18hBUrUmro
+jncp0rln2VU7VCH1C2aClKm7kK4mGAjIFIzKbguK+kM3b8NDHmXKpT6syyCtIM3h
+prkV1TUCAFqLI32aSdlTN79lpeA2zDga9k4/4X/RDHsFpRN2neRFGTNUtuUgYpQQ
+E5zWBmMAAwUH/RiGxyeBsad923IwE1+GAjxFl2tqF9xWk0J6yTnSK4nfhYAE9evV
+jwDEok9jRl4ILCcXx6YN/d/lWNuSbARKHz/3hLiTouPpwd3SSJ8is2x9PgpJz5JX
+cD0y1SkbPLvs3jH3ZmdcxZpuAmJeI/typqFKK5pWP44oXIH+XH/8nWDtmLEBkgKQ
+/ATQWenMTmZ6MIJ6aWKWGkO9QS6iYRz3PPPGQ1O8W02CeprM2wBtlb8J1Z3RxNhM
+rZcg/1Qi3V3D1HI4zw6tAFmDeBb8J4PaBQzqlhzx2EBTbfwNPhV8AlPvpxHEeGGn
+v+O1yhZr33SnyZdINNoNDn+owVMdmkobe9GIRgQYEQIABgUCPTa93QAKCRAZMdaE
+MHoQpRsTAJ4qst3MhLm48fBAEnzuzi/BIKr+AgCfYaCB/AvPoncQbHc8BcNGRimR
+P9A=
+=hQhz
+-----END PGP PUBLIC KEY BLOCK-----
+
+Type bits      keyID      Date       User ID
+DSS  1024      0x7572CDEF 2001/10/12 *** DEFAULT SIGNING KEY ***
+                                     Remy Maucherat <remm@apache.org>
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: PGP 6.5.1i
+
+mQGiBDvGnR4RBADPVhGl+eo6ie6UJ9E4sIW8xbBCYHQxIMwWalcLzbz2FKWl57VP
+JzoIaTZZP6op3yhRv4qRm7NGC/gpabRj/im8vK7eKgoh2VVKhqVdIjWbQW+u9pEb
+pXlp1AAFUbP4kqSIggV54s4lRulE6Uq0eDy6sXK8mBFLGRggwEFvLTHPYQCg/2qx
+u1/hBovB0I8+XJoSzconttMEAJVYrxD2W9FhnVCn3ffHhkjQBxUeXr8bQIRwid6R
+ukAqlcVkGohOngdJ94O7KL40mm2A0t9APFVC0tgEk0M7piB5cE1zAZjoLTrlvWrC
+0tH0LzEyaUgvHdG1fVeHtgwsiGW/raWDzCfiIvLCx80yiaMw2TtYXLmhjy+1qWv3
+v78JA/4idwIP7zEF8O6hSEcn5RopddUte5Ne+Ya+fsuSmKDCqPNnIkVvHYarFbkY
+QPDEiUA2fS9j1ShDz3t0Adt1TRbN2VbENH6rYbx9gwiQGu41jjRVit2Z9JM5YDyq
+VDyYH5PpyKOJkKPzuIFzq6Wn6dh/wczhDNn7YHXH49ES2nO+/LQgUmVteSBNYXVj
+aGVyYXQgPHJlbW1AYXBhY2hlLm9yZz6JAE4EEBECAA4FAjvGnR4ECwMBAgIZAQAK
+CRBuHJULdXLN72cHAKCbdPNI0ep6mGivq/xXoeQOPbBEBwCgpBbCFwc4Q6W+Y+VT
+KQh+f5jVojw=
+=1iBa
+-----END PGP PUBLIC KEY BLOCK-----
+

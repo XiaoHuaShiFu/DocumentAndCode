@@ -1267,4 +1267,1168 @@
 
 # 18、部署器
 
-1. 
+- 在Tomcat中，Context实例可以用WAR文件的形式来部署，也可以将整个Web有一次复制到Tomcat安装目录下的webapp下。对于部署的每个应用程序，可以在其中包含一个描述符文件，该文件包含Context实例的配置信息。描述符文件采用XML文档格式。
+- 部署器是一个Deployer接口的实例。部署器与一个Host实例相关联，用来安装Context实例。安装Context实例的意思是，创建一个StandardContext实例，并将该实例添加到Host实例中。创建的Context实例会随其父容器Host实例一起启动。但是，部署器也可以用来单独地启动或关闭Context实例。
+
+1. 部署一个Web应用程序
+
+   - 当调用StandardHost实例的start()方法是，它会触发START事件。HostConfig实例会对此事件进行响应，并调用自身的start()方法，该方法会逐个部署并安装指定目录中的所有Web应用程序。
+
+   - 当在server.xml文件中遇到符合“Server/Service/Engine/Host”模式的标签时，会创建org.apache.catalina.startup.HostConfig类的一个实例，并将其添加到Host实例中，作为生命周期监听器。
+
+   - 每当StandardHost实例启动或关闭时，都会调用HostConfig的lifecycleEvent()方法
+
+     - 代码：
+
+       ```java
+           public void lifecycleEvent(LifecycleEvent event) {
+       
+               // Identify the host we are associated with
+               try {
+                   host = (Host) event.getLifecycle();
+                   if (host instanceof StandardHost) {
+                       int hostDebug = ((StandardHost) host).getDebug();
+                       if (hostDebug > this.debug) {
+                           this.debug = hostDebug;
+                       }
+                       setDeployXML(((StandardHost) host).isDeployXML());
+                       setLiveDeploy(((StandardHost) host).getLiveDeploy());
+                       setUnpackWARs(((StandardHost) host).isUnpackWARs());
+                   }
+               } catch (ClassCastException e) {
+                   log(sm.getString("hostConfig.cce", event.getLifecycle()), e);
+                   return;
+               }
+       
+               // Process the event that has occurred
+               if (event.getType().equals(Lifecycle.START_EVENT))
+                   start();
+               else if (event.getType().equals(Lifecycle.STOP_EVENT))
+                   stop();
+       
+           }
+       ```
+
+     - 其中会调用setDeployXML()、setLiveDeploy()、setUnpackWARs()方法
+
+       - StandardHost类的isDeployXML()方法指明了Host实例是否要部署一个Context实例的描述符文件。默认情况下，deployXML属性的值为true。liveDeploy指明了Host实例是否要周期性地检查一个新的部署，unpackWARs属性指明是否要将WAR文件形式的Web应用程序解压缩。
+
+     - 当收到START事件通知后，HostConfig对象的lifecycleEvent()方法会调用start()方法来部署Web应用程序。
+
+       - start()方法：
+
+         ```java
+             protected void start() {
+         
+                 if (debug >= 1)
+                     log(sm.getString("hostConfig.start"));
+         
+                 if (host.getAutoDeploy()) {
+                     deployApps();
+                 }
+         
+                 if (isLiveDeploy()) {
+                     threadStart();
+                 }
+         
+             }
+         ```
+
+       - authDeploy为true时，会调用deployApps()方法。若liveDeploy为true，会调用threadStart()创建一个新的线程。
+
+       - deployApps()方法会获取Host实例的appBase属性的值，默认为webapps。部署进程还会将%CATALINA_HOME%/webapps目录下的所有目录都看做为Web应用程序的目录来执行部署工作。此外，该目录中所有的WAR文件和描述符文件也都会进行部署。
+
+         - 代码：
+
+           ```java
+               protected void deployApps() {
+           
+                   if (!(host instanceof Deployer))
+                       return;
+                   if (debug >= 1)
+                       log(sm.getString("hostConfig.deploying"));
+           
+                   File appBase = appBase();
+                   if (!appBase.exists() || !appBase.isDirectory())
+                       return;
+                   String files[] = appBase.list();
+           
+                   deployDescriptors(appBase, files);
+                   deployWARs(appBase, files);
+                   deployDirectories(appBase, files);
+           
+               }
+           ```
+
+       - deployApps()会调用其他3个方法：deployDescriptors()、deployWARs()、deployDirectories()。
+
+   1. 部署一个描述符
+      
+      - 可以编写XML文件来描述Context容器。默认的立即在
+   2. 部署一个WAR文件
+      
+      - deployWARs()，将位于%CATALINA_HOME%/webapps目录下的任何WAR文件进行部属,
+   3. 部署一个目录
+   4. 动态部署
+      
+      - 在HostConfig的start()方法的最后一行,当liveDeploy属性为true时,start()方法会调用threadStart()方法，threadStart()方法会派生一个新线程并调用run()方法。run()方法会定期检查是否有新应用要部署，或者已经部署的Web应用程序的web.xml是否有修改。
+      
+      - 代码：
+      
+        ```java
+            public void run() {
+                if (debug >= 1)
+                    log("BACKGROUND THREAD Starting");
+                // Loop until the termination semaphore is set
+                while (!threadDone) {
+                    // Wait for our check interval
+                    threadSleep();
+                    // Deploy apps if the Host allows auto deploying
+                    deployApps();
+                    // Check for web.xml modification
+                    checkWebXmlLastModified();
+                }
+                if (debug >= 1)
+                    log("BACKGROUND THREAD Stopping");
+            }
+        ```
+      
+      - 在Tomcat5中，检查工作由StandardHost类的backgroundProcess()方法周期性地触发一个check()事件。backgroundProcess()方法由一个专门的线程来周期性调用，用来执行容器中所有的后台处理任务。收到check事件后，生命周期监听器（即HostConfig对象）会调用其check()方法执行部署应用的检查。
+      
+        - check()方法会调用deployApps()方法。check()方法还会调用checkContextLastModified()方法，遍历所有已经部署的Context，检查web.xml文件的时间戳，及每个Context中WEB-INF目录下的内容。如果某个检查的资源以及被修改了，会重新启动相应的Context实例。此外，checkContextLastModified()方法还会检查所有以及部署的WAR文件的时间戳，如果某个应用程序的WAR文件被修改了，会重写对该应用程序进行部署。
+   
+2. Deploy接口
+
+   - StandardHost实现了Deployer接口。因此StandardHost实例也是一个部署器。StandardHost使用一个辅助类（StandardHostDeployer）来完成部署于安装Web应用程序的相关任务。
+
+3. StandardHostDeployer类
+
+   - 是一个辅助类，帮助完成将Web应用程序部署到StandardHost实例的工作。
+   - 其构造函数会设置一个Host成员变量。
+   - 当安装一个Context后，就会将其添加到StandardHost实例。
+
+   1. 安装一个描述符
+      - HostConfig对象的deployDescriptors()方法调用了其install()方法后，StandardHost实例调用该install(URL config， URL war)方法。
+   2. 安装一个WAR文件或目录
+      - void install(String contextPath, URL war)表示一个WAR文件和WAR文件的URL。
+   3. 启动Context实例：通过StandardHostDeployer的start()方法。
+   4. 停止Context实例：通过StandardHostDeployer的stop()方法。
+
+# 19、Manager应用程序的servlet类
+
+- 自带了Manager应用程序，可以用来管理以及部署的Web应用程序。
+- Manger应用程序默认在%CATALINA_HOME%/webapps中启动。使用描述符文件manager.xml来完成部署。
+
+1. 使用Manager应用程序
+
+   - 主servlet类是ManagerServlet类。
+
+   - 描述符文件：指定上下文路径是/manager
+
+     ```xml
+     <Context path="/manager" docBase="../server/webapps/manager"
+             debug="0" privileged="true">
+     
+       <!-- Link to the user database we will get roles from -->
+       <ResourceLink name="users" global="UserDatabase"
+                     type="org.apache.catalina.UserDatabase"/>
+     
+     </Context>
+     ```
+
+   - 部署描述文件中，由security-constraint元素：
+
+     - 文件：
+
+       ```xml
+       <?xml version="1.0" encoding="ISO-8859-1"?>
+       
+       <!DOCTYPE web-app
+           PUBLIC "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+           "http://java.sun.com/dtd/web-app_2_3.dtd">
+       
+       <web-app>
+       
+         <display-name>Tomcat Manager Application</display-name>
+         <description>
+           A scriptable management web application for the Tomcat Web Server;
+       	Manager lets you view, load/unload/etc particular web applications.
+         </description>
+       
+         <!-- Define the Manager Servlet
+              Change servlet-class to: org.apache.catalina.servlets.HTMLManagerServlet
+              to get a Servlet with a more intuitive HTML interface, don't change if you
+              have software that is expected to parse the output from ManagerServlet
+              since they're not compatible.
+          -->
+         <servlet>
+           <servlet-name>Manager</servlet-name>
+           <servlet-class>org.apache.catalina.servlets.ManagerServlet</servlet-class>
+           <init-param>
+             <param-name>debug</param-name>
+             <param-value>2</param-value>
+           </init-param>
+         </servlet>
+         <servlet>
+           <servlet-name>HTMLManager</servlet-name>
+           <servlet-class>org.apache.catalina.servlets.HTMLManagerServlet</servlet-class>
+           <init-param>
+             <param-name>debug</param-name>
+             <param-value>2</param-value>
+           </init-param>
+         </servlet>
+       
+         <!-- Define the Manager Servlet Mapping -->
+         <servlet-mapping>
+           <servlet-name>Manager</servlet-name>
+           <url-pattern>/*</url-pattern>
+         </servlet-mapping>
+         <servlet-mapping>
+           <servlet-name>HTMLManager</servlet-name>
+           <url-pattern>/html/*</url-pattern>
+         </servlet-mapping>
+       
+         <!-- Define reference to the user database for looking up roles -->
+         <resource-env-ref>
+           <description>
+             Link to the UserDatabase instance from which we request lists of
+             defined role names.  Typically, this will be connected to the global
+             user database with a ResourceLink element in server.xml or the context
+             configuration file for the Manager web application.
+           </description>
+           <resource-env-ref-name>users</resource-env-ref-name>
+           <resource-env-ref-type>
+             org.apache.catalina.UserDatabase
+           </resource-env-ref-type>
+         </resource-env-ref>
+       
+         <!-- Define a Security Constraint on this Application -->
+         <security-constraint>
+           <web-resource-collection>
+             <web-resource-name>Entire Application</web-resource-name>
+             <url-pattern>/*</url-pattern>
+           </web-resource-collection>
+           <auth-constraint>
+              <!-- NOTE:  This role is not present in the default users file -->
+              <role-name>manager</role-name>
+           </auth-constraint>
+         </security-constraint>
+       
+         <!-- Define the Login Configuration for this Application -->
+         <login-config>
+           <auth-method>BASIC</auth-method>
+           <realm-name>Tomcat Manager Application</realm-name>
+         </login-config>
+       
+         <!-- Security roles referenced by this web application -->
+         <security-role>
+           <description>
+             The role that is required to log in to the Manager Application
+           </description>
+           <role-name>manager</role-name>
+         </security-role>
+       
+       </web-app>
+       ```
+
+     - 表示只有manager角色的用户才能访问。即用户必须在tomcat-users.xml文件中配置一个rolename为manager的角色。
+
+   - ManagerServlet的一些函数：
+
+     - list()
+     - start()
+     - stop()
+     - reload()
+     - remove()
+     - resources()
+     - roles()
+     - sessions()
+     - undeploy()
+
+2. ContainerServlet接口
+
+   - 实现了此接口的servlet类表示可以访问该servlet实例的StandardWrapper对象。通过Wrapper实例们就可以访问当前应用程序的Context实例。
+   - Catalina实例会调用实现了ContainerServlet接口的servlet类的setWrapper()方法，将该引用传递给表示该servlet类的StandardWrapper实例；
+
+3. 初始化MangerServlet
+
+   - ManagerServlet类的StandardWrapper实例的loadServlet()方法会调用ManagerServlet类的setWrapper()方法：
+
+     - setWrapper方法：
+
+       ```java
+           public void setWrapper(Wrapper wrapper) {
+               System.out.println("setWrapper:" + wrapper.getName());
+               this.wrapper = wrapper;
+               if (wrapper == null) {
+                   context = null;
+                   deployer = null;
+               } else {
+                   context = (Context) wrapper.getParent();
+                   deployer = (Deployer) context.getParent();
+               }
+       
+           }
+       ```
+
+     - 其中因为会触发else所以会把Context实例和Host实例赋值给成员变量context和deployer。
+
+   - 然后会调用ManagerServlet实例的init()方法。
+
+4. 列出以及部署的Web应用程序
+
+   - 通过deployer成员变量的findDeployedApps()方法来获得所以contextPaths()，然后再通过deployer.findDeployedApp(path)来获取Context实例，然后再获取上下文路径、Session数量、文档的根路径等。
+
+5. 启动Web应用程序
+
+   - 通过调用deployer的start()方法
+
+6. 关闭Web应用程序
+
+   - 通过deployer的stop()方法
+
+# 20、基于JMX的管理
+
+- JMX规范，Java Management Extensions。Catalina使用Cmmons Modeler来简化编写托管Bean的工作。
+
+1. JMX简介
+
+   - 如果一个Java对象可以由一个遵循JMX规范的管理器应用程序管理，那么这个Java对象称为一个可由JMX管理的资源。实际上，一个可由JMX管理的资源可以是一个应用程序、一种实现、一个服务、一个设备、一个用户等待。一个可由JMX管理的资源也是由Java编写，并提供了一个相应的Java包装。
+   - 若要使一个Java对象称为一个可由JMX管理的资源，则必须创建一个名未Managed Bean或MBean的对象。在org.apache.catalina.mbeans包下以及预定义了一些MBean。其中，ConnectorMBean、StandardEngineMBean、StandardHostMBean和StandardContextMBean是Managed Bean的示例。
+   - MBean会提供它所管理的一些Java对象的属性和方法提供应用程序使用。
+   - 需要将MBean实例化，并注册到另外一个作为MBean服务器的Java对象中。MBean服务器中保存了应用程序中注册的所有MBean。管理应用程序通过MBean服务器来访问MBean示例。MBean服务器作用类似于servlet容器，MBean示例类是servlet类。
+   - MBean由4种类型，标准类型、动态类型、开放类型和模型类型。其中标准类型最易编写，灵活性最低，其他3种灵活性较好。Catalina使用模型类型。
+   - JMX规范分为3岑：设备层、代理层和分布式服务层。MBean服务器位于代理词，MBean位于设备层。
+   - 设备层规范定义了编写可由JMX管理的资源标准，即如何编写MBean。代理层定义了创建代理的规范。代理封装了MBean服务器，提供了处理MBean的服务。代理和它所管理的MBean通常位于一个Java虚拟机。
+
+2. JMX API
+
+   1. MBeanServer类
+
+      - MBean服务器是javax.management.MBeanServer接口的实例。可由通过javax.management.MBeanServerFactory类的createMBean()方法创建MBeanServer实例。
+
+      - 将一个MBean注册到MBean服务器可以调用registerMBean()方法。
+
+        - 需要传入一个待注册的MBean实例和一个ObjectName实例。
+        - 此方法会返回一个ObjectInstance实例，该实例封装了一个MBean实例的对象名称和它的类名。
+
+      - 获取MBean实例或匹配某个模式的一组MBean实例，可以使用MBeanServer接口提供的两个方法，分别是queryNames()和queryMBeans()方法。
+
+        - queryNames()方法返回一个Set，包含了匹配某个指定对象名称模式的一组MBean实例的对象名称。
+        
+          - 方法签名：若name为null或没有域，而且指定了key属性，那么会返回已经注册的MBean实例的所有ObjectName实例。如果query为null则不会进行过滤。
+        
+            ```java
+            //其中query为过滤条件 
+            Set<ObjectName> queryNames(ObjectName name, QueryExp query);
+            ```
+        
+        - queryMBeans()返回一个Set实例，其中包含的是MBean实例的OBjectInstance对象。
+        
+          - 方法签名：一旦获得MBean实例的对象名称，就看操作托管资源在MBean实例种提供的属性或调用其方法。
+        
+            ```java
+            Set<ObjectInstance> queryMBeans(ObjectName name, QueryExp query);
+            ```
+        
+      - 可以调用MBeanServer接口的invoke()方法调用已注册的MBean实例的任何放方法。MBeanServer接口的getAttribute()方法和setAttribute()方法用于获取或设置已注册的MBean实例属性。
+      
+   2. ObjectName类：MBeanServer种的每个MBean都通过一个ObjectName来唯一标识。
+   
+      - ObjectName由域和一个键对值组成。域是一个字符串，也可以是一个空字符串。对象名称中，域后面接一个分号，然后是一个或多个键对值。同一个键只能出现一次。
+      - 键值对的键和值通过等号分开，键值对之间由逗号分隔。如myDomain:type=car,color=blue
+   
+3. 标准MBean
+
+   - 通过标准MBean来管理一个Java对象，需要以下步骤：
+
+     1. 创建一个接口，该接口命名规范为：Java类名+MBean后缀。如要管理的类为Car，则接口名字为CarMBean；
+     2. 修改Java类，实现CarMBean接口；
+     3. 创建一个代理，该代理包含MBeanServer实例；
+     4. 为MBean创建ObjectName实例；
+     5. 实例化MBeanServer类；
+     6. 将MBean注册到MBeanServer类。
+
+   - 标准MBean容易编写，但需要修改原有Java类。
+
+   - 示例1：
+
+     - 示例代码：
+
+       ```java
+       public class StandardAgent {
+           
+           public static void main(String[] args) throws AttributeNotFoundException, MBeanException, ReflectionException, InstanceNotFoundException, InvalidAttributeValueException {
+               StandardAgent agent = new StandardAgent();
+               MBeanServer mBeanServer = agent.getMBeanServer();
+               String domain = mBeanServer.getDefaultDomain();
+               String managedResourceClassName = "ex20.pyrmont.standardbeantest.Car";
+               ObjectName objectName = agent.createObjectName(domain + ":type=" + managedResourceClassName);
+               agent.createStandardBean(objectName, managedResourceClassName);
+       
+               Attribute colorAttribute = new Attribute("Color", "blue");
+               mBeanServer.setAttribute(objectName, colorAttribute);
+               System.out.println(mBeanServer.getAttribute(objectName, "Color"));
+               mBeanServer.invoke(objectName, "drive", null, null);
+       
+           }
+           
+           private MBeanServer mBeanServer;
+       
+           //代理类的构造函数可以调用MBeanServerFactory类的createMBeanServer()方法来创建一个MBeanServer实例。返回的是一个JMX参考实现的默认MBeanServer对象。
+           public StandardAgent() {
+               this.mBeanServer = MBeanServerFactory.createMBeanServer();
+           }
+       
+           public MBeanServer getMBeanServer() {
+               return mBeanServer;
+           }
+       
+           //返回一个ObjectName实例
+           public ObjectName createObjectName(String name) {
+               ObjectName objectName = null;
+               try {
+                   objectName = new ObjectName(name);
+               } catch (MalformedObjectNameException e) {
+                   e.printStackTrace();
+               }
+               return objectName;
+           }
+       
+           //会调用MBeanServer实例的createMBean()方法，会创建MBean实例并注册到MBeanServer中。因为符合命名规范，所有不需要指定MBean的类名（也就是CarMBean的类名）。
+           private void createStandardBean(ObjectName objectName, String managedResourceClassName) {
+               try {
+                   mBeanServer.createMBean(managedResourceClassName, objectName);
+               } catch (Exception ignored) {
+               }
+           }
+       
+       }
+       ```
+
+     - 其main()方法步骤：
+
+       - 先创建一个StandardAgent实例，调用getMBeanServer()获取MBeanServer实例的引用；
+       - 为CatMBean创建一个ObjectName实例。使用MBeanServer实例的默认域作为ObjectName实例的域使用。添加键为type值为托管资源的完全限定名的键对值。
+       - 调用createStandardBean()传入对象名称和托管资源的类名（ex20.pyrmont.standardmbeantest.Car）；
+       - 通过MBeanServer的方法来管理Car对象，如MBeanServer.setAttribute()、getAttribute()、invoke()等。
+
+   - MBeanServer实例是作为托管对象和管理应用程序的中间层存在的。
+
+4. 模型MBean
+
+   - 相对于标准MBean更加复杂，但不需要为可管理的对象修改Java类。
+
+   - 使用javax.management.modelmbean.ModelMBean接口来表示模型MBean。只需要实现该接口。JMX有一个默认实现javax。management.modelmbean.RequiredModelMBean类，可以实例化RequiredModelMBean或其子类。
+
+   - 通过javax.management.modelmbean.MOdelMBeanInfo对象来描述将会暴露给代理的构造函数、属性、操作和监听器。创建之后只需要与其ModelMBean对象相关联即可。
+
+   - 使用RequiredModelMBean类作为MOdelMBean的实现，有两种方法可以将MOdelMBean对象与MOdelMBeanInfo对象相关联：
+
+     1. 传入一个ModelMBeanInfo对象到RequiredModelMBean对象的构造器函数中；
+     2. 调用RequiredModelMBean对象的setModelMBeanInfo()方法，并传入一个ModelMBeanInfo对象。
+
+   - 创建ModelMBean对象后，需要调用ModelMBean的setManagedResource()方法将其与托管资源相关联。
+
+     - 方法签名如下：
+
+       ```java
+       void setManagedResource(Object managedResource, String managedResourceType)
+       ```
+
+     - 其中managedResourceType的值可以是以下：ObjectReference、Handle、IOR、EJBHandle、RMIReference。目前只支持ObjectReference。
+
+   - 还需要创建一个ObjectName实例，并将MBean实例注册到MBean服务器中。
+
+   1. MBeanInfo接口与MoelMBeanInfo接口
+
+      - MoelMBeanInfo接口描述了通过ModelMBean暴露给代理层的构造函数、属性、方法和监听器。其中构造函数是ModelMbeanConstructorInfo类的实例，属性是ModelMBeanAttributeInfo类的实例，方法是ModelMBeanOperationInfo类的实例，监听器是ModelMBeanNotificationInfo类的实例。
+
+      - JMX提供了ModelMBeanInfo接口的默认实现，即javax.management.modelmbean.MOdelMBeanInfoSupport类。
+
+        - ModelMBeanInfoSupport类的构造函数：
+
+          ```java
+             public ModelMBeanInfoSupport(String className,
+                      String description,
+                      ModelMBeanAttributeInfo[] attributes,
+                      ModelMBeanConstructorInfo[] constructors,
+                      ModelMBeanOperationInfo[] operations,
+                      ModelMBeanNotificationInfo[] notifications) {
+                  this(className, description, attributes, constructors,
+                          operations, notifications, null);
+              }
+          ```
+
+        - 可以通过调用ModelMBeanAttributeInfo类的构造函数来创建ModelMBeanAttrbuteInfo对象：
+
+          ```java
+                  public ModelMBeanAttributeInfo(String name,
+                                                 String type,
+                                                 String description,
+                                                 boolean isReadable,
+                                                 boolean isWritable,
+                                                 boolean isIs,
+                                                 Descriptor descriptor) {
+                  }
+          //其中
+          //name：属性的名称；
+          //type：属性的类型名；
+          //description：属性的描述；
+          //isReadable：表示属性有没有getter方法；
+          //isWritable：表示属性有没有setter方法；
+          //isIs：表示属性有没有isAttributeName方法；
+          //descriptor：Descriptor类的实例，包含Attribute实例的适当元数据。如果它为null，会创建默认的Descriptor实例。
+          ```
+
+        - 可以通过调用ModelMBeanOperationInfo类的构造函数来创建ModelMBeanOperationInfo对象：
+
+          ```java
+                  public ModelMBeanOperationInfo(String name,
+                                                 String description,
+                                                 MBeanParameterInfo[] signature,
+                                                 String type,
+                                                 int impact) {
+                      
+                  }
+          //name：方法的名称；
+          //description：方法的描述；
+          //signature：MBeanParameterInfo对象的数值，描述了方法的参数；
+          //type：方法的返回值的类型名；
+          //impact：方法的影响，有如下的值：INFO、ACTION、ACTION_INFO和UNKNOWN；
+          //descriptor：Descriptor类的实例，包含Attribute实例的适当元数据。如果它为null，会创建默认的Descriptor实例。
+          ```
+
+   2. ModelMBean实现过程
+
+      1. 编写一个被管理的对象
+
+         ```java
+         public class Car {
+         
+             private String color = "red";
+         
+             public void drive() {
+                 System.out.println("HHX you can drive my car.");
+             }
+         
+             public String getColor() {
+                 return color;
+             }
+         
+             public void setColor(String color) {
+                 this.color = color;
+             }
+         }
+         ```
+
+      2. 编写代理类
+
+         ```java
+         public class ModelAgent {
+         
+             private String MANAGED_CLASS_NAME = "ex20.pyrmont.modelmbeantest1.Car";
+             private MBeanServer mBeanServer = null;
+         
+             public ModelAgent() {
+                 mBeanServer = MBeanServerFactory.createMBeanServer();
+             }
+         
+             //获取MBeanServer
+             public MBeanServer getMBeanServer() {
+                 return mBeanServer;
+             }
+         
+             //获取ObjectName
+             private ObjectName createObjectName(String name) {
+                 ObjectName objectName = null;
+                 try {
+                     objectName = new ObjectName(name);
+                 }
+                 catch (MalformedObjectNameException e) {
+                     e.printStackTrace();
+                 }
+                 return objectName;
+             }
+         
+             //通过MBeanInfo创建MBean
+             private ModelMBean createMBean(ObjectName objectName, String mbeanName) {
+                 ModelMBeanInfo mBeanInfo = createModelMBeanInfo(objectName, mbeanName);
+                 RequiredModelMBean modelMBean = null;
+                 try {
+                     modelMBean = new RequiredModelMBean(mBeanInfo);
+                 }
+                 catch (Exception e) {
+                     e.printStackTrace();
+                 }
+                 return modelMBean;
+             }
+         
+             //创建MBeanInfo
+             private ModelMBeanInfo createModelMBeanInfo(ObjectName inMbeanObjectName, String inMbeanName) {
+                 ModelMBeanInfo mBeanInfo = null;
+                 ModelMBeanAttributeInfo[] attributes = new ModelMBeanAttributeInfo[1];
+                 ModelMBeanOperationInfo[] operations = new ModelMBeanOperationInfo[3];
+                 try {
+                     attributes[0] = new ModelMBeanAttributeInfo("Color", "java.lang.String",
+                             "the color.", true, true, false, null);
+                     operations[0] = new ModelMBeanOperationInfo("drive", "the drive method",
+                             null, "void", MBeanOperationInfo.ACTION, null);
+                     operations[1] = new ModelMBeanOperationInfo("getColor", "get color attribute",
+                             null, "java.lang.String", MBeanOperationInfo.ACTION, null);
+         
+                     Descriptor setColorDesc = new DescriptorSupport("name=setColor", "descriptorType=operation",
+                             "class=" + MANAGED_CLASS_NAME, "role=operation");
+                     MBeanParameterInfo[] setColorParams = new MBeanParameterInfo[] {
+                             (new MBeanParameterInfo("new color", "java.lang.String",
+                                     "new Color value") )} ;
+                     operations[2] = new ModelMBeanOperationInfo("setColor",
+                             "set Color attribute", setColorParams, "void",
+                             MBeanOperationInfo.ACTION, setColorDesc);
+         
+                     mBeanInfo  = new ModelMBeanInfoSupport(MANAGED_CLASS_NAME,
+                             null, attributes, null, operations, null);
+                 }
+                 catch (Exception e) {
+                     e.printStackTrace();
+                 }
+                 return mBeanInfo;
+             }
+         
+             public static void main(String[] args) throws MBeanException, InstanceNotFoundException, InvalidTargetObjectTypeException, InstanceAlreadyExistsException, NotCompliantMBeanException, AttributeNotFoundException, ReflectionException, InvalidAttributeValueException {
+                 ModelAgent agent = new ModelAgent();
+                 MBeanServer mBeanServer = agent.getMBeanServer();
+         
+                 String domain = mBeanServer.getDefaultDomain();
+                 ObjectName objectName = agent.createObjectName(domain + ":type=MyCar");
+                 String mBeanName = "myMBean";
+                 ModelMBean modelMBean = agent.createMBean(objectName, mBeanName);
+                 Car car = new Car();
+                 modelMBean.setManagedResource(car, "ObjectReference");
+                 mBeanServer.registerMBean(modelMBean, objectName);
+         
+                 //使用MBean
+                 Attribute attribute = new Attribute("Color", "green");
+                 mBeanServer.setAttribute(objectName, attribute);
+                 String color = (String) mBeanServer.getAttribute(objectName, "Color");
+                 System.out.println(color);
+         
+                 attribute = new Attribute("Color", "blue");
+                 mBeanServer.setAttribute(objectName, attribute);
+                 color = (String) mBeanServer.getAttribute(objectName, "Color");
+                 System.out.println(color);
+         
+                 mBeanServer.invoke(objectName, "drive", null, null);
+         
+             }
+         
+         }
+         ```
+
+5. Commons Modeler库
+
+   - 使编写模型MBean更加方便，不再需要编写代码创建ModelMBeanInfo对象了。
+   - 对模型MBean的描述被封装在一个org.apache.catalina.modeler.ManagedBean对象中。不需要编码在MBean中暴露出的属性和方法。
+     - 只需要编写一个mbean的描述符文件，列出想要创建的MBean。对于每个MBean，要编写出MBean类和托管资源类的完全限定名，还要由MBean暴露出的属性和方法。
+     - 然后，使用org.apache.commons.modeler.Registry实例读取这个XML文档，并创建一个MBeanServer实例，安装mbean描述符文件中的XML元素创建所有的ManagedBean实例。
+     - 然后，调用ManagedBean实力的createMBean()方法创建模型MBean。
+     - 然后创建ObjectName实例，将其与MBean实例一起注册到MBean服务器中。
+
+   1. MBean描述符
+
+      - MBean描述符的头信息：
+
+        ```xml
+        <?xml version="1.0"?>
+        <!DOCTYPE mbeans-descriptors PUBLIC "-//Apache Software Foundation//DTD Model MBeans Configuration File" "http://jakarta.apache.org/commons/dtds/mbeans-descriptors.dtd">
+        ```
+
+      - mbeans-descriptors的根元素：可以包含mbean元素
+
+        ```xml
+        <mbeans-descriptors>
+        
+        </mbeans-descriptors>
+        ```
+
+      - mbean元素：描述一个模型MBean，包括创建对应的ModelMBeanInfo对象的信息。
+
+        - 定义：可以有一个可选的descriptor元素，0个或多个attribute元素。。。
+
+          ```xml
+          <!ELEMENT mbean (descriptor?, attribute*, constructor*, notification*, operation*)>
+          ```
+
+        - mbean元素可以有的属性：
+
+          - className：实现ModelMBean接口的Java类的完全限定名，若该属性未赋值，则默认使用org.apache.commons.modeler.BaseModelMBean类；
+          - description：模型MBean的描述；
+          - domain：ModelMBean的ObjectName，托管的bean创建的ModelMBean实例被注册到的MBean服务器的域名；
+          - group：组分类，可用来选择具有相似MBean实现类的组；
+          - name：唯一标识模型MBean的名称，一般情况下，会使用相关服务器组件的基类名；
+          - type：托管资源实现类的完全限定的Java类名。
+
+        - attribute元素：
+
+          - description：描述；
+          - displayName：该属性的显示名称；
+          - getMethod：由attribute元素表示的属性的getter方法；
+          - is：是否是布尔值，是否由getter方法；
+          - name：该JavaBean属性的名字；
+          - readable：可写；
+          - setMethod：setter方法；
+          - type：该属性的完全限定的Java类名；
+          - writeable：可读。
+
+        - operation元素
+
+          - description：描述；
+          - impart：方法的影响，有如下的值：INFO、ACTION、ACTION_INFO和UNKNOWN；
+          - name：方法的名字；
+          - returnType：返回值的完全限定的Java类名。
+
+        - parameter元素：构造器或方法的参数
+
+          - description：描述；
+          - name：参数名；
+          - type：该参数的完全限定的Java类名；
+
+   2. mbean元素示例：
+
+      ```xml
+      <?xml version="1.0"?>
+      <!DOCTYPE mbeans-descriptors PUBLIC
+       "-//Apache Software Foundation//DTD Model MBeans Configuration File"
+       "http://jakarta.apache.org/commons/dtds/mbeans-descriptors.dtd">
+      
+      <mbeans-descriptors>
+      
+        <mbean name="myMBean"
+          className="javax.management.modelmbean.RequiredModelMBean"
+          description="The ModelMBean that manages our Car object"
+          type="ex20.pyrmont.modelmbeantest2.Car">
+      
+          <attribute name="color"
+            description="The car color"
+            type="java.lang.String"/>
+      
+          <operation name="drive"
+            description="drive method"
+            impact="ACTION"
+            returnType="void"/>
+      
+        </mbean>
+      
+      </mbeans-descriptors>
+      
+      ```
+
+   3. 自己编写一个模型MBean类
+
+      - 默认情况下，Commons Modeler库使用BaseModelMBean类。
+      - 需要对BaseModelMBean类进行扩展的情况：
+        - 需要覆盖托管资源额属性或方法；
+        - 需要添加在托管资源中没有定义的属性或方法。
+
+   4. Registry类：有很多方法
+
+      - 获取MBeanServer类的实例，不再需要调用MBeanServerFactory类的createMBeanServer()方法；
+      - 是哦那个loadRegistry()方法读取MBean的描述符文件；
+      - 创建一个ManagedBean对象，用于创建模型MBean的实例。
+
+   5. ManagedBean：描述一个模型MBean，取代MBeanInfo对象。
+
+   6. BaseModelMBean
+
+      - 实现了ModelMBean接口。使用此类就不再需要使用RequiredModelMBean类了。
+
+      - 此类有一个resource字段，表示该模型MBean管理的资源。
+
+      - 实例：
+
+        - Car类：
+
+          ```java
+          package ex20.pyrmont.modelmbeantest2;
+          
+          public class Car {
+              public Car() {
+              }
+          
+              private String color = "red";
+          
+              public String getColor() {
+                  return color;
+              }
+          
+              public void setColor(String color) {
+                  this.color = color;
+              }
+          
+              public void drive() {
+                  System.out.println("Baby you can drive my car.");
+              }
+          
+          }
+          
+          ```
+
+        - 描述符文件：
+
+          ```xml
+          <?xml version="1.0"?>
+          <!DOCTYPE mbeans-descriptors PUBLIC
+           "-//Apache Software Foundation//DTD Model MBeans Configuration File"
+           "http://jakarta.apache.org/commons/dtds/mbeans-descriptors.dtd">
+          
+          <mbeans-descriptors>
+          
+            <mbean name="myMBean"
+              className="javax.management.modelmbean.RequiredModelMBean"
+              description="The ModelMBean that manages our Car object"
+              type="ex20.pyrmont.modelmbeantest2.Car">
+          
+              <attribute name="color"
+                description="The car color"
+                type="java.lang.String"/>
+          
+              <operation name="drive"
+                description="drive method"
+                impact="ACTION"
+                returnType="void"/>
+          
+            </mbean>
+          
+          </mbeans-descriptors>
+          
+          ```
+
+        - ModelAgent类：
+
+          ```java
+          package ex20.pyrmont.modelmbeantest2;
+          
+          import java.io.InputStream;
+          import java.net.URL;
+          import javax.management.*;
+          import javax.management.modelmbean.ModelMBean;
+          
+          import org.apache.catalina.mbeans.ServerLifecycleListener;
+          import org.apache.commons.modeler.ManagedBean;
+          import org.apache.commons.modeler.Registry;
+          
+          public class ModelAgent {
+              private Registry registry;
+              private MBeanServer mBeanServer;
+          
+              public ModelAgent() {
+                  registry = createRegistry();
+                  try {
+                      mBeanServer = Registry.getServer();
+                  }
+                  catch (Throwable t) {
+                      t.printStackTrace(System.out);
+                      System.exit(1);
+                  }
+              }
+          
+              public MBeanServer getMBeanServer() {
+                  return mBeanServer;
+              }
+          
+              public Registry createRegistry() {
+                  Registry registry = null;
+                  try {
+                      URL url = new URL("file:C:\\Users\\lenovo\\IdeaProjects\\xhsf\\src\\main\\java\\ex20\\pyrmont\\modelmbeantest2\\car-mbean-descriptor.xml");
+                      InputStream stream = url.openStream();
+                      Registry.loadRegistry(stream);
+                      stream.close();
+                      registry = Registry.getRegistry();
+                  }
+                  catch (Throwable t) {
+                      System.out.println(t.toString());
+                  }
+                  return (registry);
+              }
+          
+              public ModelMBean createModelMBean(String mBeanName) throws Exception {
+                  ManagedBean managed = registry.findManagedBean(mBeanName);
+                  if (managed == null) {
+                      System.out.println("ManagedBean null");
+                      return null;
+                  }
+                  ModelMBean mbean = managed.createMBean();
+                  ObjectName objectName = createObjectName();
+                  return mbean;
+              }
+          
+              private ObjectName createObjectName() {
+                  ObjectName objectName = null;
+                  String domain = mBeanServer.getDefaultDomain();
+                  try {
+                      objectName = new ObjectName(domain + ":type=MyCar");
+                  }
+                  catch (MalformedObjectNameException e) {
+                      e.printStackTrace();
+                  }
+                  return objectName;
+              }
+          
+          
+              public static void main(String[] args) {
+                  ModelAgent agent = new ModelAgent();
+                  MBeanServer mBeanServer = agent.getMBeanServer();
+                  Car car = new Car();
+                  System.out.println("Creating ObjectName");
+                  ObjectName objectName = agent.createObjectName();
+                  try {
+                      ModelMBean modelMBean = agent.createModelMBean("myMBean");
+                      modelMBean.setManagedResource(car, "ObjectReference");
+                      mBeanServer.registerMBean(modelMBean, objectName);
+                  }
+                  catch (Exception e) {
+                      System.out.println(e.toString());
+                  }
+                  // manage the bean
+                  try {
+                      Attribute attribute = new Attribute("color", "green");
+                      mBeanServer.setAttribute(objectName, attribute);
+                      String color = (String) mBeanServer.getAttribute(objectName, "color");
+                      System.out.println("Color:" + color);
+          
+                      attribute = new Attribute("color", "blue");
+                      mBeanServer.setAttribute(objectName, attribute);
+                      color = (String) mBeanServer.getAttribute(objectName, "color");
+                      System.out.println("Color:" + color);
+                      mBeanServer.invoke(objectName, "drive", null, null);
+          
+                  }
+                  catch (Exception e) {
+                      e.printStackTrace();
+                  }
+                  MBeanServerFactory
+              }
+          }
+          
+          ```
+
+6. Catalina中的MBean
+
+   - ClassNameMBean类
+     - 继承自BaseModelMBean类，只是提供了获取className的方法，用于表示托管资源的类名。
+   - StandardServerMBean类
+     - 继承自BaseModelMBean类。重写了store()方法。当管理应用程序调用store()方法时，实际上会执行StandardServerMBean的store()方法，而不是托管的StandardServer对象的store()方法。
+   - MBeanFactory类
+     - 工厂对象，用于创建Tomcat中各种资源的所有模型MBean。还提供了删除这些MBean的方法。
+   - MBeanUtil类
+     - 一个工具类，提供了一些静态方法，用于创建各种管理Catalina对象的MBean，删除MBean，已经创建ObjectName实例等。
+   
+7. 创建Catalina的MBean
+
+   - 通过StandardServer类的ServerLifecycleLIstener监听器，当StandardServer实例启动时（start()方法），会触发START_EVENT事件；当StandardServer实例关闭时（stop()方法），会触发STOP_EVENT事件；
+
+   - 这些事件会执行ServerLifecycleLIstener的lifecyleEvent()方法，该方法如下：
+
+     ```java
+         public void lifecycleEvent(LifecycleEvent event) {
+             Lifecycle lifecycle = event.getLifecycle();
+             if (Lifecycle.START_EVENT.equals(event.getType())) {
+     
+                 if (lifecycle instanceof Server) {
+     
+                     // Loading additional MBean descriptors
+                     loadMBeanDescriptors();
+                     createMBeans();
+     
+                 }
+     
+                 /*
+                 // Ignore events from StandardContext objects to avoid
+                 // reregistering the context
+                 if (lifecycle instanceof StandardContext)
+                     return;
+                 createMBeans();
+                 */
+     
+             } else if (Lifecycle.STOP_EVENT.equals(event.getType())) {
+     
+                 if (lifecycle instanceof Server) {
+                     destroyMBeans();
+                 }
+     
+             } else if (Context.RELOAD_EVENT.equals(event.getType())) {
+     
+                 // Give context a new handle to the MBean server if the
+                 // context has been reloaded since reloading causes the
+                 // context to lose its previous handle to the server
+                 if (lifecycle instanceof StandardContext) {
+                     // If the context is privileged, give a reference to it
+                     // in a servlet context attribute
+                     StandardContext context = (StandardContext)lifecycle;
+                     if (context.getPrivileged()) {
+                         context.getServletContext().setAttribute
+                             (Globals.MBEAN_REGISTRY_ATTR,
+                              MBeanUtils.createRegistry());
+                         context.getServletContext().setAttribute
+                             (Globals.MBEAN_SERVER_ATTR,
+                              MBeanUtils.createServer());
+                     }
+                 }
+     
+             }
+     
+         }
+     ```
+
+   - createMBeans()方法用来创建所有的MBean实例。该方法首先创建一个MBeanFactory类的一个实例，也是一个模型MBean实例。
+
+     - ServerLifecycleListener类的createMBeans()方法：触发createMBeans(factory)和createMBeans(ServerFactory.getServer())创建MBean实例；
+
+       ```java
+       protected void createMBeans() {
+       
+               try {
+                   MBeanFactory factory = new MBeanFactory();
+                   createMBeans(factory);
+                   createMBeans(ServerFactory.getServer());
+               } catch (MBeanException t) {
+                   Exception e = t.getTargetException();
+                   if (e == null)
+                       e = t;
+                   log("createMBeans: MBeanException", e);
+               } catch (Throwable t) {
+                   log("createMBeans: Throwable", t);
+               }
+           }
+       ```
+
+     - createMBeans(ServerFactory.getServer())如下：会对所有的Service对象执行createMBeans(Service)方法创建MBean实例。
+
+       ```java
+           protected void createMBeans(Server server) throws Exception {
+       
+               // Create the MBean for the Server itself
+               if (debug >= 2)
+                   log("Creating MBean for Server " + server);
+               MBeanUtils.createMBean(server);
+               if (server instanceof StandardServer) {
+                   ((StandardServer) server).addPropertyChangeListener(this);
+               }
+       
+               // Create the MBeans for the global NamingResources (if any)
+               NamingResources resources = server.getGlobalNamingResources();
+               if (resources != null) {
+                   createMBeans(resources);
+               }
+       
+               // Create the MBeans for each child Service
+               Service services[] = server.findServices();
+               for (int i = 0; i < services.length; i++) {
+                   // FIXME - Warp object hierarchy not currently supported
+                   if (services[i].getContainer().getClass().getName().equals
+                       ("org.apache.catalina.connector.warp.WarpEngine")) {
+                       if (debug >= 1) {
+                           log("Skipping MBean for Service " + services[i]);
+                       }
+                       continue;
+                   }
+                   createMBeans(services[i]);
+               }
+       
+           }
+       ```
+
+     - createMBeans(Service)方法会触发所有Connector和Engine对象的createMBeans()方法创建MBean实例；
+
+     - createMBeans(Engine)方法为每个Host调用createMBeans()方法创建MBean；
+
+     - createMBeans(Host)方法为每个Context调用createMBeans()方法创建MBean；
+
+     - createMBeans(Context)会查看是否context.getPrivileged()方法为true，如过是则为Web应用程序添加两个属性，并将其存储在ServletContext对象中。两个属性是Globals.MBEAN_REGISSTRY_ATTR和Globals.MBEAN_SERVER_ATTR。
+
+       - 代码：
+
+         ```java
+             protected void createMBeans(Context context) throws Exception {
+                 // Create the MBean for the Context itself
+                 if (debug >= 4)
+                     log("Creating MBean for Context " + context);
+                 MBeanUtils.createMBean(context);
+                 context.addContainerListener(this);
+                 if (context instanceof StandardContext) {
+                     ((StandardContext) context).addPropertyChangeListener(this);
+                     ((StandardContext) context).addLifecycleListener(this);
+                 }
+         
+                 // If the context is privileged, give a reference to it
+                 // in a servlet context attribute
+                 if (context.getPrivileged()) {
+                     context.getServletContext().setAttribute
+                         (Globals.MBEAN_REGISTRY_ATTR,
+                          MBeanUtils.createRegistry());
+                     context.getServletContext().setAttribute
+                         (Globals.MBEAN_SERVER_ATTR, 
+                          MBeanUtils.createServer());
+                 }
+         
+                 // Create the MBeans for the associated nested components
+                 Loader cLoader = context.getLoader();
+                 if (cLoader != null) {
+                     if (debug >= 4)
+                         log("Creating MBean for Loader " + cLoader);
+                     MBeanUtils.createMBean(cLoader);
+                 }
+                 Logger hLogger = context.getParent().getLogger();
+                 Logger cLogger = context.getLogger();
+                 if ((cLogger != null) && (cLogger != hLogger)) {
+                     if (debug >= 4)
+                         log("Creating MBean for Logger " + cLogger);
+                     MBeanUtils.createMBean(cLogger);
+                 }
+                 Manager cManager = context.getManager();
+                 if (cManager != null) {
+                     if (debug >= 4)
+                         log("Creating MBean for Manager " + cManager);
+                     MBeanUtils.createMBean(cManager);
+                 }
+                 Realm hRealm = context.getParent().getRealm();
+                 Realm cRealm = context.getRealm();
+                 if ((cRealm != null) && (cRealm != hRealm)) {
+                     if (debug >= 4)
+                         log("Creating MBean for Realm " + cRealm);
+                     MBeanUtils.createMBean(cRealm);
+                 }
+         
+                 // Create the MBeans for the associated Valves
+                 if (context instanceof StandardContext) {
+                     Valve cValves[] = ((StandardContext)context).getValves();
+                     for (int l = 0; l < cValves.length; l++) {
+                         if (debug >= 4)
+                             log("Creating MBean for Valve " + cValves[l]);
+                         MBeanUtils.createMBean(cValves[l]);
+                     }
+                     
+                 }        
+                 
+                 // Create the MBeans for the NamingResources (if any)
+                 NamingResources resources = context.getNamingResources();
+                 createMBeans(resources);
+         
+             }
+         ```
+
+       - 两个属性是Globals.MBEAN_REGISSTRY_ATTR和Globals.MBEAN_SERVER_ATTR的值：
+
+         ```java
+             public static final String MBEAN_REGISTRY_ATTR =
+                 "org.apache.catalina.Registry";
+         
+             public static final String MBEAN_SERVER_ATTR =
+                 "org.apache.catalina.MBeanServer";
+         ```
+
+       - MBeanUtils.createRegistry()返回Registry而MBeanUtils.createServer()返回一个MBeanServer实例，因此，当privileged属性为true时，才可以从一个Web应用程序中获取Registry实例和MBeanServer实例。
+
+8. 应用程序
+
+   - Web应用程序的描述符文件必须放在%CATALINA_HOME%/webapps目录下

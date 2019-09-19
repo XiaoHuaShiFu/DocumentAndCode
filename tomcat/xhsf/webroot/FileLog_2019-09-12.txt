@@ -1,0 +1,9 @@
+2019-09-12 19:25:32 HttpConnector Cannot find message associated with key 'httpConnector.allAddresses'
+2019-09-12 19:25:32 HttpConnector[8080] Cannot find message associated with key 'httpConnector.starting'
+2019-09-12 19:25:32 HttpProcessor[8080][0] Cannot find message associated with key 'httpProcessor.starting'
+2019-09-12 19:25:32 HttpProcessor[8080][1] Cannot find message associated with key 'httpProcessor.starting'
+2019-09-12 19:25:32 HttpProcessor[8080][2] Cannot find message associated with key 'httpProcessor.starting'
+2019-09-12 19:25:32 HttpProcessor[8080][3] Cannot find message associated with key 'httpProcessor.starting'
+2019-09-12 19:25:32 HttpProcessor[8080][4] Cannot find message associated with key 'httpProcessor.starting'
+2019-09-12 19:25:32 starting Context
+2019-09-12 19:25:32 Context started

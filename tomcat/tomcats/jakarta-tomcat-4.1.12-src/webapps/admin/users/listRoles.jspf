@@ -1,0 +1,28 @@
+<controls:actions>
+
+  <controls:action selected="true">
+    ----<bean:message key="actions.available.actions"/>----
+  </controls:action>
+
+  <controls:action>
+    ---------------------------------
+  </controls:action>
+
+  <controls:action url='<%= "/users/setUpRole.do?databaseName=" +
+       URLEncoder.encode(request.getParameter("databaseName")) %>'>
+    <bean:message key="users.actions.role.create"/>
+  </controls:action>
+
+  <controls:action url='<%= "/users/listRoles.do?databaseName=" +
+       URLEncoder.encode(request.getParameter("databaseName")) +
+       "&forward=" + URLEncoder.encode("Roles Delete List") %>'>
+    <bean:message key="users.actions.role.delete"/>
+  </controls:action>
+
+  <controls:action url='<%= "/users/listRoles.do?databaseName=" +
+       URLEncoder.encode(request.getParameter("databaseName")) +
+       "&forward=" + URLEncoder.encode("Roles List") %>'>
+    <bean:message key="users.actions.role.list"/>
+  </controls:action>
+
+</controls:actions>

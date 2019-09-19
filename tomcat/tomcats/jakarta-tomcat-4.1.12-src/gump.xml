@@ -1,0 +1,124 @@
+<module name="jakarta-tomcat-4.0">
+
+  <url href="http://jakarta.apache.org/tomcat/index.html"/>
+  <description>
+    Servlet 2.3 and JSP 1.2 Reference Implementation
+  </description>
+
+  <cvs repository="jakarta"/>
+  
+  <project name="tomcat-catalina">
+    <ant basedir="catalina" target="deploy-catalina">
+      <depend property="servlet.jar" project="jakarta-servletapi-4"/>
+      <depend property="commons-collections.jar" project="commons-collections"
+        runtime="true"/>
+      <depend property="commons-beanutils.jar" project="commons-beanutils"
+        runtime="true"/>
+      <depend property="commons-digester.jar" project="commons-digester"
+        runtime="true"/>
+      <depend property="commons-logging.jar" project="commons-logging"
+        runtime="true" id="all"/>
+      <depend property="commons-logging-api.jar" project="commons-logging"
+        runtime="true" id="api"/>
+      <property name="regexp.jar"
+        reference="jarpath" id="regexp" project="jakarta-regexp"/>
+      <property name="jtc.home" reference="srcdir" 
+        project="jakarta-tomcat-connectors"/>
+    </ant>
+    <depend project="jakarta-ant"/>
+    <depend project="xml-xerces"/>
+    <depend project="jakarta-tomcat-util"/>
+    <depend project="jakarta-servletapi-4"/>
+    <depend project="jakarta-regexp"/>
+
+    <home nested="build"/>
+    <jar name="server/lib/catalina.jar"/>
+  </project>
+  
+  <project name="jakarta-tomcat-4.0">
+    <package>org.apache.catalina</package>
+
+    <ant target="dist">
+      <property name="ant.home" reference="home" project="jakarta-ant"/>
+      <property name="servlet.home"
+        reference="home" project="jakarta-servletapi-4"/>
+      <property name="jsse.home" reference="home" project="jsse"/>
+      <property name="jmx.home" reference="home" project="jmx"/>
+      <property name="jmxtools.jar" reference="jarpath" 
+        project="jmx" id="jmxtools"/>
+      <property name="jndi.home" reference="home" project="jndi"/>
+      <property name="site2.home" reference="home" project="jakarta-site2"/>
+      <property name="regexp.home"
+        reference="home" project="jakarta-regexp"/>
+      <property name="regexp.jar"
+        reference="jarpath" id="regexp" project="jakarta-regexp"/>
+      <property name="mail.home" reference="home" project="javamail"/>
+      <property name="tomcat-coyote.home" reference="home" 
+        project="jakarta-tomcat-coyote"/>
+      <property name="jasper.home" reference="home" 
+        project="jakarta-tomcat-jasper_tc4"/>
+      <depend property="mail.jar" project="javamail"/>
+      <property name="activation.home" reference="home" project="jaf"/>
+      <depend property="activation.jar" project="jaf"/>
+      <depend property="jdbc20ext.jar" project="jdbc"/>
+      <depend property="jndi.jar" project="jndi"/>
+      <depend property="jaas.jar" project="jaas"/>
+      <depend property="jmx.jar" project="jmx" reference="jarpath" id="jmxri"/>
+      <depend property="jta.jar" project="jta"/>
+      <depend property="ldap.jar" project="ldap"/>
+      <depend property="servlet.jar" project="jakarta-servletapi-4"/>
+      <depend property="xerces.jar" project="xml-xerces" id="parser"/>
+      <depend property="tomcat-util.jar" project="jakarta-tomcat-util"/>
+      <depend property="commons-beanutils.jar" project="commons-beanutils"
+        runtime="true"/>
+      <depend property="commons-collections.jar" project="commons-collections"
+        runtime="true"/>
+      <depend property="commons-digester.jar" project="commons-digester"
+        runtime="true"/>
+      <depend property="commons-modeler.jar" project="commons-modeler"/>
+      <depend property="commons-dbcp.jar" project="commons-dbcp"/>
+      <depend property="commons-pool.jar" project="commons-pool"/>
+      <depend property="commons-logging.jar" project="commons-logging"
+        runtime="true" id="all"/>
+      <depend property="commons-logging-api.jar" project="commons-logging"
+        runtime="true" id="api"/>
+    </ant>
+
+    <depend project="jakarta-ant"/>
+    <depend project="xml-xerces"/>
+    <depend project="jaf"/>
+    <depend project="javamail"/>
+    <depend project="jmx"/>
+    <depend project="jsse" runtime="true"/>
+    <depend project="xml-xalan2"/>
+    <option project="jakarta-avalon"/>
+    <option project="jakarta-avalon-phoenix"/>
+    <depend project="jakarta-tomcat-coyote"/>
+    <depend project="jakarta-tomcat-util" runtime="true"/>
+    <depend project="jakarta-servletapi-4"/>
+    <depend project="jakarta-regexp"/>
+    <option project="junit" />
+    <work nested="catalina/build/server/classes"/>
+
+    <home nested="dist"/>
+    <jar name="bin/bootstrap.jar"/>
+    <jar name="server/lib/catalina.jar"/>
+    <jar name="server/lib/servlets-common.jar"/>
+    <jar name="server/lib/servlets-default.jar"/>
+    <jar name="server/lib/servlets-invoker.jar"/>
+    <jar name="common/lib/naming-common.jar"/>
+    <jar name="common/lib/naming-resources.jar"/>
+
+    <jar name="common/lib/jasper-compiler.jar" id="jasper-compiler"/>
+    <jar name="common/lib/jasper-runtime.jar" id="jasper-runtime"/>
+
+    <javadoc nested="dist/webapps/tomcat-docs">
+      <description dir="catalina/docs/api">Catalina API</description>
+      <description dir="jasper/docs/api">Jasper API</description>
+    </javadoc>
+
+    <nag to="tomcat-dev@jakarta.apache.org"
+         from="Craig McClanahan &lt;craigmcc@apache.org&gt;"/>
+  </project>
+
+</module>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="Tomcat Documentation - Top Level Directory"
+        href="http://jakarta.apache.org/tomcat/">
+
+    <title>The Tomcat 4 Servlet/JSP Container</title>
+
+    <logo href="/images/tomcat.gif">
+      The Tomcat Servlet/JSP Container
+    </logo>
+
+    
+    <body>
+
+    <menu name="Links">
+        <item name="Docs Home"             href="index.html"/>
+    </menu>
+
+    <menu name="Getting Started">
+        <item name="Introduction"          href="introduction.html"/>
+        <item name="READ ME"               href="README.txt"/>
+        <item name="Install and Run"       href="RUNNING.txt"/>
+        <item name="Building from Source"  href="BUILDING.txt"/>
+    </menu>
+
+    <menu name="Configuration">
+        <item name="Reference"             href="config/index.html"/>
+    </menu>
+
+    <menu name="Administrators">
+        <item name="CGI HOW-TO"            href="cgi-howto.html"/>
+        <item name="Class Loader HOW-TO"   href="class-loader-howto.html"/>
+        <item name="Connectors List"       href="config/connectors.html"/>
+        <item name="JK Documentation"      href="jk2/index.html"/>
+        <item name="JNDI DataSource HOW-TO" 
+              href="jndi-datasource-examples-howto.html"/>
+        <item name="JNDI Resources HOW-TO" href="jndi-resources-howto.html"/>
+        <item name="JSP Engine Config HOW-TO" href="jasper-howto.html"/>
+        <item name="Manager App HOW-TO"    href="manager-howto.html"/>
+        <item name="Proxy Support HOW-TO"  href="proxy-howto.html"/>
+        <item name="Realm HOW-TO"          href="realm-howto.html"/>
+        <item name="Security Mgr. HOW-TO"  href="security-manager-howto.html"/>
+        <item name="SSI Config HOW-TO"     href="ssi-howto.html"/>
+        <item name="SSL Config HOW-TO"     href="ssl-howto.html"/>
+    </menu>
+
+    <menu name="Application Developers">
+        <item name="App Developer Guide"   href="appdev/index.html"/>
+        <item name="Servlet/JSP Javadocs"  href="servletapi/index.html"/>
+    </menu>
+
+    <menu name="Catalina Developers">
+        <item name="Functional Specs."     href="catalina/funcspecs/index.html"/>
+        <item name="Javadocs"              href="catalina/docs/api/index.html"/>
+    </menu>
+
+    <menu name="Jasper Developers">
+<!--
+        <item name="Overall Requirements"  href="jasper-requirements.html"/>
+-->
+        <item name="Javadocs"              href="jasper/docs/api/index.html"/>
+    </menu>
+
+    </body>
+
+</project>
