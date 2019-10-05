@@ -1706,3 +1706,635 @@
       - 当控制器方法参数标注了@RequestBody，所以处理器会采用请求体（Body）的内容进行参数转换，而前端的请求体为JSON类型，所以它首先会调用canRead方法来确定请求体是否可读。判断可读后，接着调用read方法，将前端提交的用户JSON类型的请求体转换为控制器的Java类型参数。
 
       - Spring MVC是通过WebDataBinder机制来获取参数，它主要是通过解析HTTP请求上下文，然后在调用控制器之前进行参数转换和验证。处理器会从HTTP请求中读取数据，然后通过Converter、Formatter和GenericConverter进行转换。Spring MVC这三个接口都采用了注册机机制，默认Spring MVC已经注册了很多转换器，也就是可以自动转换Integer、Long、String类型的原因。当要自定义转换规则时，只需要在注册机上注册iji的转换器就可以了。
+
+      - Spring MVC处理器HTTP请求体转换流程图
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Spring%20MVC%E5%A4%84%E7%90%86%E5%99%A8HTTP%E8%AF%B7%E6%B1%82%E4%BD%93%E8%BD%AC%E6%8D%A2%E6%B5%81%E7%A8%8B.jpg?raw=true)
+
+      - Spring MVC提供了一个服务机制去管理，就是ConversionService接口。默认情况下，会使用这个接口的子类DefaultFormattingConversionService对象来管理这些转换类。
+
+      - 在Spring Boot红提供了特殊的机制来管理这些转换器。Spring Boot的自动配置类WebMvcAutoConfiguration还定义了一个内部类WebMvcAutoConfigurationAdapter，会自动把用户创建的Converter、Formatter和GenericConverter的Bean进行注册。
+
+        ```java
+        		@Override
+        		public void addFormatters(FormatterRegistry registry) {
+                    // 遍历IoC容器
+        			for (Converter<?, ?> converter : getBeansOfType(Converter.class)) {
+        				registry.addConverter(converter);
+        			}
+        			for (GenericConverter converter : getBeansOfType(GenericConverter.class)) {
+        				registry.addConverter(converter);
+        			}
+        			for (Formatter<?> formatter : getBeansOfType(Formatter.class)) {
+        				registry.addFormatter(formatter);
+        			}
+        		}
+        ```
+
+      - ConversionService转换机制设计
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/ConversionService%E8%BD%AC%E6%8D%A2%E6%9C%BA%E5%88%B6%E8%AE%BE%E8%AE%A1.png?raw=true)
+
+   2. 一对一转换器（Converter）
+
+      - 从一种类型转换称为另外一种类型。也就是1对1映射。
+
+      - 示例：
+
+        ```java
+        @Component
+        public class GenderConverter implements Converter<String, Gender> {
+            @Override
+            public Gender convert(String id) {
+                return Gender.getGenderById(Integer.parseInt(id));
+            }
+        }
+        ```
+
+   3. GenericConverter集合和数组转换
+
+      - 如List\<User\>，Spring MVC会先使用stringToUserConverter，然后再使用stringToCollectionConverter进行转换。
+
+      - 示例：
+
+        ```java
+            @GetMapping("/list")
+            public List<Gender> list(
+                    List<Gender> genderList) {
+                return genderList;
+            }
+        ```
+
+4. 数据验证
+
+   1. JSR-303验证
+   2. Validator验证
+
+5. 数据模型
+
+   - Spring MVC数据模型设计图
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Spring%20MVC%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B%E8%AE%BE%E8%AE%A1%E5%9B%BE.jpg?raw=true)
+
+     - ModelMap继承自LinkedHashMap类，所以它具备Map接口的一切特性，除此之外它还可以添加数据属性。如果控制器方法使用ModelAndView、Model或者ModelMap作为参数，Spring MVC会自动创建数据模型对象。
+
+6. 视图和视图解析器
+
+   - 视图是渲染数据模型展示给用户的组件，在Spring MVC中又分为逻辑视图和非逻辑视图。逻辑视图是需要视图解析器（ViewResolver）进一步定位的。对于非逻辑视图，并不需要进一步地定位视图的位置，只需要直接将数据模型渲染出来即可。
+
+   1. 视图设计
+
+      - 视图都会实现Spring MVC定义的视图接口View。
+
+      - View接口源码：
+
+        ```java
+        public interface View {
+        	// 响应状态属性
+        	String RESPONSE_STATUS_ATTRIBUTE = View.class.getName() + ".responseStatus";
+        	
+            // 路径变量
+        	String PATH_VARIABLES = View.class.getName() + ".pathVariables";
+        
+            // 选择内容类型
+        	String SELECTED_CONTENT_TYPE = View.class.getName() + ".selectedContentType";
+        
+            // 响应类型
+        	@Nullable
+        	default String getContentType() {
+        		return null;
+        	}
+        
+        
+            // 渲染方法
+            // 将数据模型渲染到视图，是视图的核心方法。
+            // model是数据模，实际上是从控制器返回的数据模型，这样render方法就可以把它渲染出来。
+        	void render(@Nullable Map<String, ?> model, HttpServletRequest request, HttpServletResponse response)
+        			throws Exception;
+        
+        }
+        ```
+
+      - Spring MVC常用视图关系模型
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Spring%20MVC%E5%B8%B8%E7%94%A8%E8%A7%86%E5%9B%BE%E5%85%B3%E7%B3%BB%E6%A8%A1%E5%9E%8B.jpg?raw=true)
+
+   2. 导出PDF文件
+
+7. 文件上传
+
+   1. Spring MVC对文件上传的支持
+
+      - 首先DispatcherServlet会使用适配器模式，将HttpServletRequest接口对象转换为MultipartHttpServletRequest对象。MultipartHttpServletRequest接口扩展了HttpServletRequest接口的所以方法，而且定义了一些操作文件的方法，这样就可以通过这些方法实现对上传文件的操作。
+
+      - 文件请求转换类之间的关系
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/%E6%96%87%E4%BB%B6%E8%AF%B7%E6%B1%82%E8%BD%AC%E6%8D%A2%E7%B1%BB%E4%B9%8B%E9%97%B4%E7%9A%84%E5%85%B3%E7%B3%BB.jpg?raw=true)
+
+      - 在默认情况下Spring推荐使用StandardServletMultipartResolver因为它只要依赖于Servlet API提供的包。Spring Boot会自动创建MultipartResolver对象，也就是StandardServletMultipartResolver对象。
+
+      - 文件上传配置
+
+        ```properties
+        # 是否启用Spring MVC多分部上传功能
+        spring.servlet.multipart.enabled=true
+        # 将文件写入磁盘的阈值
+        spring.servlet.multipart.file-size-threshold=5242880
+        # 指定默认上传的文件夹
+        spring.servlet.multipart.location=D:/buf_file/spring boot
+        # 限制单个文件的最大大小
+        spring.servlet.multipart.max-file-size=10MB
+        # 限制所有文件的最大大小
+        spring.servlet.multipart.max-request-size=10MB
+        # 是否延迟多部分文件请求的参数和文件的解析
+        spring.servlet.multipart.resolve-lazily=false
+        ```
+
+      - 文件的上传可以使用Servlet提供的Part接口或Spring MVC提供的MultipartFile接口作为参数。推荐使用Servlet的Part接口。
+
+   2. 开发文件上传功能
+
+      - 前端的\<form\>表单的enctype属性要声明为multipart/form-data。
+
+8. 拦截器
+
+   - 拦截器是对处理器进行拦截，以增强处理器的功能。
+
+   1. 拦截器的设计
+
+      - 所有的拦截器都要实现HandlerInterceptor接口
+
+        ```java
+        public interface HandlerInterceptor {
+        	// 处理器执行前方法
+        	default boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+        			throws Exception {
+        
+        		return true;
+        	}
+        	// 处理器处理后方法
+        	default void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
+        			@Nullable ModelAndView modelAndView) throws Exception {
+        	}
+        
+            // 处理器完成后方法
+        	default void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler,
+        			@Nullable Exception ex) throws Exception {
+        	}
+        
+        }
+        ```
+
+      - 拦截器执行过程
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/%E6%8B%A6%E6%88%AA%E5%99%A8%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B.jpg?raw=true)
+
+   2. 开发拦截器
+
+      - 定义拦截器
+
+        ```java
+        public class TestInterceptor implements HandlerInterceptor {
+        
+            @Override
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+                System.out.println("处理器前方法");
+                return true;
+            }
+        
+            @Override
+            public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+                System.out.println("处理器后方法");
+            }
+        
+            @Override
+            public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+                System.out.println("处理器完成方法");
+            }
+        }
+        ```
+
+      - 注册拦截器，拦截器不会自动被发现，所以需要配置
+
+        ```java
+        @Configuration
+        public class WebConfig implements WebMvcConfigurer {
+            @Override
+            public void addInterceptors(InterceptorRegistry registry) {
+                InterceptorRegistration interceptorRegistration = registry.addInterceptor(new TestInterceptor());
+                interceptorRegistration.addPathPatterns("/mvc");
+            }
+        }
+        ```
+
+   3. 多个拦截器顺序
+
+      - 处理器前方法采用先注册先执行，处理器后方法和完成方法采用先注册后执行。
+   
+9. 国际化
+
+   - 国际化消息源
+
+     - Spring MVC提供了国际化消息源的机制，接口是MessageSource接口体系。它的作用是装载国际消息。
+
+     - 大部分情况下是使用JDK的ResourceBundle处理国际化消息，主要使用ResourceBundleMessageSource这个国际化消息源。
+
+     - 配置项：
+
+       ```properties
+       # 文件编码
+       spring.messages.encoding=UTF-8
+       # 国际化文件基础名称
+       spring.messages.basename=international
+       # 国际化消息缓存有效时间（单位秒），超时将重新载入
+       spring.messages.cache-duration=3600
+       ```
+
+     - 国际化消息设计
+
+       ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/%E5%9B%BD%E9%99%85%E5%8C%96%E6%B6%88%E6%81%AF%E8%AE%BE%E8%AE%A1.jpg?raw=true)
+
+     - messages.properties是默认的国际化任务，没有它将不再启用国际化消息机制。文件名默认是messages开头，可以通过配置文件的spring.messages.basename进行识别。
+
+   1. 国际化解析器
+
+      - Spring MVC提供了LocaleResolver接口要确定用户的国际化区域。
+
+   2. 国际化解析器
+
+      - CookieLocaleResolver：将国际化信息设置在浏览器的Cookie中，有丢失数据的风险，因为浏览器有可能把Cookie禁用了。
+
+      - SessionLocaleResolver：将国际化信息存储在Session中。
+
+      - 国际化解析器设计
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/%E5%9B%BD%E9%99%85%E5%8C%96%E8%A7%A3%E6%9E%90%E5%99%A8%E8%AE%BE%E8%AE%A1.jpg?raw=true)
+
+   3. SessionLocaleResolver
+
+      - 信息文件都要放在一起。
+
+      - 在Spring MVC中，它提供了一个拦截器LocaleChangeInterceptor可以在处理器前处理相关逻辑，也就是拦截器的preHandler方法的作用。这个拦截器可以拦截一个请求参数，通过这个参数确定国际化信息，并把国际化信息保存到Session。
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Spring%20MVC%E5%9B%BD%E9%99%85%E5%8C%96%E6%B5%81%E7%A8%8B%E5%9B%BE.jpg?raw=true)
+
+      - 添加国际化解析器和拦截器
+
+        ```java
+        @Configuration
+        public class WebConfig implements WebMvcConfigurer {
+        
+            private LocaleChangeInterceptor lci = null;
+        
+            // 国际化解析器
+            // 要包装beanName为localeResolver，这是Spring MVC中的约定。
+            @Bean(name = "localeResolver")
+            public LocaleResolver initLocaleResolver() {
+                SessionLocaleResolver slr = new SessionLocaleResolver();
+                // 默认国际化区域
+                slr.setDefaultLocale(Locale.SIMPLIFIED_CHINESE);
+                return slr;
+            }
+        
+            // 国际化拦截器
+            @Bean
+            public LocaleChangeInterceptor localeChangeInterceptor() {
+                if (lci != null) {
+                    return lci;
+                }
+        
+                lci = new LocaleChangeInterceptor();
+                // 表示拦截器将读取HTTP请求为language的参数，用以设置国际化参数，这样可以通过这个参数来设置用户的国际化区域。
+                lci.setParamName("language");
+                return lci;
+            }
+        
+            @Override
+            public void addInterceptors(InterceptorRegistry registry) {
+                registry.addInterceptor(localeChangeInterceptor());
+            }
+        }
+        ```
+
+      - 后台获取国际化区域
+
+        ```java
+            @GetMapping("/test")
+            public String test(HttpServletRequest request) {
+                Locale locale = LocaleContextHolder.getLocale();
+                return messageSource.getMessage("msg",null, locale);
+            }
+        ```
+
+10. Spring MVC
+
+    1. @ResponseBody转换为JSON的秘密
+
+       - 当方法标注@ResponseBody后，处理器就会记录这个方法的响应类型为JSON数据集。当控制器返回后，处理器会启用结果解析器（ResultResolver）去解析这个结果，它回去轮询注册给Spring MVC的HttpMessageConverter接口的实现类。因为MappingJackson2HttpMessageConverter这个实现类已经被Spring MVC注册，所以就通过它在处理器内部把结果转换为JSON。
+
+       - 如果被MappingJackson2HttpMessageConverter进行了转换，那么后续的模型和视图（ModelAndView）就会返回null，这样视图解析器和视图渲染将不再被执行
+
+       - @ResponseBody注解转换为JSON流程图
+
+         ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/@Response%20Body%E6%B3%A8%E8%A7%A3%E8%BD%AC%E6%8D%A2%E4%B8%BAJSON%E6%B5%81%E7%A8%8B%E5%9B%BE.jpg?raw=true)
+
+    2. 重定向
+
+    3. 操作会话对象
+
+       - @SessionAttribute用于参数，它是将HttpSession中的属性读出，赋予控制器的参数。
+       - @SessionAttributes用于类注解，它会将相关数据模型的属性保存到Session中。
+
+    4. 给控制器添加通知
+
+       - @ControllerAdvice：定义一个控制器的通知类。
+       - @InitBinder：定义控制器参数绑定规则，如转换规则、格式化等，它会在参数转换之前执行。
+       - @ExceptionHandanler：定义控制器发生异常后的操作。
+       - @ModelAttribute：可以在控制器方法执行之前，对数据模型进行操作。
+
+    5. 获取请求头参数
+
+       - 可以使用@RequestHeader(headerName)进行获取
+
+# 11、REST风格网站
+
+1.  
+   1.  
+   2.  
+   3.  REST风格的一些误区
+      - 不要加入版本号，如：/v1/user/1
+        - 版本号可以通过HTTP头的Accept: version = 1.0进行区分
+      - 尽量使用路径参数而不是body，除非参数过多。
+2.  
+   1.  
+   2.  
+      - @RequestBody的说明
+        - 平时使用的x-www-form-urlencoded是k/v格式，不适合大批量传数据。
+        - 微服务的接口参数也是JSON格式，需要使用@RequestBody注解。
+3. 客户端请求RestTemplate
+   1. 使用RestTemplate请求后端
+      - RestTemplate底层是通过类HttpURLConnection实现的。
+      - getForObject和getForEntity的区别是前一个返回的只是数据，而后一个返回的还带响应体、响应头、状态码等。
+      - PATCH请求不能使用，因为HttpURLConnection中并不能支持PATCH请求。
+      - RestTemplate还提供了exchange方法，可以作为资源交换使用，可以自定义更多的参数。
+
+# 12、Spring Security
+
+- 加入依赖就可以启动Spring Security
+
+  ```xml
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-security</artifactId>
+          </dependency>
+  ```
+
+1. 概述和简单安全认证
+
+   - 在Java Web工程中，一般使用Servlet过滤器（Filter）对请求进行拦截，然后再Filter中通过自己的验证逻辑来决定是否放行请求。Spring Security也是基于这个原理，再进入到DispatcherServlet前就可以对Spring MVC的请求进行拦截，然后通过一定的验证，决定是否方向请求访问系统。
+
+   - 对请求的拦截，Spring Security提供了过滤器DelegatingFilterProxy类基于开发者配置。
+
+   - 一旦启用了Spring Security，Spring IoC容器会创建一个名为springSecurityFilterChain的Bean。它的类型为FilterChainProxy，事实上它实现了Filter接口，只是它是一个特殊的拦截器。在Spring Security操作的过程中它会提供Servlet过滤器DelegatingFilterProxy，这个过滤器会通过Spring Web IoC容器去获取Spring Security所自动创建的FilterChainProxy对象，这个对象上存在一个拦截器列表，列表上存在用户验证的拦截器、跨站点请求伪造等拦截器。
+
+   - 通过FilterChainProxy对象，可以注册Filter，也就是允许自定义Filter来实现对应的拦截逻辑，以满足不同需要。
+
+   - Spring Boot配置
+
+     ```properties
+     # Spring Security过滤器排序
+     spring.security.filter.order=-100
+     # 安全过滤器责任链拦截的分发类型
+     spring.security.filter.dispatcher-types=async,error,request
+     
+     # OAuth提供者详细配置信息
+     spring.security.oauth2.client.provider.*=#
+     # OAuth 客户端登记信息
+     spring.security.oauth2.client.registration.*=
+     ```
+
+2. 使用WebSecurityConfigurerAdapter自定义
+
+   - 为了给FilterChainProxy对象加入自定义初始化，Spring Security提供了SecurityConfigurer接口，通过它就能够实现对Spring Security的配置。为了更方便，Spring还对Web工程专门提供了WebSecurityConfigurer并提供一个抽象类WebSecurityConfigurerAdapter。
+
+   - 源码：
+
+     ```java
+     @EnableWebSecurity
+     public class SecurityConfig extends WebSecurityConfigurerAdapter {
+     
+         @Value("${system.user.password.secret}")
+         private String secret;
+     
+         @Autowired
+         private UserDetailsService userDetailsService;
+     
+         // 指定用户和角色对应的URL访问权限
+         @Override
+         protected void configure(HttpSecurity http) throws Exception {
+             http
+                     .authorizeRequests()
+                     .antMatchers("/users").hasAnyRole("USER")
+                     .antMatchers("/users/export/**").hasRole("ADMIN")
+                     .antMatchers("/redis").hasAnyRole("USER")
+                     .anyRequest().permitAll()
+                     .and()
+                     .anonymous()
+                     .and()
+                     .formLogin()
+                     .and()
+                     .httpBasic()
+                     .and()
+                     .csrf()
+                     .disable();
+         }
+     
+         // 定义用户、密码和角色
+         @Override
+         protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+             PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+             auth.userDetailsService(userDetailsService)
+                     .passwordEncoder(passwordEncoder);
+         }
+     
+         // 对Filter链内容的配置，可以配置Filter链忽略哪些内容
+         // WebSecurityConfigurerAdapter提供空实现，也就是没有忽略任何内容
+         @Override
+         public void configure(WebSecurity web) throws Exception {
+             super.configure(web);
+         }
+     }
+     ```
+
+3.  自定义用户服务信息
+
+   1.  使用内存签名服务
+
+   2. 使用数据库认证服务
+
+      - 源码：
+
+        ```java
+        @EnableWebSecurity
+        public class SecurityConfig extends WebSecurityConfigurerAdapter {
+        
+            @Value("${system.user.password.secret}")
+            private String secret;
+        
+            //注入自定义用户认证服务
+            @Autowired
+            private UserDetailsService userDetailsService;
+        
+            // 指定用户和角色对应的URL访问权限
+            @Override
+            protected void configure(HttpSecurity http) throws Exception {
+                http
+                        .authorizeRequests()
+                        .antMatchers("/users").hasAnyRole("USER")
+                        .antMatchers("/users/export/**").hasRole("ADMIN")
+                        .antMatchers("/redis").hasAnyRole("USER")
+                        .anyRequest().permitAll()
+                        .and()
+                        .anonymous()
+                        .and()
+                        .formLogin()
+                        .and()
+                        .httpBasic()
+                        .and()
+                        .csrf()
+                        .disable();
+            }
+        
+            @Override
+            protected void configure(AuthenticationManagerBuilder auth) throws Exception 
+                // 密码编码器
+                // 可以使用Pbkdf2PasswordEncoder类更加安全
+                // 可以在配置文件中加入system.user.password.secret=xxx加入密钥
+                PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+            // 注入自定义用户认证服务
+                auth.userDetailsService(userDetailsService)
+                        .passwordEncoder(passwordEncoder);
+            }
+        
+        
+            @Override
+            public void configure(WebSecurity web) throws Exception {
+                super.configure(web);
+            }
+        }
+        ```
+
+   3. 自定义用户认证服务
+
+      - Spring Security提供了一个UserDetailsService接口，通过它可以获取用户信息，这个街廓只需要实现loadUserByUsername方法返回一个UserDetails接口对象。
+
+      - 示例代码：
+
+        ```java
+        // 实现UserDetailsService接口
+        @Service("userDetailsService")
+        public class UserDetailsServiceImpl implements UserDetailsService {
+        
+            @Autowired
+            private RoleService roleService;
+        
+            @Autowired
+            private UserService userService;
+        
+            // 获取UserDetails
+            @Override
+            public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+                UserDO userDO = userService.getUserDO(username);
+                List<RoleDO> roleDOList = roleService.listRolesByUsername(username);
+        
+                List<GrantedAuthority> authorityList = new ArrayList<>();
+                for (RoleDO roleDO : roleDOList) {
+                    GrantedAuthority authority = new SimpleGrantedAuthority(roleDO.getRoleName());
+                    authorityList.add(authority);
+                }
+                User user = new User(userDO.getUsername(), userDO.getPassword(), authorityList);
+                System.out.println(user);
+                return user;
+            }
+        }
+        ```
+
+      - 然后在SecurityConfig的configure(AuthenticationManagerBuilder auth) 方法中注入UserDetailsServiceImpl类。
+
+4. 限制请求
+
+   - 通过configure(HttpSecurity http)方法，可以使用Ant风格或者正则表达式风格来限制请求。
+
+   - 源码：
+
+     ```java
+         @Override
+         protected void configure(HttpSecurity http) throws Exception {
+             http
+                     .authorizeRequests()
+                     .antMatchers("/users").hasAnyRole("USER")
+                     .antMatchers("/users/export/**").hasRole("ADMIN")
+                     .antMatchers("/redis").hasAnyRole("USER")
+                     .anyRequest().permitAll()
+                     .and()
+                     .anonymous()
+                     .and()
+                     .formLogin()
+                     .and()
+                     .httpBasic()
+                     .and()
+                     .csrf()
+                     .disable();
+         }
+     ```
+
+   - 权限方法
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/%E6%9D%83%E9%99%90%E6%96%B9%E6%B3%95.jpg?raw=true)
+
+   2. 使用Spring表达式配置访问权限
+
+      - 需要用到access()方法，参数是一个表达式，如果这个表达式返回true，则可以访问，否则不可以访问。
+
+      - Spring Security中的Spring表达式方法
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Spring%20Security%E4%B8%AD%E7%9A%84Spring%E8%A1%A8%E8%BE%BE%E5%BC%8F%E6%96%B9%E6%B3%95.jpg?raw=true)
+
+   3. 强制使用HTTPS
+
+      - 示例代码：
+
+        ```java
+                http
+                //使用安全渠道，限定HTTPS请求
+                        .requiresChannel()
+                        .antMatchers("/admin/**")
+                        .requiresSecure()
+                        .and()
+                    //不使用HTTPS请求
+                        .requiresChannel()
+                        .antMatchers("/user/**")
+                        .requiresInsecure();
+        ```
+
+   4. 防止跨站点请求伪造
+
+      - 首先是浏览器请求安全网站，于是可以进行登录，在登录后，浏览器会记录一些信息，以Cookie的形式进行保存，然后在不关闭浏览器的情况下，用户可能访问一个危险网站，危险网站通过获取Cookie信息来仿造用户的请求，进而请求安全网站。
+
+      - CSRF攻击场景
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/CSRF%E6%94%BB%E5%87%BB%E5%9C%BA%E6%99%AF.jpg?raw=true)
+
+      - Spring Security提供了CSRF过滤器，默认情况下，会启动这个过滤器来防止CSRF攻击。可以使用代码http.csrf().disable()来关闭。
+
+5. 用户认证功能
+
+   - 自定义登录页面
+
+     ```java
+     // 启动remember me 功能
+     http.rememberMe().tokenValiditySeconds(86400).key("remember-me-key");
+     ```
+
+# 13、
+
