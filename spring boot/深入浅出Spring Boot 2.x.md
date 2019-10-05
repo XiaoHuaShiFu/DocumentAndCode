@@ -1596,3 +1596,113 @@
      - 这些配置会被Spring Boot的机制读入，然后使用WebMvcAutoConfigurationAdapter去初始化。
 
 # 10、深入Spring MVC开发
+
+1. 处理器映射
+
+   - @RequestMapping源码
+
+     ```java
+     @Target({ElementType.TYPE, ElementType.METHOD})
+     @Retention(RetentionPolicy.RUNTIME)
+     @Documented
+     @Mapping
+     public @interface RequestMapping {
+         // 配置请求映射名称
+     	String name() default "";
+         
+     	// 通过路径映射
+     	@AliasFor("path")
+     	String[] value() default {};
+         
+     	// 通过路径映射回path配置项
+     	@AliasFor("value")
+     	String[] path() default {};
+     
+         // 请求类型 GET, POST, HEAD, OPTIONS, PUT, PATCH, DELETE, TRACE.
+     	RequestMethod[] method() default {};
+     
+         // 当存在对应的HTTP参数时才响应请求
+     	String[] params() default {};
+     
+         // 限定请求头存在对应的参数时才响应
+     	String[] headers() default {};
+     
+     	// 限定HTTP请求体提交类型，如"application/json", "text/html"
+     	String[] consumes() default {};
+     
+         // 限定返回的内容类型，仅当HTTP请求头中的Accept类型中包含该指定类型时才返回
+     	String[] produces() default {};
+     
+     }
+     ```
+
+2. 获取控制器参数
+
+   - 处理器是对控制器的包装，在处理器运行的过程中会调度控制器的方法，只是它在进入控制器方法之前会对HTTP的参数和上下文进行解析，将他们转换成为控制器所需的参数。
+
+   1. 无注解：要求前后端参数名相同。
+
+   2. @RequestParam：可以定义映射关系。
+
+   3. 传递数组：Spring MVC支持以","分隔的数组参数。
+
+   4. 传递JSON
+
+      - 前端需要添加contentType: "application/json"，data: JSON.stringify(params)
+      - 后端需要添加@RequestBody在参数上，意味着它将接收前端提交的JSON请求体，这样Spring MVC就会将JSON数组转换成Java对象。
+
+   5. 通过URL传递参数：@PathVariable(paramName)指定路径参数的名称。
+
+   6. 获取格式化参数
+
+      - 对日期和数字类型的转换注解进行处理，分别是@DateTimeFormat和@NumberFormat。
+
+      - 示例：
+
+        ```java
+            @GetMapping
+            public Map<String, Object> format(
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)Date date, 
+                    @NumberFormat(pattern = "#,###.##") Double number) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("date", date);
+                map.put("number", number);
+                return map;
+            }
+        ```
+
+      - 在Spring Boot中，日期参数的格式化也可以不使用@DateTimeFormat，只需要在配置中文件中配置spring.mvc.date-format=yyyy-MM-dd即可。
+
+3. 自定义参数转换规则
+
+   1. 处理器获取参数逻辑
+
+      - 当一个请求来到时，处理器执行的过程中，会首先从HTTP请求和上下文环境来得到参数。如果是简单的参数它会以简单的转换器进行转换，这些转换器是Spring MVC自带的。如果是转换HTTP请求体（Body），它会调用HtppMessageConverter接口的方法对请求体的信息进行转换，首先会判断能否对请求体进行转换，如果可以就会将其转换为Java类型。
+
+      - HttpMessageConverter接口
+
+        ```java
+        public interface HttpMessageConverter<T> {
+        	// 是否可读，其中clazz为Java类型，MediaType为HTTP请求类型
+        	boolean canRead(Class<?> clazz, @Nullable MediaType mediaType);
+        
+            // 判断clazz类型能否转换为mediaType媒体类型
+        	boolean canWrite(Class<?> clazz, @Nullable MediaType mediaType);
+        
+            // 可支持的媒体类型列表
+        	List<MediaType> getSupportedMediaTypes();
+        
+            // 读入HTTP请求信息
+        	T read(Class<? extends T> clazz, HttpInputMessage inputMessage)
+        			throws IOException, HttpMessageNotReadableException;
+        
+            // 写入响应
+        	void write(T t, @Nullable MediaType contentType, HttpOutputMessage outputMessage)
+        			throws IOException, HttpMessageNotWritableException;
+        
+        }
+        ```
+
+      - 当控制器方法参数标注了@RequestBody，所以处理器会采用请求体（Body）的内容进行参数转换，而前端的请求体为JSON类型，所以它首先会调用canRead方法来确定请求体是否可读。判断可读后，接着调用read方法，将前端提交的用户JSON类型的请求体转换为控制器的Java类型参数。
+
+      - Spring MVC是通过WebDataBinder机制来获取参数，它主要是通过解析HTTP请求上下文，然后在调用控制器之前进行参数转换和验证。处理器会从HTTP请求中读取数据，然后通过Converter、Formatter和GenericConverter进行转换。Spring MVC这三个接口都采用了注册机机制，默认Spring MVC已经注册了很多转换器，也就是可以自动转换Integer、Long、String类型的原因。当要自定义转换规则时，只需要在注册机上注册iji的转换器就可以了。
