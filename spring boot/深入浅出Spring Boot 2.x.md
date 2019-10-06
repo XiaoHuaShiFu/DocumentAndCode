@@ -1516,6 +1516,176 @@
 
 # 8、MongoDB
 
+- mongodb依赖
+
+  ```xml
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-data-mongodb</artifactId>
+          </dependency>
+  ```
+
+1. 配置MongoDB
+
+   - Spring Boot配置
+
+     ```properties
+     # 用于签名的MongoDB数据库
+     spring.data.mongodb.authentication-database=
+     # 数据库名称
+     spring.data.mongodb.database=test
+     # 使用字段名策略
+     spring.data.mongodb.field-naming-strategy=
+     # GridFs（网格文件）数据库名称
+     spring.data.mongodb.grid-fs-database=
+     # MongoDB服务器，不能设置为URI
+     spring.data.mongodb.host=
+     # MongoDB服务器用户密码，不能设置为URI
+     spring.data.mongodb.password=
+     # MongoDB服务器端口，不能设置为URI
+     spring.data.mongodb.port=
+     # 是否启用MongoDB关于JPA规范的编程
+     spring.data.mongodb.repositories.type=auto
+     # MongoDB默认URI
+     spring.data.mongodb.uri=
+     # MongoDB服务器用户名，不能设置为URI
+     spring.data.mongodb.username=
+     ```
+
+   - Spring Boot 自动创建的MongoDB相关Bean
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Spring%20Boot%E8%87%AA%E5%8A%A8%E5%88%9B%E5%BB%BA%E7%9A%84MongoDB%E7%9B%B8%E5%85%B3%E7%9A%84Bean.jpg?raw=true)
+
+2. 使用MongoTemplate实例
+
+   - 标记MongoDB文档
+
+     ```java
+     // 标记为MongoDB文档
+     @Document
+     public class User implements Serializable {
+     
+         private static final long serialVersionUID = 6979021185070083218L;
+         
+         // 文档编号，主键
+         @Id
+         private Integer id;
+     
+         private String username;
+     
+         private String password;
+     
+         private Boolean available;
+         
+         private List<Role> roles;
+     }
+     
+     @Document
+     public class Role implements Serializable {
+     
+         private static final long serialVersionUID = -945522096305097345L;
+     
+         @Id
+         private Integer id;
+     
+         // 名称映射
+         @Field("role_name")
+         private String roleName;
+     
+         private String note;
+     }
+     ```
+
+     - 可以使用@DBRef标注为只保存引用信息。
+     - 上面的Role可以不标注@Document，这样就不会以一个文档保存。
+
+   2. 使用MongoTemplate操作文档
+
+      ```java
+          @Autowired
+          private MongoTemplate mongoTemplate;
+      
+          @GetMapping("/{id}")
+          public User get(@PathVariable Integer id) {
+              User byId = mongoTemplate.findById(id, User.class);
+              System.out.println(byId);
+              return byId;
+          }
+      
+          @PostMapping
+          public User post(@RequestBody User user) {
+              return mongoTemplate.save(user);
+          }
+      
+          @DeleteMapping("/{id}")
+          public DeleteResult delete(@PathVariable Integer id) {
+              Criteria criteria = Criteria.where("id").is(id);
+              Query query = Query.query(criteria);
+              return mongoTemplate.remove(query, User.class);
+          }
+      
+          @PutMapping
+          public UpdateResult put(@RequestBody User user) {
+              Criteria criteria = Criteria.where("id").is(user.getId());
+              Query query = Query.query(criteria);
+              Update update = Update.update("username", user.getUsername());
+              update.set("roles", user.getRoles());
+              return mongoTemplate.updateFirst(query, update, User.class);
+          }
+      ```
+
+3. 使用JPA
+
+   1. 基本用法
+
+      ```java
+      @Repository
+      public interface UserRepository extends MongoRepository<User, Integer> {
+      }
+      ```
+
+      - MongoRepository所定义的方法
+
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/MongoRepository%E6%89%80%E5%AE%9A%E4%B9%89%E7%9A%84%E6%96%B9%E6%B3%95.jpg?raw=true)
+
+      - 使用@EnableMongoRepositories扫描对应的接口
+
+        ```java
+        @EnableMongoRepositories(basePackages = "top.xiaohuashifu.learn.jvm.repository")
+        ```
+
+   2. 使用自定义查询
+
+      - 可以使用@Query注解，对于简单的查询。
+
+      - 对于比较复杂的可以使用接口名+Impl的class类，Spring会自动找这个类。
+
+      - 示例：
+
+        ```java
+        @Repository
+        public interface UserRepository extends MongoRepository<User, Integer> {
+        
+            @Query("{'id':?0}")
+            User find(Integer id);
+        
+        }
+        
+        @Repository
+        public class UserRepositoryImpl {
+        
+            @Autowired
+            private MongoTemplate mongoTemplate;
+        
+            public User find(Integer id) {
+                return mongoTemplate.findById(id, User.class);
+            }
+        
+        }
+        ```
+
+        
+
 # 9、Spring MVC
 
 1. Spring MVC框架的设计
