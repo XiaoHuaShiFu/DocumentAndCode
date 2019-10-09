@@ -2508,3 +2508,277 @@
 
 # 13、
 
+# 14、
+
+# 15、
+
+# 16、部署、测试和监控
+
+1. 部署和允许
+
+   - 第一步将项目打包war
+   - 第二部运行项目
+
+   1. 打包
+
+      - 使用mvn clean package -Dmaven.test.skip=true打包
+      - 在工程里需要配置\<packaging\>war\</packaging\>
+
+   2. 运行项目
+
+      - 使用java -jar xxx.war
+
+      - 可以通过ServletInitializer类启动
+
+        - 此类继承了SpringBootServletInitializer，实现了configure方法，载入Spring Boot的启动类，依靠这个启动类来读取配置。
+
+        - 容器初始化Spring Boot项目原理图
+
+          ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/%E5%AE%B9%E5%99%A8%E5%88%9D%E5%A7%8B%E5%8C%96Spring%20Boot%E9%A1%B9%E7%9B%AE%E5%8E%9F%E7%90%86.jpg?raw=true)
+
+          - 在servlet3.1之后，只要实现了ServletContainerinitializer接口即可作为启动类。
+          - Spring MVC中提供了ServletContainerInitializer的实现类SpringServletContainerInitializer这个实现类会遍历WebApplicationInitializer接口的实现类，加载它所配置的内容。
+
+          - 而SpringBootServletInitializer就实现了WebApplicationInitializer接口。
+          - 因此，也可以将此xxx.war文件复制到Tomcat的webapps目录下，启动服务器即可。
+
+   3. 热部署
+
+      - 导入spring-boot-devtools即可
+      - 有各种配置信息
+
+2. 测试
+
+   - 引入spring-boot-starter-test
+
+   1. 构建测试类
+
+      ```java
+      // SpringRunner是Spring结合JUnit的运行器
+      @RunWith(SpringRunner.class)
+      // SpringBootTest是可以配置Spring Boot的关于测试的相关功能
+      @SpringBootTest
+      ```
+
+   2. 使用随机端口和REST风格测试
+
+      - 随机端口和REST测试，自己本地要开启8080的服务器进程
+
+        ```java
+        @RunWith(SpringRunner.class)
+        @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+        public class MVCControllerTest {
+            @Autowired
+            private TestRestTemplate testRestTemplate;
+            
+            @Test
+            public void format() throws Exception {
+                Map<String, Object> map = new HashMap<>();
+                map.put("date", "2017-08-08");
+                map.put("number", "1,234,567.89");
+                System.out.println(testRestTemplate.getForEntity("/mvc", Object.class, map));
+        
+            }
+        
+        }
+        ```
+
+   3. Mock测试
+
+      - 构建一个不易构造或不容易获取的对象，有虚拟对象来测试方法。
+
+      - 比如在某个服务还不能使用时。
+
+        ```java
+        @RunWith(SpringRunner.class)
+        @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+        public class MVCControllerTest {
+        
+            @MockBean
+            private UserService userService;
+        
+            @Test
+            public void format() throws Exception {
+                UserVO userVO = new UserVO();
+                userVO.setId(3);
+                userVO.setPassword("test");
+                userVO.setUsername("xxxx");
+                // 设置虚拟对象
+                BDDMockito.given(userService.getUser(3)).willReturn(userVO);
+        		
+                // 获取的其实是虚拟对象
+                System.out.println(userService.getUser(3));
+            }
+        
+        }
+        ```
+
+3. Actuator监控端点
+
+   - 引入监控包
+
+     ```xml
+             <dependency>
+                 <groupId>org.springframework.boot</groupId>
+                 <artifactId>spring-boot-starter-actuator</artifactId>
+             </dependency>
+     
+             <dependency>
+                 <groupId>org.springframework.hateoas</groupId>
+                 <artifactId>spring-hateoas</artifactId>
+             </dependency>
+     ```
+
+   - actuator端点
+
+     ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Actuator%E7%AB%AF%E7%82%B9%E8%AF%B4%E6%98%8E.jpg?raw=true)
+
+4. HTTP监控
+
+   - 输入http://localhost:8080/actuator/health查看当前应用状态。
+
+   - 暴露端点
+
+     ```properties
+     management.endpoints.web.exposure.include=info,health,beans
+     
+     # 暴露所有端点
+     management.endpoints.web.exposure.include=*
+     ```
+
+   1. 查看敏感信息
+
+      - 通过配置权限控制进行限制
+
+        ```java
+            @Override
+            protected void configure(HttpSecurity http) throws Exception {
+                http.requestMatcher(EndpointRequest.to("beans", "info"))
+                        .authorizeRequests().anyRequest()
+                        .hasRole("ADMIN")
+                        .and()
+                        .antMatcher("/close").authorizeRequests().anyRequest().hasRole("ADMIN")
+                        .and()
+                        .httpBasic();
+        
+            }
+        ```
+
+   2. shutdown端点
+
+      - 需要添加配置文件才能使用
+
+        ```properties
+        management.endpoints.web.exposure.include=*
+        management.endpoint.shutdown.enabled=true
+        ```
+
+      - 是一个POST请求
+
+        ```
+        POST http://localhost:8080/actuator/shutdown
+        ```
+
+   3. 配置端点
+
+      ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Actuator%E7%AB%AF%E7%82%B9%E9%85%8D%E7%BD%AE.png?raw=true)
+
+   4. 自定义端点
+
+      - 加入注解@Endpoint即可，同时会提供JMX监控和Web监控。如果只想Web监控，可以使用WebEndpoint，只想JMX监控可以使用JmxEndpoint。也可以使用@WebEndpointExtension或@EndpointJmxExtension对已有端点进行扩展。
+
+      - 示例：
+
+        ```java
+        @Component
+        @Endpoint(
+                id="dbcheck",
+                // 是否在默认情况下启动端点
+                enableByDefault = true
+        )
+        public class DataBaseConnectionEndpoint {
+        
+            /**
+             * @ReadOperation 代表HTTP的GET请求
+             * @return
+             */
+            @ReadOperation
+            public Map<String, Object> test() {
+                Map<String, Object> map = new HashMap<>();
+                map.put("connect", "success");
+                return map;
+            }
+        
+        }
+        ```
+
+      - @ReadOperation还有WriteOperation代表POST和@DeleteOperation代表DELETE。
+
+        - 其中WriteOperation只接受请求类型（Consumes）为application/vnd.spring-boot.actuator.v2+json、application/json类型的请求。他们的返回值默认情况下都是application/vnd.spring-boot.actuator.v2+json、application/json类型，除非返回类型定义为org.springframework.core.io.Resource类型。
+        - ReadOperation成功返回状态码200，没有返回内容404
+        - WriteOperation成功返回状态码200，没有返回内容204
+        - 请求发生异常返回状态码400
+
+   5. 监控指标项：配置文件
+
+      ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Actuator%E9%BB%98%E8%AE%A4%E6%8F%90%E4%BE%9B%E7%9A%84%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87.jpg?raw=true)
+
+      - 要配置什么时候进行展示：
+      
+        ```properties
+        # never 从不展示
+        # when_authorized 签名认证之后展示
+        # always 每次都展示
+        management.endpoint.health.show-details=when_authorized
+        
+        # 控制某项监控指标
+        management.health.db.enabled=false
+        # 对所有监控指标的控制
+        management.health.defaults.enabled=false
+        # 默认严重级别
+        management.health.status.order=DOWN, OUT_OF_SERVICE, UP, UNKNOWN
+        ```
+      
+      - 自定义监控指标，Actuator提供了接口HealthIndicator，还有一个抽象类AbstractHealthIndicator和指标项组合CompositeHealthIndicator
+      
+        ![](https://github.com/XiaoHuaShiFu/img/blob/master/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BASpring%20Boot2.x/Actuator%E5%85%B3%E4%BA%8E%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87%E7%9A%84%E8%AE%BE%E8%AE%A1.jpg?raw=true)
+      
+        - 示例：
+      
+          ```java
+          @Component
+          // 会使用类名的前缀如www作为监控指标的键
+          public class WwwHealthIndicator extends AbstractHealthIndicator {
+          
+              private final static String BAIDU_HOST = "www.baidu.com";
+          
+              private final static int TIME_OUT = 3000;
+          
+              @Override
+              protected void doHealthCheck(Health.Builder builder) {
+                  boolean status = ping();
+                  if (status) {
+                      builder.withDetail("message", "当前服务器可以访问万维网。").up();
+                  } else {
+                      builder.withDetail("message", "当前服务器无法访问万维网。").outOfService();
+                  }
+              }
+          
+          
+              private boolean ping() {
+                  try {
+                      return InetAddress.getByName(BAIDU_HOST).isReachable(TIME_OUT);
+                  } catch (Exception ex) {
+                      return false;
+                  }
+              }
+          
+          }
+          ```
+      
+          
+
+
+
+
+
