@@ -492,5 +492,349 @@
 
 # 12、联结表
 
+1. 
 
+2.  创建联结
 
+   - 笛卡尔积
+
+     - 示例：使用where语句联结，将vendors.vend_id 和 products.vend_id联结起来。
+
+       ```mysql
+       select vend_name, prod_name, prod_price 
+       from vendors, products 
+       where vendors.vend_id = products.vend_id;
+       ```
+
+     - 使用where子句可以使指定特定的第一个表的行和第二个表的行配对，而不是将第一个表的所有行和第二个表的所有行配对。
+
+     - 没有联结条件的表关系返回的结果为笛卡尔积。检索处的行的数目将是第一个表中的行数乘以第二个表中的行数。
+
+   - 内联结：也称等值联结（equijoin），基于两个表之间的相等测试。要明确指定联结类型。
+
+     - 示例：两个SQL等价
+
+       ```mysql
+       select vend_name, prod_name, prod_price 
+       from vendors, products 
+       where vendors.vend_id = products.vend_id;
+       
+       select vend_name, prod_name, prod_price 
+       from vendors inner join products 
+       on vendors.vend_id = products.vend_id;
+       
+       Doll House Inc.	Fish bean bag toy	3.49
+       Doll House Inc.	Bird bean bag toy	3.49
+       Doll House Inc.	Rabbit bean bag toy	3.49
+       Bears R Us	8 inch teddy bear	5.99
+       Bears R Us	12 inch teddy bear	8.99
+       Bears R Us	18 inch teddy bear	11.99
+       Doll House Inc.	Raggedy Ann	4.99
+       Fun and Games	King doll	9.49
+       Fun and Games	Queen doll	9.49
+       ```
+
+   - 联结多个表
+
+     - 联结多个表会导致性能下降，联结的越多下降得更加厉害。
+
+# 13、创建高级联结
+
+1.  
+
+2.  使用不同类型的联结
+
+   1. 自联结self-join
+
+      - 示例：
+
+        ```mysql
+        select c1.cust_id, c1.cust_name, c1.cust_contact 
+        from customers as c1, customers as c2 
+        where c1.cust_name = c2.cust_name 
+        and c2.cust_contact = 'Jim Jones';
+        
+        1000000003	Fun4All	Jim Jones
+        1000000004	Fun4All	Denise L. Stephens
+        ```
+
+      - 用自联结而不用子查询：许多DBMS处理联结都比子查询快得多。
+
+   2. 自然连接：排除列的多次重复出现，使每列只返回一次。
+
+      - 自然联结要求你只能选择那些唯一的列，一般通过对一个表使用通配符（select *），而对其他表的列使用明确的子集来完成。
+
+      - 示例：
+
+        ```mysql
+        select c.*, o.order_num, o.order_date, oi.prod_id, oi.quantity, oi.item_price 
+        from customers as c, orders as o, orderItems as oi 
+        where c.cust_id = o.cust_id 
+        and oi.order_num = o.order_num 
+        and prod_id = 'RGAN01';
+        
+        1000000004	Fun4All	829 Riverside Drive	Phoenix	AZ	88888	USA	Denise L. Stephens	dstephens@fun4all.com	20007	2012-01-30 00:00:00	RGAN01	50	4.49
+        1000000005	The Toy Store	4545 53rd Street	Chicago	IL	54545	USA	Kim Howard		20008	2012-02-03 00:00:00	RGAN01	5	4.99
+        ```
+
+   3. 外联结：联结包含哪些在相关表中没有关联的行。如对每个顾客下的订单进行计数，包括那些至今尚未下订单的顾客。
+
+      - 示例：使用内联结完成
+
+        ```mysql
+        select customers.cust_id, orders.order_num
+        from customers inner join orders 
+        on customers.cust_id = orders.cust_id;
+        
+        1000000001	20005
+        1000000001	20009
+        1000000003	20006
+        1000000004	20007
+        1000000005	20008
+        ```
+
+      - 示例：使用外联结完成
+
+        ```mysql
+        select customers.cust_id, orders.order_num
+        from customers left join orders 
+        on customers.cust_id = orders.cust_id;
+        
+        1000000001	20005
+        1000000001	20009
+        1000000002	
+        1000000003	20006
+        1000000004	20007
+        1000000005	20008
+        ```
+
+      - 有左联结、右联结、全外联结
+
+3. 使用带聚集函数的联结
+
+   - 示例：
+
+     ```mysql
+     select customers.cust_id, count(orders.order_num) as num_ord 
+     from customers inner join orders 
+     on customers.cust_id = orders.cust_id
+     group by customers.cust_id;
+     
+     1000000001	2
+     1000000003	1
+     1000000004	1
+     1000000005	1
+     
+     select customers.cust_id, count(orders.order_num) as num_ord 
+     from customers left join orders 
+     on customers.cust_id = orders.cust_id
+     group by customers.cust_id;
+     
+     1000000001	2
+     1000000002	0
+     1000000003	1
+     1000000004	1
+     1000000005	1
+     ```
+
+# 14、组合查询
+
+1. 组合查询：将多条SQL并（union）或复合查询（compound query）
+
+   - 用于
+     - 在一个查询中从不同的表返回结构数据；
+     - 对一个表执行多个查询，按一个查询返回数据。
+
+2. 创建组合查询：利用union操作符和多条SQL查询
+
+   - 示例：
+
+     ```mysql
+     select cust_name, cust_contact, cust_email 
+     from customers
+     where cust_state in ('IL', 'IN', 'MI');
+     
+     Village Toys	John Smith	sales@villagetoys.com
+     Fun4All	Jim Jones	jjones@fun4all.com
+     The Toy Store	Kim Howard	
+     
+     select cust_name, cust_contact, cust_email
+     from customers 
+     where cust_name = 'Fun4All';
+     
+     Fun4All	Jim Jones	jjones@fun4all.com
+     Fun4All	Denise L. Stephens	dstephens@fun4all.com
+     
+     
+     select cust_name, cust_contact, cust_email 
+     from customers
+     where cust_state in ('IL', 'IN', 'MI')
+     union 
+     select cust_name, cust_contact, cust_email
+     from customers 
+     where cust_name = 'Fun4All';
+     
+     Village Toys	John Smith	sales@villagetoys.com
+     Fun4All	Jim Jones	jjones@fun4all.com
+     The Toy Store	Kim Howard	
+     Fun4All	Denise L. Stephens	dstephens@fun4all.com
+     ```
+
+   -  union规则
+
+     - union中的每个查询必须包含相同的列、表达式或聚集函数（不过，各个列不需要以相同的次序列出）
+     - 列数据类型必须兼容：可以隐含转换的类型也可以。
+
+   - 包含或取消重复的行：默认去掉重复的行。可以使用union all返回所有的行。
+
+     - union all的工作where做不到，但是union的工作where都可以做到。
+
+   - 对组合查询结果排序：使用union时只能使用一条order by子句，且在最后一个select语句之后。
+
+     - 虽然order by子句在最后一条select之后，但是DBMS将它用来排序所有select语句返回的结果。
+
+     - 示例：
+
+       ```mysql
+       select cust_name, cust_contact, cust_email 
+       from customers
+       where cust_state in ('IL', 'IN', 'MI')
+       union
+       select cust_name, cust_contact, cust_email
+       from customers 
+       where cust_name = 'Fun4All'
+       order by cust_name, cust_contact;
+       
+       Fun4All	Denise L. Stephens	dstephens@fun4all.com
+       Fun4All	Jim Jones	jjones@fun4all.com
+       The Toy Store	Kim Howard	
+       Village Toys	John Smith	sales@villagetoys.com
+       ```
+
+   - 有的还支出except(或minus)用来检索值在第一个表中存在而在第二个表中不存在的行；intersect可用来检索两个表中都存在的行。
+
+# 15、插入
+
+1. 数据插入
+
+   1.  
+
+   2.  
+
+   3.  插入检索处的数据（insert select）
+
+      ```mysql
+      INSERT INTO customers(cust_id, cust_contact, cust_email, cust_name, cust_address, cust_city, cust_state, cust_zip, cust_country) 
+      select cust_id, cust_contact, cust_email, cust_name, cust_address, cust_city, cust_state, cust_zip, cust_country from cust_new;
+      ```
+
+2. 从一个表复制到另外一个表：表是运行中创建的
+
+   - 示例：
+
+     ```mysql
+     SELECT * 
+     into cust_copy 
+     from customers;
+     
+     #mysql支持这个
+     create table cust_copy 
+     select * from customers;
+     ```
+
+   - 任何select的选项和子句都可以使用包括where和group by
+
+   - 可以利用联结多个表插入数据
+
+   - 不管从多少个表中检索数据，数据都只能插入一个表中。
+
+   - 可以作为实验新SQL使用。
+
+# 16、更新删除数据
+
+# 17、创建和操纵表
+
+1. 创建表
+   1.  
+   2.  
+   3.  指定默认值：应该指定默认值而不是NULL
+2. 更新表
+   - 复杂的表结构修改过程：
+     - 用新的列布局创建一个新表
+     - 用insert select语句从旧表复制数据到新表
+     - 检验包含所需数据的新表
+     - 重命名旧表
+     - 用旧表名重命名新表
+     - 创建触发器、存储过程、索引和外键。
+3. 删除表
+
+# 18、使用视图
+
+1. 使用视图
+
+   1.  外什么使用视图
+      - 重用SQL
+      - 简化复杂的SQL操作，封装细节
+      - 使用表的一部分而不是整个表
+      - 保护数据。进行权限管理
+      - 更改数据格式和表示。视图可返回与底层表的表示和格式不同的数据。
+      - 性能问题：视图不包含数据，因此大量使用视图可能导致性能问题。
+   2. 视图的规则和限制
+      - 视图可以嵌套
+      - 许多DBMS禁止在视图查询中使用order by子句
+      - 视图不能索引，不能有关联的触发器或默认值
+
+2. 创建视图
+
+   - 示例：
+
+     ```mysql
+     create view product_customers as 
+     select cust_name, cust_contact, prod_id 
+     from customers, orders, order_items 
+     where customers.cust_id = orders.cust_id 
+     and order_items.order_num = orders.order_num;
+     
+     select cust_name, cust_contact
+     from product_customers
+     where prod_id = 'BR01';
+     
+     Village Toys	John Smith
+     Fun4All	Jim Jones
+     ```
+
+   - 使用视图重新格式化检索处的数据：比如某个格式化操作经常用，可以创建视图进行格式化。
+
+     - 示例：
+
+       ```mysql
+       create view vendor_locations as 
+       select concat(rtrim(vend_name), ' (', rtrim(vend_country), ')')  as vend_title
+       from vendors;
+       
+       Bear Emporium (USA)
+       Bears R Us (USA)
+       Doll House Inc. (USA)
+       Fun and Games (England)
+       Furball Inc. (USA)
+       Jouets et ours (France)
+       ```
+
+   - 使用视图过滤数据：应用于where子句
+
+   - 使用视图与计算字段
+
+# 22、约束
+
+1. 约束
+   1. 主键
+   2. 外键
+   3.  唯一约束
+      - 表可以包含多个唯一约束
+      - 唯一约束列可包含NULL值
+      - 唯一约束列可以修改或更新
+      - 唯一约束列的值可重复使用
+      - 唯一约束列不能定义外键
+2. 索引
+   - 使用用于数据过滤和数据排序。如果经常以某种特定的顺序排序数据，可能适用于索引。
+3. 触发器
