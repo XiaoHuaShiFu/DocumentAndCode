@@ -518,7 +518,7 @@
        select vend_name, prod_name, prod_price 
        from vendors, products 
        where vendors.vend_id = products.vend_id;
-       
+       count
        select vend_name, prod_name, prod_price 
        from vendors inner join products 
        on vendors.vend_id = products.vend_id;
