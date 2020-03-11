@@ -19,8 +19,12 @@ grad = zeros(size(theta));
 
 
 
-
-
+h = sigmoid(X * theta);
+J = sum(-y .* log(h) - (1 - y) .* log(1 - h)) / m; 
+reglutheta = theta(2:size(theta,1),1);
+J = J + sum(reglutheta .^ 2) * lambda / (2 * m); 
+grad = X' * (h - y) ./ m;
+grad = [grad(1, :); grad(2:size(grad,1),:) + (lambda / m) * reglutheta];
 
 % =============================================================
 
