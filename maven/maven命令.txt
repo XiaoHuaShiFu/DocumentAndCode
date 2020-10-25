@@ -2,3 +2,7 @@ mvn clean  //清除
 mvn compile //编译
 mvn package //打包
 mvn clean package -Dmaven.test.skip=true //跳过单元测试
+
+// 安装，自定义信息
+mvn install:install-file -DgroupId=org.example -DartifactId=sample-api -Dversion=1.0.0 -Dpackaging=jar -Dfile=
+D:\SpringCloudAlibaba\springboot-provider\sample-api\target\sample-api-1.0-SNAPSHOT.jar
