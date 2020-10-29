@@ -83,6 +83,14 @@ SET PASSWORD = PASSWORD("newpassword");
 SET PASSWORD FOR 'pig'@'%' = PASSWORD("123456");
 ```
 
+修改密码：
+
+```
+alter user '用户名'@'主机地址' identified with mysql_native_password by '新密码';
+```
+
+
+
 ## 四. 撤销用户权限
 
 ***
