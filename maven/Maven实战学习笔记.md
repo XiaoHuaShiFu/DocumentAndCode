@@ -55,3 +55,18 @@
    - groupId、version、artifactId前缀
    - 
 
+# 9、Nexus搭建私服
+
+1. https://www.cnblogs.com/shiyh/p/11956785.html
+2. 
+
+# 10、Maven测试
+
+1. maven-surefire-plugin插件自动识别src/test/java目录下的所有：\*\*/Test\*.java，\*\*/\*Test.java，\*\*/\*TestCase.java类进行测试
+2. 跳过测试：mvn package -DskipTests
+3. 跳过测试和测试代码的编译：mvn package -Dmaven.test.skip=true
+4. 动态指定运行的测试用例：mvn test -Dtest=RandomGeneratorTest, Account*Test
+   - 即使没有任何测试也不报错：-DfailIfNoTests=false
+5. 测试报告：
+   - 测试完会在项目的target/surefire-reports目录下生成两个错误报告文件
+   - 使用mvn cobertura:cobertura可以生成测试覆盖率报告：报告在项目target/site/cobertura下的index.html文件
