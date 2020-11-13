@@ -2,13 +2,11 @@
 
 ## 前言
 
-　　本文主要整理一下SecurityContext的存储方式。
+本文主要整理一下SecurityContext的存储方式。
 
 ## SecurityContext接口
 
 顾名思义，安全上下文。即存储认证授权的相关信息，实际上就是存储"**当前用户**"账号信息和相关权限。这个接口只有两个方法，Authentication对象的getter、setter。
-
-[![复制代码](https://common.cnblogs.com/images/copycode.gif)](javascript:void(0);)
 
 ```
 package org.springframework.security.core.context;
@@ -23,13 +21,9 @@ public interface SecurityContext extends Serializable {
 }
 ```
 
-[![复制代码](https://common.cnblogs.com/images/copycode.gif)](javascript:void(0);)
-
 ## Authentication接口又是干嘛的？
 
 注意：SecurityContext存储的Authentication对象是经过认证的，所以它会带有权限，它的getAuthorities()方法会返回相关权限。
-
-[![复制代码](https://common.cnblogs.com/images/copycode.gif)](javascript:void(0);)
 
 ```
 package org.springframework.security.core;
@@ -52,8 +46,6 @@ public interface Authentication extends Principal, Serializable {
     void setAuthenticated(boolean var1) throws IllegalArgumentException;
 }
 ```
-
-[![复制代码](https://common.cnblogs.com/images/copycode.gif)](javascript:void(0);)
 
 ## SecurityContextHolder工具类
 
@@ -80,8 +72,6 @@ SecurityContextHolder可以用来设置和获取SecurityContext。它主要是�
  SecurityContextPersistenceFilter是Security的拦截器，而且是拦截链中的第一个拦截器，请求来临时它会从HttpSession中把SecurityContext取出来，然后放入SecurityContextHolder。在所有拦截器都处理完成后，再把SecurityContext存入HttpSession，并清除SecurityContextHolder内的引用。
 
 注：其中repo对象是HttpSessionSecurityContextRepository
-
-[![复制代码](https://common.cnblogs.com/images/copycode.gif)](javascript:void(0);)
 
 ```
 public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
@@ -140,11 +130,9 @@ public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
     }
 ```
 
-[![复制代码](https://common.cnblogs.com/images/copycode.gif)](javascript:void(0);)
-
 ### Tomcat建立会话的流程
 
-　　有人可能对Tomcat建立会话的流程还不熟悉，这里稍微整理一下。是这样的，当客户浏览器打开后第一次访问Tomcat服务器，Tomcat会创建一个HttpSesion对象，存入一个ConcurrentHashMap，Key是SessionId，Value就是HttpSession。然后请求完成后，在返回的报文中添加**Set-Cookie：JSESSIONID=xxx**，然后客户端浏览器会保存这个Cookie。当浏览器再次访问这个服务器的时候，都会带上这个Cookie。Tomcat接收到这个请求后，根据JSESSIONID把对应的HttpSession对象取出来，放入HttpSerlvetRequest对象里面。
+有人可能对Tomcat建立会话的流程还不熟悉，这里稍微整理一下。是这样的，当客户浏览器打开后第一次访问Tomcat服务器，Tomcat会创建一个HttpSesion对象，存入一个ConcurrentHashMap，Key是SessionId，Value就是HttpSession。然后请求完成后，在返回的报文中添加**Set-Cookie：JSESSIONID=xxx**，然后客户端浏览器会保存这个Cookie。当浏览器再次访问这个服务器的时候，都会带上这个Cookie。Tomcat接收到这个请求后，根据JSESSIONID把对应的HttpSession对象取出来，放入HttpSerlvetRequest对象里面。
 
 **重点：**
 

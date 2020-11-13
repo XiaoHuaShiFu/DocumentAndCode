@@ -1,11 +1,5 @@
 # HTTP返回状态码及错误大全
 
-![img](https://csdnimg.cn/release/blogv2/dist/pc/img/reprint.png)
-
-[强哥之神](https://me.csdn.net/qianggezhishen) 2015-10-16 09:44:07 ![img](https://csdnimg.cn/release/blogv2/dist/pc/img/articleReadEyes.png) 20709 ![img](https://csdnimg.cn/release/blogv2/dist/pc/img/tobarCollect.png) 收藏 13
-
-分类专栏： [网络通讯](https://blog.csdn.net/qianggezhishen/category_3268063.html) [HTTP](https://blog.csdn.net/qianggezhishen/category_5882041.html) 文章标签： [HTTP](https://www.csdn.net/gather_24/MtTaEg0sNTUyMjUtYmxvZwO0O0OO0O0O.html) [returncode](https://so.csdn.net/so/search/s.do?q=returncode&t=blog&o=vip&s=&l=&f=&viparticle=) [返回值](https://www.csdn.net/gather_21/MtTaEg0sMDQxMzAtYmxvZwO0O0OO0O0O.html)
-
 HTTP 400 - 请求无效
 HTTP 401.1 - 未授权：登录失败
 HTTP 401.2 - 未授权：服务器配置问题导致登录失败
