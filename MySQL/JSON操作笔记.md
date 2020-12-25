@@ -1,3 +1,47 @@
+# JSON函数列表
+
+**Table 12.22 JSON Functions**
+
+| Name                                                         | Description                                                  |
+| :----------------------------------------------------------- | :----------------------------------------------------------- |
+| [`->`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#operator_json-column-path) | Return value from JSON column after evaluating path; equivalent to JSON_EXTRACT(). |
+| [`->>`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#operator_json-inline-path) | Return value from JSON column after evaluating path and unquoting the result; equivalent to JSON_UNQUOTE(JSON_EXTRACT()). |
+| [`JSON_ARRAY()`](https://dev.mysql.com/doc/refman/8.0/en/json-creation-functions.html#function_json-array) | Create JSON array                                            |
+| [`JSON_ARRAY_APPEND()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-array-append) | Append data to JSON document                                 |
+| [`JSON_ARRAY_INSERT()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-array-insert) | Insert into JSON array                                       |
+| [`JSON_CONTAINS()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#function_json-contains) | Whether JSON document contains specific object at path       |
+| [`JSON_CONTAINS_PATH()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#function_json-contains-path) | Whether JSON document contains any data at path              |
+| [`JSON_DEPTH()`](https://dev.mysql.com/doc/refman/8.0/en/json-attribute-functions.html#function_json-depth) | Maximum depth of JSON document                               |
+| [`JSON_EXTRACT()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#function_json-extract) | Return data from JSON document                               |
+| [`JSON_INSERT()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-insert) | Insert data into JSON document                               |
+| [`JSON_KEYS()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#function_json-keys) | Array of keys from JSON document                             |
+| [`JSON_LENGTH()`](https://dev.mysql.com/doc/refman/8.0/en/json-attribute-functions.html#function_json-length) | Number of elements in JSON document                          |
+| [`JSON_MERGE()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-merge) (deprecated) | Merge JSON documents, preserving duplicate keys. Deprecated synonym for JSON_MERGE_PRESERVE() |
+| [`JSON_MERGE_PATCH()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-merge-patch) | Merge JSON documents, replacing values of duplicate keys     |
+| [`JSON_MERGE_PRESERVE()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-merge-preserve) | Merge JSON documents, preserving duplicate keys              |
+| [`JSON_OBJECT()`](https://dev.mysql.com/doc/refman/8.0/en/json-creation-functions.html#function_json-object) | Create JSON object                                           |
+| [`JSON_OVERLAPS()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#function_json-overlaps) (introduced 8.0.17) | Compares two JSON documents, returns TRUE (1) if these have any key-value pairs or array elements in common, otherwise FALSE (0) |
+| [`JSON_PRETTY()`](https://dev.mysql.com/doc/refman/8.0/en/json-utility-functions.html#function_json-pretty) | Print a JSON document in human-readable format               |
+| [`JSON_QUOTE()`](https://dev.mysql.com/doc/refman/8.0/en/json-creation-functions.html#function_json-quote) | Quote JSON document                                          |
+| [`JSON_REMOVE()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-remove) | Remove data from JSON document                               |
+| [`JSON_REPLACE()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-replace) | Replace values in JSON document                              |
+| [`JSON_SCHEMA_VALID()`](https://dev.mysql.com/doc/refman/8.0/en/json-validation-functions.html#function_json-schema-valid) (introduced 8.0.17) | Validate JSON document against JSON schema; returns TRUE/1 if document validates against schema, or FALSE/0 if it does not |
+| [`JSON_SCHEMA_VALIDATION_REPORT()`](https://dev.mysql.com/doc/refman/8.0/en/json-validation-functions.html#function_json-schema-validation-report) (introduced 8.0.17) | Validate JSON document against JSON schema; returns report in JSON format on outcome on validation including success or failure and reasons for failure |
+| [`JSON_SEARCH()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#function_json-search) | Path to value within JSON document                           |
+| [`JSON_SET()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-set) | Insert data into JSON document                               |
+| [`JSON_STORAGE_FREE()`](https://dev.mysql.com/doc/refman/8.0/en/json-utility-functions.html#function_json-storage-free) | Freed space within binary representation of JSON column value following partial update |
+| [`JSON_STORAGE_SIZE()`](https://dev.mysql.com/doc/refman/8.0/en/json-utility-functions.html#function_json-storage-size) | Space used for storage of binary representation of a JSON document |
+| [`JSON_TABLE()`](https://dev.mysql.com/doc/refman/8.0/en/json-table-functions.html#function_json-table) | Return data from a JSON expression as a relational table     |
+| [`JSON_TYPE()`](https://dev.mysql.com/doc/refman/8.0/en/json-attribute-functions.html#function_json-type) | Type of JSON value                                           |
+| [`JSON_UNQUOTE()`](https://dev.mysql.com/doc/refman/8.0/en/json-modification-functions.html#function_json-unquote) | Unquote JSON value                                           |
+| [`JSON_VALID()`](https://dev.mysql.com/doc/refman/8.0/en/json-attribute-functions.html#function_json-valid) | Whether JSON value is valid                                  |
+| [`JSON_VALUE()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#function_json-value) (introduced 8.0.21) | Extract value from JSON document at location pointed to by path provided; return this value as VARCHAR(512) or specified type |
+| [`MEMBER OF()`](https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html#operator_member-of) (introduced 8.0.17) | Returns true (1) if first operand matches any element of JSON array passed as second operand, otherwise returns false (0) |
+
+聚合函数 [`JSON_ARRAYAGG()`](https://dev.mysql.com/doc/refman/8.0/en/aggregate-functions.html#function_json-arrayagg) and [`JSON_OBJECTAGG()`](https://dev.mysql.com/doc/refman/8.0/en/aggregate-functions.html#function_json-objectagg)
+
+MySQL also supports “pretty-printing” of JSON values in an easy-to-read format, using the [`JSON_PRETTY()`](https://dev.mysql.com/doc/refman/8.0/en/json-utility-functions.html#function_json-pretty) function. You can see how much storage space a given JSON value takes up, and how much space remains for additional storage, using [`JSON_STORAGE_SIZE()`](https://dev.mysql.com/doc/refman/8.0/en/json-utility-functions.html#function_json-storage-size) and [`JSON_STORAGE_FREE()`](https://dev.mysql.com/doc/refman/8.0/en/json-utility-functions.html#function_json-storage-free), respectively. For complete descriptions of these functions, see [Section 12.18.8, “JSON Utility Functions”](https://dev.mysql.com/doc/refman/8.0/en/json-utility-functions.html).
+
 
 
 # 数组
@@ -2088,7 +2132,213 @@ CAST('[94507,94582]' AS JSON)
 
      - frame_start and frame_end 含义：
        - CURRENT ROW：对于ROWS，当前行；对于RANGE，当前行的对等点。
+       
        - UNBOUNDED PRECEDING：界限是partition的第一行；
+       
        - UNBOUNDED FOLLOWING：界限是partition的最后一行；
+       
        - expr PRECEDING：对于ROWS，界限是expr相对于当前行；对于RANGE，界限是当前行的值减去expr的行。
+       
+         
+
+# JSON表格函数
+
+1. JSON_TABLE(expr, path COLUMNS (column_list) [AS] alias)：从JSON文档提取数据然后返回一个关系表。
+
+   ```
+   JSON_TABLE(
+       expr,
+       path COLUMNS (column_list)
+   )   [AS] alias
+   
+   column_list:
+       column[, column][, ...]
+   
+   column:
+       name FOR ORDINALITY
+       |  name type PATH string path [on_empty] [on_error]
+       |  name type EXISTS PATH string path
+       |  NESTED [PATH] path COLUMNS (column_list)
+   
+   on_empty:
+       {NULL | DEFAULT json_string | ERROR} ON EMPTY
+   
+   on_error:
+       {NULL | DEFAULT json_string | ERROR} ON ERROR
+   ```
+
+   - expr：返回一个JSON数据。可以是一个常量（'{"a":1}'），一个列（t1.json_data），一个函数调用（JSON_EXTRACT(t1.json_data,'$.post.comments')）
+   - path：标识在JSON数据的哪里。
+   - alias：必须指定。
+   - COLUMNS：
+     - name FOR ORDINALITY：自增主键。
+     - name type PATH string_path [on_empty] [on_error]：类似于普通的JSON列。
+       - on empty：
+         - NULL ON EMPTY：设置为NULL。这是默认的。
+         - DEFAULT json_string ON EMPTY：一个JSON字符串。
+         - ERROR ON EMPTY：An error is thrown。
+       - on_error：
+         - NULL ON ERROR：设置为NULL。这是默认的。
+         - DEFAULT json string ON ERROR：一个JSON字符串。
+         - ERROR ON ERROR： An error is thrown。
+     - name type EXISTS PATH path：如果存在路径则作为1，否则0。
+     - NESTED [PATH] path COLUMNS (column_list)：嵌套的列。
+
+2. ```
+   mysql> SELECT *
+       ->   FROM
+       ->     JSON_TABLE(
+       ->       '[ {"c1": null} ]',
+       ->       '$[*]' COLUMNS( c1 INT PATH '$.c1' ERROR ON ERROR )
+       ->     ) as jt;
+   +------+
+   | c1   |
+   +------+
+   | NULL |
+   +------+
+   1 row in set (0.00 sec)
+   ```
+
+3. ```sql
+   mysql> SELECT *
+       -> FROM
+       ->   JSON_TABLE(
+       ->     '[{"a":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
+       ->     "$[*]"
+       ->     COLUMNS(
+       ->       rowid FOR ORDINALITY,
+       ->       ac VARCHAR(100) PATH "$.a" DEFAULT '111' ON EMPTY DEFAULT '999' ON ERROR,
+       ->       aj JSON PATH "$.a" DEFAULT '{"x": 333}' ON EMPTY,
+       ->       bx INT EXISTS PATH "$.b"
+       ->     )
+       ->   ) AS tt;
+   
+   +-------+------+------------+------+
+   | rowid | ac   | aj         | bx   |
+   +-------+------+------------+------+
+   |     1 | 3    | "3"        |    0 |
+   |     2 | 2    | 2          |    0 |
+   |     3 | 111  | {"x": 333} |    1 |
+   |     4 | 0    | 0          |    0 |
+   |     5 | 999  | [1, 2]     |    0 |
+   +-------+------+------------+------+
+   5 rows in set (0.00 sec)
+   ```
+
+4. ```sql
+   mysql> SELECT *
+       -> FROM
+       ->   JSON_TABLE(
+       ->     '[{"x":2,"y":"8"},{"x":"3","y":"7"},{"x":"4","y":6}]',
+       ->     "$[*]" COLUMNS(
+       ->       xval VARCHAR(100) PATH "$.x",
+       ->       yval VARCHAR(100) PATH "$.y"
+       ->     )
+       ->   ) AS  jt1;
+   
+   +------+------+
+   | xval | yval |
+   +------+------+
+   | 2    | 8    |
+   | 3    | 7    |
+   | 4    | 6    |
+   +------+------+
+   ```
+
+5. ```sql
+   mysql> SELECT *
+       -> FROM
+       ->   JSON_TABLE(
+       ->     '[{"x":2,"y":"8"},{"x":"3","y":"7"},{"x":"4","y":6}]',
+       ->     "$[1]" COLUMNS(
+       ->       xval VARCHAR(100) PATH "$.x",
+       ->       yval VARCHAR(100) PATH "$.y"
+       ->     )
+       ->   ) AS  jt1;
+   
+   +------+------+
+   | xval | yval |
+   +------+------+
+   | 3    | 7    |
+   +------+------+
+   ```
+
+6. ```sql
+   mysql> SELECT *
+       -> FROM
+       ->   JSON_TABLE(
+       ->     '[ {"a": 1, "b": [11,111]}, {"a": 2, "b": [22,222]}, {"a":3}]',
+       ->     '$[*]' COLUMNS(
+       ->             a INT PATH '$.a',
+       ->             NESTED PATH '$.b[*]' COLUMNS (b INT PATH '$')
+       ->            )
+       ->    ) AS jt
+       -> WHERE b IS NOT NULL;
+   
+   +------+------+
+   | a    | b    |
+   +------+------+
+   |    1 |   11 |
+   |    1 |  111 |
+   |    2 |   22 |
+   |    2 |  222 |
+   +------+------+
+   ```
+
+7. 请注意：不是乘积，是和。如下面不会生成11和111的乘积，而是它们的和。
+
+   ```sql
+   mysql> SELECT *
+       -> FROM
+       ->   JSON_TABLE(
+       ->     '[{"a": 1, "b": [11,111]}, {"a": 2, "b": [22,222]}]',
+       ->     '$[*]' COLUMNS(
+       ->         a INT PATH '$.a',
+       ->         NESTED PATH '$.b[*]' COLUMNS (b1 INT PATH '$'),
+       ->         NESTED PATH '$.b[*]' COLUMNS (b2 INT PATH '$')
+       ->     )
+       -> ) AS jt;
+   
+   +------+------+------+
+   | a    | b1   | b2   |
+   +------+------+------+
+   |    1 |   11 | NULL |
+   |    1 |  111 | NULL |
+   |    1 | NULL |   11 |
+   |    1 | NULL |  111 |
+   |    2 |   22 | NULL |
+   |    2 |  222 | NULL |
+   |    2 | NULL |   22 |
+   |    2 | NULL |  222 |
+   +------+------+------+
+   ```
+
+8. ```sql
+   mysql> SELECT *
+       -> FROM
+       ->   JSON_TABLE(
+       ->     '[{"a": "a_val",
+       '>       "b": [{"c": "c_val", "l": [1,2]}]},
+       '>     {"a": "a_val",
+       '>       "b": [{"c": "c_val","l": [11]}, {"c": "c_val", "l": [22]}]}]',
+       ->     '$[*]' COLUMNS(
+       ->       top_ord FOR ORDINALITY,
+       ->       apath VARCHAR(10) PATH '$.a',
+       ->       NESTED PATH '$.b[*]' COLUMNS (
+       ->         bpath VARCHAR(10) PATH '$.c',
+       ->         ord FOR ORDINALITY,
+       ->         NESTED PATH '$.l[*]' COLUMNS (lpath varchar(10) PATH '$')
+       ->         )
+       ->     )
+       -> ) as jt;
+   
+   +---------+---------+---------+------+-------+
+   | top_ord | apath   | bpath   | ord  | lpath |
+   +---------+---------+---------+------+-------+
+   |       1 |  a_val  |  c_val  |    1 | 1     |
+   |       1 |  a_val  |  c_val  |    1 | 2     |
+   |       2 |  a_val  |  c_val  |    1 | 11    |
+   |       2 |  a_val  |  c_val  |    2 | 22    |
+   +---------+---------+---------+------+-------+
+   ```
 
